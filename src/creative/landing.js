@@ -85,9 +85,11 @@ export async function buildLandingPage({ product, price_dzd, angle, language = '
  * instead of inventing them — a model asked to link pages it has not seen
  * writes plausible paths that 404.
  */
-export async function buildSite({ shop_name, tagline, products, language = 'ar' }) {
+export async function buildSite({ shop_name, tagline, products, language = 'ar', onProgress = () => {} }) {
   const pages = []
-  for (const p of products) {
+  const total = products.length + 1
+  for (const [i, p] of products.entries()) {
+    onProgress({ step: i + 1, total, label: p.name, phase: 'page' })
     try {
       const lp = await buildLandingPage({
         product: p.name,
@@ -104,6 +106,7 @@ export async function buildSite({ shop_name, tagline, products, language = 'ar' 
   }
 
   const ok = pages.filter((p) => !p.error)
+  onProgress({ step: total, total, label: shop_name, phase: 'home' })
   const home = await buildStorefront({
     shop_name,
     language,

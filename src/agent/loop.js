@@ -4,7 +4,7 @@
 // `ask_merchant` ends the turn immediately. When the agent says a detail is
 // missing, the right thing is to stop and show the question — not to keep
 // reasoning around the hole.
-import { chat, visibleAnswer } from '../models/llm.js'
+import { chatStream, visibleAnswer } from '../models/llm.js'
 import { TOOLS, SIMULATED, REAL } from './tools.js'
 import { systemPrompt } from './system.js'
 import { buildLandingPage, buildStorefront, buildSite } from '../creative/landing.js'
@@ -17,7 +17,7 @@ import { OUT_DIR } from '../creative/landing.js'
 
 const MAX_STEPS = 6
 
-async function runTool(name, args, ctx) {
+async function runTool(name, args, ctx, onEvent = () => {}) {
   switch (name) {
     case 'ask_merchant':
       return { ...args, blocking: true }
@@ -30,8 +30,10 @@ async function runTool(name, args, ctx) {
     case 'marketing_angles':
       return args // the model's own proposal; nothing to compute
 
+    // Minutes long: one model call per product, then one for the home page.
+    // It reports each page as it lands so the screen never goes quiet.
     case 'build_site':
-      return buildSite(args)
+      return buildSite({ ...args, onProgress: (p) => onEvent({ type: 'progress', tool: 'build_site', ...p }) })
 
     case 'generate_creatives': {
       const photo = ctx.photos?.[args.product_image] ?? ctx.photos?.[0]
@@ -88,17 +90,25 @@ export async function runTurn({ history = [], input, ctx = {}, onEvent = () => {
   const artifacts = []
 
   for (let step = 0; step < MAX_STEPS; step++) {
-    const msg = await chat(messages, { tools: TOOLS })
+    // One message id per model turn, so the UI knows which bubble the tokens
+    // belong to and can grow it in place instead of appending new ones.
+    const mid = `m${Date.now().toString(36)}${step}`
+    onEvent({ type: 'say:start', id: mid })
+
+    const msg = await chatStream(messages, {
+      tools: TOOLS,
+      onDelta: (t) => onEvent({ type: 'say:delta', id: mid, text: t }),
+      onReasoning: () => onEvent({ type: 'thinking', id: mid }),
+    })
     const calls = msg.tool_calls ?? []
     const text = visibleAnswer(msg)
+    onEvent({ type: 'say:end', id: mid, text })
 
     if (!calls.length) {
-      if (text) onEvent({ type: 'say', text })
       messages.push({ role: 'assistant', content: text })
       return { text, artifacts, messages: messages.slice(1) }
     }
 
-    if (text) onEvent({ type: 'say', text })
     messages.push({ role: 'assistant', content: text || null, tool_calls: calls })
 
     for (const call of calls) {
@@ -110,7 +120,7 @@ export async function runTurn({ history = [], input, ctx = {}, onEvent = () => {
 
       let result
       try {
-        result = await runTool(name, args, ctx)
+        result = await runTool(name, args, ctx, onEvent)
       } catch (e) {
         result = { error: e.message }
       }

@@ -13,7 +13,8 @@ const isArabic = (s) => /[؀-ۿ]/.test(s || '')
 const bottom = (n) => { n.scrollTop = n.scrollHeight }
 
 function say(who, text, cls) {
-  const n = el('div', `msg ${cls || who}`, esc(text))
+  const n = el('div', `msg ${cls || who}`)
+  n.textContent = text
   if (isArabic(text)) n.dir = 'rtl'
   log.append(n); bottom(log); return n
 }
@@ -187,42 +188,106 @@ function renderArtifact({ name, args, result, simulated, real }) {
   }
 }
 
+/* ── live step chips ────────────────────────────────────────────────────── */
+// A site takes minutes. Without a clock the screen reads as frozen, and the
+// first thing anyone does with a frozen screen is reload it.
+const LABEL = {
+  build_site: 'construit le site', build_landing_page: 'écrit la page',
+  generate_creatives: 'dessine les visuels', marketing_angles: 'cherche les angles',
+  configure_campaign: 'prépare la campagne', launch_campaign: 'lance la campagne',
+  campaign_results: 'lit les résultats', adjust_campaign: 'décide',
+  show_meta_setup: 'prépare la marche à suivre', propose_choices: '', ask_merchant: '',
+}
+
+function newStep(label) {
+  const n = el('div', 'step')
+  const txt = el('span', null, label)
+  const sub = el('span', 'sub')
+  const t = el('span', 't', '0s')
+  n.append(el('span', 'spin'), txt, sub, t)
+  const t0 = Date.now()
+  const tick = setInterval(() => { t.textContent = Math.round((Date.now() - t0) / 1000) + 's' }, 1000)
+  log.append(n); bottom(log)
+  return {
+    node: n,
+    label: (s) => { txt.textContent = s },
+    sub: (s) => { sub.textContent = s ? `· ${s}` : '' },
+    done() { clearInterval(tick); n.classList.add('done'); sub.textContent = '' },
+    drop() { clearInterval(tick); n.remove() },
+  }
+}
+
 /* ── talking to the agent ───────────────────────────────────────────────── */
 let busy = false
 async function send(input) {
   if (busy || !input?.trim()) return
   busy = true
+  document.body.classList.add('busy')
   say('me', input)
-  const step = el('div', 'step live')
-  step.append(el('span', 'dot'), el('span', null, 'réfléchit…'))
-  log.append(step); bottom(log)
 
-  const res = await fetch(`/api/chat?session=${SESSION}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ input }),
-  })
-  const reader = res.body.getReader(), dec = new TextDecoder()
-  let buf = ''
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    const parts = buf.split('\n\n'); buf = parts.pop()
-    for (const part of parts) {
-      const line = part.replace(/^data: /, '').trim()
-      if (!line) continue
-      let e; try { e = JSON.parse(line) } catch { continue }
-      if (e.type === 'say' && e.text) say('bot', e.text)
-      if (e.type === 'tool:start') step.lastChild.textContent = e.name.replace(/_/g, ' ') + '…'
-      if (e.type === 'tool:end') {
-        if (e.name === 'ask_merchant') say('bot', e.result.question, 'ask')
-        else if (e.name === 'propose_choices') showChoices(e.result)
-        else renderArtifact(e)
+  let step = newStep('réfléchit')
+  const bubbles = new Map()   // model-turn id -> bubble element
+
+  try {
+    const res = await fetch(`/api/chat?session=${SESSION}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input }),
+    })
+    const reader = res.body.getReader(), dec = new TextDecoder()
+    let buf = ''
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += dec.decode(value, { stream: true })
+      const parts = buf.split('\n\n'); buf = parts.pop()
+      for (const part of parts) {
+        const line = part.replace(/^data: /, '').trim()
+        if (!line) continue
+        let e; try { e = JSON.parse(line) } catch { continue }
+
+        if (e.type === 'say:start') {
+          const b = el('div', 'msg bot live'); b.textContent = ''
+          bubbles.set(e.id, b)
+          continue
+        }
+        if (e.type === 'say:delta') {
+          const b = bubbles.get(e.id); if (!b) continue
+          if (!b.isConnected) { step.node.before(b) }     // first token: show it
+          b.textContent += e.text
+          if (isArabic(b.textContent)) b.dir = 'rtl'
+          bottom(log)
+          continue
+        }
+        if (e.type === 'say:end') {
+          const b = bubbles.get(e.id)
+          if (b) { b.classList.remove('live'); if (!b.textContent.trim()) b.remove() }
+          continue
+        }
+        if (e.type === 'tool:start') {
+          const l = LABEL[e.name]
+          if (l) { step.label(l); step.sub('') }
+          continue
+        }
+        if (e.type === 'progress') {
+          step.sub(`${e.step}/${e.total} ${e.phase === 'home' ? 'accueil' : e.label ?? ''}`)
+          continue
+        }
+        if (e.type === 'tool:end') {
+          if (e.name === 'ask_merchant') { step.drop(); say('bot', e.result.question, 'ask'); step = newStep('réfléchit') }
+          else if (e.name === 'propose_choices') showChoices(e.result)
+          else { step.done(); renderArtifact(e); step = newStep('réfléchit') }
+          continue
+        }
+        if (e.type === 'error') say('bot', '⚠ ' + e.error, 'ask')
       }
-      if (e.type === 'error') say('bot', '⚠ ' + e.error)
     }
+  } catch (err) {
+    say('bot', '⚠ connexion interrompue : ' + err.message, 'ask')
   }
-  step.remove(); busy = false
+
+  step.drop()
+  document.body.classList.remove('busy')
+  busy = false
 }
 
 /* ── voice: hold to talk ────────────────────────────────────────────────── */
@@ -239,10 +304,15 @@ async function startRec() {
       stream.getTracks().forEach((t) => t.stop())
       const blob = new Blob(chunks, { type: 'audio/webm' })
       if (blob.size < 1200) return
-      const step = say('bot', 'écoute…')
-      const r = await fetch('/api/voice?ext=webm', { method: 'POST', body: blob }).then((x) => x.json())
-      step.remove()
-      if (r.error) return say('bot', '⚠ ' + r.error)
+      const step = newStep('écoute')
+      document.body.classList.add('busy')
+      let r
+      try {
+        r = await fetch('/api/voice?ext=webm', { method: 'POST', body: blob }).then((x) => x.json())
+      } catch (e) { r = { error: e.message } }
+      step.drop()
+      document.body.classList.remove('busy')
+      if (r.error) return say('bot', '⚠ ' + r.error, 'ask')
       showHeard(r)
       send(r.transcript)
     }
