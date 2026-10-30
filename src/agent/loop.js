@@ -17,6 +17,27 @@ import { OUT_DIR } from '../creative/landing.js'
 
 const MAX_STEPS = 6
 
+/**
+ * Every image this session has produced or been given, creatives first.
+ * A generated creative is a studio shot of the product; the merchant's own
+ * photo is the hanger-on-a-bedsheet it came from. Both belong on the page,
+ * in that order.
+ */
+const isUrl = (s) => typeof s === 'string' && (s.startsWith('/out/') || s.startsWith('http'))
+
+function assetsFor(ctx, explicit) {
+  // The model answers this field with what the schema asked for — ids like
+  // "0" or "photo_1" — so a non-empty list is not a usable list. Honouring it
+  // blindly is why a page came back with zero <img> tags while two perfectly
+  // good images sat in the session.
+  const chosen = (explicit ?? []).filter(isUrl)
+  if (chosen.length) return chosen
+
+  const creatives = (ctx.creatives ?? []).map((c) => c.url ?? c).filter(isUrl)
+  const photos = (ctx.photos ?? []).map((p) => p.url ?? p).filter(isUrl)
+  return [...creatives, ...photos].slice(0, 6)
+}
+
 async function runTool(name, args, ctx, onEvent = () => {}) {
   switch (name) {
     case 'ask_merchant':
@@ -32,8 +53,11 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
 
     // Minutes long: one model call per product, then one for the home page.
     // It reports each page as it lands so the screen never goes quiet.
-    case 'build_site':
-      return buildSite({ ...args, onProgress: (p) => onEvent({ type: 'progress', tool: 'build_site', ...p }) })
+    case 'build_site': {
+      const pool = assetsFor(ctx)
+      const products = (args.products ?? []).map((p, i) => ({ ...p, image: p.image || pool[i] || pool[0] || null }))
+      return buildSite({ ...args, products, onProgress: (p) => onEvent({ type: 'progress', tool: 'build_site', ...p }) })
+    }
 
     case 'generate_creatives': {
       const photos = ctx.photos ?? []
@@ -50,11 +74,17 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         save(b64, join(OUT_DIR, file))
         out.push({ angle, url: `/out/${file}` })
       }
+      // Kept on the session so the landing page can use them afterwards.
+      ;(ctx.creatives ??= []).push(...out)
       return { creatives: out, headline_ar: args.headline_ar ?? null, subject, source_photo: photo?.url ?? null }
     }
 
+    // The agent kept calling this with images:[] and the model then wrote a
+    // beautiful page with no product on it. Whatever has actually been
+    // generated or uploaded in this session is injected here, so forgetting
+    // is not an option the agent has.
     case 'build_landing_page':
-      return buildLandingPage({ ...args, shop: ctx.shop })
+      return buildLandingPage({ ...args, images: assetsFor(ctx, args.images), shop: ctx.shop })
 
     case 'build_storefront':
       return buildStorefront(args)

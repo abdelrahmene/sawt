@@ -30,7 +30,7 @@ const MIME = {
 // conversation have no business outliving the process.
 const sessions = new Map()
 const session = (id) => {
-  if (!sessions.has(id)) sessions.set(id, { history: [], photos: [], products: [], shop: null, timeline: [] })
+  if (!sessions.has(id)) sessions.set(id, { history: [], photos: [], creatives: [], products: [], shop: null, timeline: [] })
   return sessions.get(id)
 }
 
@@ -188,7 +188,10 @@ const server = createServer(async (req, res) => {
         const out = await runTurn({
           history: s.history,
           input,
-          ctx: { shop: s.shop, products: s.products, photos: s.photos, productName,
+          // `creatives` is the session's array by reference: the loop pushes
+          // into it as muse-image produces them, so the landing page built
+          // three turns later still has the studio shots to use.
+          ctx: { shop: s.shop, products: s.products, photos: s.photos, creatives: s.creatives, productName,
                  productGuess: s.photos.at(-1)?.described?.product ?? null },
           onEvent: (e) => {
             send(e)

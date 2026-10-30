@@ -170,9 +170,16 @@
   .grid figcaption a{margin-inline-start:auto;font-size:11px;text-decoration:none;opacity:.75}
   .grid figcaption a:hover{opacity:1}
 
-  iframe{width:100%;height:470px;border:0;background:#fff;display:block;border-bottom:1px solid var(--line)}
-  .frame{position:relative}
-  .frame .open{position:absolute;top:10px;inset-inline-end:10px;background:rgba(255,255,255,.94);
+  /* pointer-events:none on the preview is the whole fix for "the right side
+     won't scroll": a 470px iframe swallows the wheel, so the page inside
+     scrolled while the column stood still and there was no way to tell. The
+     preview is a picture you click to open; the wheel belongs to the column. */
+  iframe{width:100%;height:470px;border:0;background:#fff;display:block;
+    border-bottom:1px solid var(--line);pointer-events:none}
+  .frame{position:relative;cursor:pointer}
+  .frame::after{content:"";position:absolute;inset:0;background:transparent;transition:.16s}
+  .frame:hover::after{background:rgba(13,122,95,.05)}
+  .frame .open{position:absolute;top:10px;inset-inline-end:10px;z-index:2;background:rgba(255,255,255,.94);
     border:1px solid var(--line-2);border-radius:9px;padding:6px 11px;font:500 12px var(--sans);
     text-decoration:none;color:var(--ink-2);box-shadow:var(--sh);backdrop-filter:blur(4px)}
   .frame .open:hover{border-color:var(--accent-line);color:var(--accent)}

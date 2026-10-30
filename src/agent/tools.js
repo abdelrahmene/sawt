@@ -146,7 +146,11 @@ export const TOOLS = [
           price_dzd: { type: 'number' },
           angle: { type: 'string', description: 'Which marketing angle the page leads with.' },
           language: { type: 'string', enum: ['ar', 'fr'], description: 'Page language. Default ar.' },
-          images: { type: 'array', items: { type: 'string' }, description: 'Photo ids to use.' },
+          // Leave this out. Every image the session has produced or been given
+          // is attached automatically, creatives first — the model used to
+          // answer with ids like "photo_1", which are not image URLs, and the
+          // page came back with no product on it.
+          images: { type: 'array', items: { type: 'string' }, description: 'Leave empty. Images are attached automatically.' },
         },
         required: ['product', 'price_dzd'],
       },

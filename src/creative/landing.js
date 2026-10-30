@@ -36,7 +36,15 @@ HTML document and nothing else — no explanation, no markdown fence.
 
 Hard requirements:
 - Single file. Inline <style>. No external CSS, no framework, no build step.
-- No external images except the product photo URLs given to you.
+- USE EVERY PRODUCT IMAGE URL YOU ARE GIVEN, exactly as written, with no
+  prefix and no change. One large hero image at the top, the rest further
+  down. The first URLs are generated studio shots and belong at the top; the
+  later ones are the merchant's own photos.
+- Never invent an image path, never use a placeholder service, never leave an
+  <img> out because you think the page looks better without it. A product page
+  with no product on it is worthless, and the merchant cannot add them later.
+- If you are given no image at all, design around typography and say nothing
+  about photos.
 - If the language is Arabic: <html dir="rtl" lang="ar">, and all copy in
   Algerian darija a shopkeeper would actually write — not Modern Standard Arabic.
 - Mobile first. Most buyers arrive on a phone, on 4G, through an ad.
@@ -57,7 +65,9 @@ export async function buildLandingPage({ product, price_dzd, angle, language = '
     angle ? `Angle to lead with: ${angle}` : '',
     `Language: ${language === 'fr' ? 'French' : 'Algerian darija, Arabic script'}`,
     shop ? `Shop name: ${shop}` : '',
-    images.length ? `Product photo URLs, in order:\n${images.map((u) => `  ${u}`).join('\n')}` : 'No photo available: design around typography.',
+    images.length
+      ? `Product image URLs — use ALL of them, exactly as written:\n${images.map((u, i) => `  ${i + 1}. ${u}${i === 0 ? '   ← hero, show it large' : ''}`).join('\n')}`
+      : 'No photo available: design around typography.',
   ].filter(Boolean).join('\n')
 
   const msg = await chat(
@@ -129,8 +139,10 @@ HTML document and nothing else.
 Same rules as a landing page: single file, inline <style>, mobile first, RTL
 when Arabic, no external assets beyond the photos given, no fake social proof.
 
-A storefront is a grid of products. Each card shows the photo, the name, the
-price in DZD, and links to that product's landing page at the href given.
+A storefront is a grid of products. Each card MUST show the photo at the URL
+given for that product — exactly as written, no prefix, no placeholder — then
+the name, the price in DZD, and a link to that product's landing page at the
+href given. A card with no photo is a dead card.
 Above the grid: the shop name and one honest line about what it sells.`
 
 export async function buildStorefront({ shop_name, products, language = 'ar', tagline }) {

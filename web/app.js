@@ -40,8 +40,10 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') lb.classList.remove
 // screenshot, and these pages are meant to be used.
 function frame(url) {
   const wrap = el('div', 'frame')
+  wrap.title = 'ouvrir la page'
   const f = el('iframe'); f.src = url; f.loading = 'lazy'
   const a = Object.assign(el('a', 'open', 'ouvrir ↗'), { href: url, target: '_blank', rel: 'noopener' })
+  wrap.onclick = () => window.open(url, '_blank', 'noopener')
   wrap.append(f, a)
   return wrap
 }
