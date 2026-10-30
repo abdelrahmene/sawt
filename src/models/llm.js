@@ -34,8 +34,15 @@ export async function chat(messages, { tools, provider: name = PROVIDER, tempera
   return json.choices?.[0]?.message ?? {}
 }
 
-// Muse Spark Open always reasons. Shipping its chain of thought to a customer
-// would be a production incident, so the visible answer is isolated here.
+// Muse Spark Open always reasons, and shipping its chain of thought to a
+// customer would be a production incident.
+//
+// Verified 30 Oct 2026 on Baseten: the reasoning comes back in a SEPARATE
+// `reasoning_content` field, so `content` is already clean there — a trivial
+// "reply with OK" returned six sentences of deliberation in that field and the
+// bare "OK" in `content`. The tag stripping below is kept for providers that
+// inline it instead, because being wrong about this once means a customer
+// reads the model thinking out loud about them.
 const REASONING = /<(think|thinking|reasoning)>[\s\S]*?<\/\1>/gi
 
 export function visibleAnswer(message) {

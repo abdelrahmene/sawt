@@ -20,26 +20,34 @@ import { chat, visibleAnswer } from './llm.js'
 //   ffmpeg -i note.ogg -ar 16000 -ac 1 -c:a pcm_s16le note.wav
 //
 // ---------------------------------------------------------------------------
-// MEASURED 30 Oct 2026 — one real 10.7 s WhatsApp voice note asking, in
-// darija, for Adidas in size 40. The same file, the same settings, twice:
+// MEASURED 30 Oct 2026 — ONE real 10.7 s WhatsApp voice note, asking in darija
+// for Adidas in size 40. The same file, the same two settings, four runs:
 //
-//   run 1  auto-detect   "السلام عليكم. كاين."
-//          Arabic bias   "السلام عليكم ليه Adidas pointure quarante كاين?"
-//   run 2  auto-detect   "As-salamu alaykum. Les Adidas Pointure quarante كاين."
-//          Arabic bias   "السلام عليكم لي Adidas كاين"
+//              auto-detect                        languageBias ["Arabic"]
+//   run 1      "السلام عليكم. كاين."                  "…Adidas pointure quarante كاين?"  ✓
+//   run 2      "…Les Adidas Pointure quarante…"  ✓   "السلام عليكم لي Adidas كاين"
+//   run 3      "السلام عليكم لي كاين"                  "السلام عليكم لي Adidas كاين."
+//   run 4      "…لي adidas 40 كاين?"             ✓   "السلام عليكم لي Adidas كاين"
 //
-// The two runs disagree in opposite directions, so NEITHER setting is reliably
-// better on a single clip and no conclusion can be drawn from one sample.
+// The size survived 2 of 4 runs on auto-detect and 1 of 4 with the language
+// pinned — so on this clip the "fix" is WORSE than the default, and a single
+// sample would have led us to ship the wrong setting. It nearly did.
 //
-// What is consistent is the shape of the failure: the model does not return
-// broken darija, it silently DROPS the commercially decisive span — the brand,
-// "pointure", the size. Nothing in the response says anything was dropped, so
-// a shop built on this answers a question it never heard and never finds out.
-// The size is exactly the token a seller cannot do without.
+// What is stable is the shape of the failure. The model does not return broken
+// darija; it silently DELETES the commercially decisive span — the brand, the
+// word "pointure", the size — and the response carries no signal that anything
+// was dropped. The size is the one token a seller cannot do without.
 //
-// That instability is why bench/ measures N clips with repeats and scores
-// entity recall, not a transcript, and why the default below is a starting
-// point to be measured rather than a finding.
+// Downstream, both muse-spark-1.3 and muse-spark-open returned
+// intent=availability on every run and size=null on every run. They agree
+// perfectly, which means the reasoning layer is not the weak link: the ear is.
+// The agent always knows WHAT the customer wants and systematically loses
+// WHICH ONE.
+//
+// Hence bench/: N clips with repeats, scoring entity recall rather than a
+// transcript. The default below is a starting point to be measured, not a
+// finding — and the agent above it must treat a missing entity as a question
+// to ask back, never as an absence to assume away.
 // ---------------------------------------------------------------------------
 const DEFAULT_LANGUAGE_BIAS = ['Arabic']
 
