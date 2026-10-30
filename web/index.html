@@ -35,9 +35,13 @@
     grid-template-rows:minmax(0,1fr);
   }
   :lang(ar),[dir=rtl]{font-family:var(--arabic)}
+  /* Stacked, the second row must be CONSTRAINED, not `auto`. An auto row grows
+     to its content, the total passes 100dvh, and body{overflow:hidden} then
+     crops the canvas instead of letting it scroll — the creatives were there,
+     below the fold, with no way to reach them. */
   @media (max-width:980px){
-    body{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
-    #canvas{border-top:1px solid var(--line);max-height:45dvh}
+    body{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,48dvh)}
+    #canvas{border-top:1px solid var(--line);padding:16px}
   }
 
   /* ── conversation ───────────────────────────────────────────────────── */
@@ -69,7 +73,7 @@
   #log::-webkit-scrollbar{width:9px}
   #log::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px;border:3px solid var(--panel)}
 
-  .msg{max-width:88%;padding:10px 14px;border-radius:var(--r);white-space:pre-wrap;
+  .msg{flex:0 0 auto;max-width:88%;padding:10px 14px;border-radius:var(--r);white-space:pre-wrap;
     word-wrap:break-word;animation:rise .28s cubic-bezier(.2,.8,.3,1) both;font-size:14.5px}
   @keyframes rise{from{opacity:0;transform:translateY(7px)}}
   .msg.me{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:4px}
@@ -89,7 +93,7 @@
   @keyframes blink{50%{opacity:0}}
 
   /* what the model heard — twice */
-  .heard{align-self:stretch;border:1px solid var(--line);border-radius:var(--r);
+  .heard{flex:0 0 auto;align-self:stretch;border:1px solid var(--line);border-radius:var(--r);
     background:var(--raise);padding:12px 14px;font-size:13px;animation:rise .28s both}
   .heard b{display:block;font:500 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
     color:var(--faint);margin-bottom:9px}
@@ -104,7 +108,7 @@
 
   /* live step chips: name of the tool, a spinner, and a running clock, so a
      three-minute wait reads as progress rather than a freeze */
-  .step{align-self:flex-start;display:flex;align-items:center;gap:9px;padding:7px 12px;
+  .step{flex:0 0 auto;align-self:flex-start;display:flex;align-items:center;gap:9px;padding:7px 12px;
     border:1px solid var(--line);border-radius:99px;background:var(--panel);font-size:12.5px;
     color:var(--dim);animation:rise .22s both;box-shadow:var(--sh)}
   .step .spin{width:11px;height:11px;border-radius:50%;border:1.6px solid var(--line-2);
@@ -117,7 +121,7 @@
   .step .sub{color:var(--faint)}
 
   /* tappable next steps */
-  .choices{align-self:flex-start;max-width:96%;display:flex;flex-wrap:wrap;gap:8px;animation:rise .3s both}
+  .choices{flex:0 0 auto;align-self:flex-start;max-width:96%;display:flex;flex-wrap:wrap;gap:8px;animation:rise .3s both}
   .choices .q{flex:0 0 100%;color:var(--dim);font-size:13px;margin-bottom:2px}
   .choices button{background:var(--panel);border:1px solid var(--line-2);color:var(--ink-2);
     border-radius:99px;padding:9px 15px;font:500 13.5px var(--sans);cursor:pointer;
@@ -155,7 +159,11 @@
   .empty kbd{font:500 12px var(--mono);background:var(--panel);border:1px solid var(--line-2);
     border-bottom-width:2px;border-radius:6px;padding:2px 7px}
 
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);
+  /* flex-shrink:0 is load-bearing. In a flex column with a constrained height
+     the default shrinks every card to fit, so scrollHeight equals clientHeight
+     and NOTHING scrolls — the cards were squashed, images clipped, and the
+     column looked frozen. They must keep their natural height and overflow. */
+  .card{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);
     overflow:hidden;box-shadow:var(--sh);animation:rise .34s cubic-bezier(.2,.8,.3,1) both}
   .card > h3{margin:0;padding:13px 17px;font-size:13.5px;font-weight:600;letter-spacing:-.005em;
     border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;background:var(--raise)}
