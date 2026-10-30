@@ -5,7 +5,7 @@
 // ArrayBuffer just as easily.
 import { createServer } from 'node:http'
 import { readFile, writeFile, mkdir, stat } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join, extname, basename } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -28,10 +28,39 @@ const MIME = {
 
 // Kept in memory on purpose: this is a prototype, and a merchant's photos and
 // conversation have no business outliving the process.
+// On disk, not just in memory. Restarting the server to pick up a code change
+// used to wipe every conversation, every generated page and every creative
+// from the screen while the files sat right there in out/ — and a judge who
+// restarts it loses the demo they were half way through.
+const STORE = join(ROOT, 'out', 'sessions.json')
 const sessions = new Map()
+
+try {
+  if (existsSync(STORE)) {
+    for (const [id, s] of Object.entries(JSON.parse(readFileSync(STORE, 'utf8')))) sessions.set(id, s)
+    console.log(`  ${sessions.size} session(s) restaurée(s)`)
+  }
+} catch (e) { console.error('[sessions] illisible, on repart à vide:', e.message) }
+
+let saveTimer = null
+function persist() {
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => {
+    try {
+      mkdirSync(join(ROOT, 'out'), { recursive: true })
+      writeFileSync(STORE, JSON.stringify(Object.fromEntries(sessions), null, 0))
+    } catch (e) { console.error('[sessions]', e.message) }
+  }, 400)
+}
+
 const session = (id) => {
-  if (!sessions.has(id)) sessions.set(id, { history: [], photos: [], creatives: [], products: [], shop: null, timeline: [] })
-  return sessions.get(id)
+  if (!sessions.has(id)) {
+    sessions.set(id, { history: [], photos: [], creatives: [], products: [], shop: null, timeline: [] })
+  }
+  const s = sessions.get(id)
+  // Older saved sessions may predate a field; fill the gaps rather than crash.
+  s.history ??= []; s.photos ??= []; s.creatives ??= []; s.products ??= []; s.timeline ??= []
+  return s
 }
 
 // `history` is what the model is replayed; `timeline` is what the SCREEN is
@@ -41,6 +70,7 @@ const session = (id) => {
 const remember = (s, entry) => {
   s.timeline.push(entry)
   if (s.timeline.length > 300) s.timeline.splice(0, s.timeline.length - 300)
+  persist()
 }
 
 const json = (res, code, body) => {
@@ -209,6 +239,7 @@ const server = createServer(async (req, res) => {
           },
         })
         s.history = out.messages.slice(-20)
+        persist()
         send({ type: 'done', text: out.text, blocked: !!out.blocked, missing: out.missing ?? null })
       } catch (e) {
         send({ type: 'error', error: e.message })
@@ -240,6 +271,7 @@ const server = createServer(async (req, res) => {
     // screen, on purpose, when the merchant wants one.
     if (req.method === 'POST' && p === '/api/reset') {
       sessions.delete(url.searchParams.get('session') ?? 'default')
+      persist()
       return json(res, 200, { ok: true })
     }
 
