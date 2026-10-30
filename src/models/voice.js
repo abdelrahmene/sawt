@@ -12,43 +12,80 @@ import { basename } from 'node:path'
 import { META } from '../config.js'
 import { chat, visibleAnswer } from './llm.js'
 
-// Left on auto-detect, a darija voice note does not come back as bad darija.
-// It comes back as confident, fluent, invented ENGLISH — the model hedges
-// towards the language it knows best and writes a plausible sentence that was
-// never spoken. Observed on the very first clip we tried: a question about
-// leather shoes was returned as "Say, Michael, could I get a model car?".
+// POST /v1/asr/transcribe — multipart, a JSON `request` part and an `audio`
+// part. WAV only: mono integer PCM at 16 or 24 kHz, 10 minutes and 32 MB max.
+// Voice notes arrive as Opus/.ogg from WhatsApp and as AAC/.mp4 from
+// Messenger, so convert first:
 //
-// So the language is pinned, and a prompt of domain vocabulary is passed to
-// bias the decoder towards the words that actually occur in Algerian commerce.
-// `bench/run.mjs --auto` measures how much this is worth.
-const DARIJA_HINT = [
-  'محادثة تجارية بالدارجة الجزائرية بين زبون وبائع.',
-  'كلمات متوقعة: الثمن، شحال، بزاف، كاين، ماكانش، التوصيل، الدار، بوانتير، قياس، دينار، دج.',
-  'ولايات: الجزائر، وهران، قسنطينة، عنابة، سطيف، البليدة، تيزي وزو، بجاية، تلمسان، باتنة.',
-  'Mots français fréquents dans la phrase : livraison, pointure, taille, commande, stop desk.',
-].join(' ')
+//   ffmpeg -i note.ogg -ar 16000 -ac 1 -c:a pcm_s16le note.wav
+//
+// ---------------------------------------------------------------------------
+// MEASURED 30 Oct 2026 — one real 10.7 s WhatsApp voice note asking, in
+// darija, for Adidas in size 40. The same file, the same settings, twice:
+//
+//   run 1  auto-detect   "السلام عليكم. كاين."
+//          Arabic bias   "السلام عليكم ليه Adidas pointure quarante كاين?"
+//   run 2  auto-detect   "As-salamu alaykum. Les Adidas Pointure quarante كاين."
+//          Arabic bias   "السلام عليكم لي Adidas كاين"
+//
+// The two runs disagree in opposite directions, so NEITHER setting is reliably
+// better on a single clip and no conclusion can be drawn from one sample.
+//
+// What is consistent is the shape of the failure: the model does not return
+// broken darija, it silently DROPS the commercially decisive span — the brand,
+// "pointure", the size. Nothing in the response says anything was dropped, so
+// a shop built on this answers a question it never heard and never finds out.
+// The size is exactly the token a seller cannot do without.
+//
+// That instability is why bench/ measures N clips with repeats and scores
+// entity recall, not a transcript, and why the default below is a starting
+// point to be measured rather than a finding.
+// ---------------------------------------------------------------------------
+const DEFAULT_LANGUAGE_BIAS = ['Arabic']
 
-export async function transcribe(audioPath, { language = 'ar', prompt = DARIJA_HINT } = {}) {
+// Keyword biasing is deliberately OFF by default. Adding French plus 25 domain
+// terms to the same clip recovered the content too, but duplicated the opening
+// word ("السلامالسلام"). More biasing was measurably worse than the right
+// biasing, so keywords stay opt-in and are measured per use case.
+const DARIJA_KEYWORDS = [
+  'شحال', 'الثمن', 'كاين', 'ماكانش', 'التوصيل', 'بوانتير', 'قياس', 'دينار', 'دج',
+  'وهران', 'الجزائر', 'قسنطينة', 'عنابة', 'سطيف', 'البليدة', 'تيزي وزو', 'بجاية',
+  'تلمسان', 'باتنة', 'سيدي بلعباس', 'مستغانم', 'بسكرة',
+  'livraison', 'pointure', 'stop desk', 'commande',
+]
+
+export async function transcribe(audioPath, {
+  languageBias = DEFAULT_LANGUAGE_BIAS,
+  keywords = null,
+  mode = 'PUSH_TO_TALK',
+} = {}) {
   if (!META.key) throw new Error('MODEL_API_KEY is required for transcription in live mode.')
 
-  const form = new FormData()
-  form.append('model', 'muse-voice-transcribe-1.0')
-  form.append('file', new Blob([readFileSync(audioPath)]), basename(audioPath))
-  // language = null means "let it auto-detect", which is the failure case above.
-  if (language) form.append('language', language)
-  if (prompt) form.append('prompt', prompt)
+  const request = { model: 'muse-voice-transcribe-1.0', audioEncoding: 'WAV', mode }
+  // null means "let the model detect the language" — the failure case above.
+  if (languageBias?.length) request.languageBias = languageBias
+  if (keywords?.length) request.keywords = keywords
 
-  const res = await fetch(`${META.base}/audio/transcriptions`, {
+  const form = new FormData()
+  form.append('request', new Blob([JSON.stringify(request)], { type: 'application/json' }))
+  form.append('audio', new Blob([readFileSync(audioPath)], { type: 'audio/wav' }), basename(audioPath))
+
+  const res = await fetch(`${META.base}/asr/transcribe`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${META.key}` },
+    headers: { Authorization: `Bearer ${META.key}`, Accept: 'application/json' },
     body: form,
   })
   if (!res.ok) throw new Error(`transcribe ${res.status}: ${(await res.text()).slice(0, 300)}`)
+
   const json = await res.json()
-  return json.text ?? ''
+  // PUSH_TO_TALK returns one `transcript`; DIARIZATION fills `turns` instead.
+  if (json.turns?.length) {
+    return json.turns.map((t) => (t.speaker ? `[${t.speaker}] ` : '') + (t.text ?? '')).join(' ').trim()
+  }
+  return json.transcript ?? ''
 }
 
-export { DARIJA_HINT }
+export { DARIJA_KEYWORDS, DEFAULT_LANGUAGE_BIAS }
 
 const INTENTS = [
   'price', 'sizes', 'availability', 'delivery_time', 'delivery_cost',

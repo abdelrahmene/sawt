@@ -34,14 +34,14 @@ if (file) {
   // broken darija — it returns fluent, confident, invented English. Seeing the
   // two side by side is the whole argument for pinning the language.
   const t1 = Date.now()
-  const auto = await transcribe(file, { language: null, prompt: null })
+  const auto = await transcribe(file, { languageBias: null })
     .catch((e) => `FAILED ${e.message.slice(0, 80)}`)
   console.log(`  auto-detect   ${auto}`)
   console.log(`  ${' '.repeat(13)}${Date.now() - t1} ms\n`)
 
   const t2 = Date.now()
   heard = await transcribe(file)
-  console.log(`  language=ar   ${heard}`)
+  console.log(`  Arabic bias   ${heard}`)
   console.log(`  ${' '.repeat(13)}${Date.now() - t2} ms`)
 }
 
