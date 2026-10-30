@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "description": "An AI agent that runs social media marketing by voice — and understands Algerian darija.",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node src/index.js --replay",
     "live": "node src/index.js --live",
-    "bench": "node bench/run.mjs"
+    "bench": "node bench/run.mjs",
+    "try": "node bench/try-one.mjs"
   },
   "license": "MIT",
   "dependencies": {}
