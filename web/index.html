@@ -83,6 +83,9 @@
   .msg.ask::before{content:"il lui manque quelque chose";display:block;font:500 10px/1 var(--mono);
     letter-spacing:.1em;text-transform:uppercase;color:var(--warn);margin-bottom:7px;opacity:.8}
   .msg[dir=rtl]{text-align:right}
+  .msg .inline-img{display:block;width:100%;max-width:230px;aspect-ratio:1;object-fit:cover;
+    border-radius:10px;border:1px solid var(--line);margin:7px 0;cursor:zoom-in;transition:.16s}
+  .msg .inline-img:hover{border-color:var(--accent-line);box-shadow:var(--sh)}
   .msg a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-line);
     word-break:break-all}
   .msg a:hover{border-bottom-color:var(--accent)}

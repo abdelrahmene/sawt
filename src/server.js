@@ -54,10 +54,12 @@ async function body(req) {
   return Buffer.concat(chunks)
 }
 
-async function serveStatic(res, path) {
+async function serveStatic(res, path, method = 'GET') {
   if (!existsSync(path)) { res.writeHead(404); return res.end('Not found') }
+  const type = MIME[extname(path).toLowerCase()] ?? 'application/octet-stream'
+  if (method === 'HEAD') { res.writeHead(200, { 'Content-Type': type }); return res.end() }
   const data = await readFile(path)
-  res.writeHead(200, { 'Content-Type': MIME[extname(path).toLowerCase()] ?? 'application/octet-stream' })
+  res.writeHead(200, { 'Content-Type': type })
   res.end(data)
 }
 
@@ -85,14 +87,17 @@ const server = createServer(async (req, res) => {
 
   try {
     // ---- static -----------------------------------------------------------
-    if (req.method === 'GET' && (p === '/' || p === '/index.html')) {
-      return serveStatic(res, join(ROOT, 'web', 'index.html'))
+    // HEAD as well as GET: link checkers and prefetchers use it, and answering
+    // 404 to a HEAD on a file that exists makes a working link look broken.
+    const reading = req.method === 'GET' || req.method === 'HEAD'
+    if (reading && (p === '/' || p === '/index.html')) {
+      return serveStatic(res, join(ROOT, 'web', 'index.html'), req.method)
     }
-    if (req.method === 'GET' && p.startsWith('/web/')) {
-      return serveStatic(res, join(ROOT, 'web', basename(p)))
+    if (reading && p.startsWith('/web/')) {
+      return serveStatic(res, join(ROOT, 'web', basename(p)), req.method)
     }
-    if (req.method === 'GET' && p.startsWith('/out/')) {
-      return serveStatic(res, join(ROOT, p.replace(/^\//, '')))
+    if (reading && p.startsWith('/out/')) {
+      return serveStatic(res, join(ROOT, decodeURIComponent(p).replace(/^\//, '')), req.method)
     }
 
     // ---- a product photo --------------------------------------------------

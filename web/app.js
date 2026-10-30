@@ -63,15 +63,31 @@ function thumb(src, caption) {
 // The model writes markdown links and bare paths, and textContent rendered
 // them as "[/out/lp-x.html](/out/lp-x.html)" — the one thing on screen the
 // merchant most wants to click, printed as punctuation.
+// Backticks matter here. The agent writes `/out/creative-x.png` in code
+// quotes, and a character class that forgot the backtick swallowed the closing
+// one into the href — every generated image opened a 404. Markdown images get
+// rendered as actual thumbnails rather than as a stray "!" and a link.
+const IS_IMG = /\.(png|jpe?g|webp|gif)$/i
+
 function linkify(node, text) {
   node.textContent = ''
-  const re = /\[([^\]]+)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)|(\/out\/[^\s<>"')]+|https?:\/\/[^\s<>"')]+)/g
+  const re = /(!?)\[([^\]]*)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)|`?(\/out\/[^\s`<>"')]+|https?:\/\/[^\s`<>"')]+)`?/g
   let last = 0, m
   while ((m = re.exec(text))) {
     if (m.index > last) node.append(text.slice(last, m.index))
-    const href = m[2] ?? m[3]
-    const label = m[1] ?? href.replace(/^\/out\//, '')
-    node.append(Object.assign(el('a', null, esc(label)), { href, target: '_blank', rel: 'noopener' }))
+
+    const bang = m[1] === '!'
+    // Trailing sentence punctuation is never part of a path.
+    const href = (m[3] ?? m[4]).replace(/[.,;:!?)\]]+$/, '')
+    const label = m[2] || href.replace(/^\/out\//, '')
+
+    if (bang && IS_IMG.test(href)) {
+      const img = Object.assign(new Image(), { src: href, alt: label, className: 'inline-img', loading: 'lazy' })
+      img.onclick = () => zoom(href, label)
+      node.append(img)
+    } else {
+      node.append(Object.assign(el('a', null, esc(label)), { href, target: '_blank', rel: 'noopener' }))
+    }
     last = re.lastIndex
   }
   if (last < text.length) node.append(text.slice(last))
