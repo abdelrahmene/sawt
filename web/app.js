@@ -50,6 +50,25 @@ function showHeard({ transcript, transcript_auto, understood }) {
   log.append(n); bottom(log)
 }
 
+// Buttons the merchant taps instead of typing. Once one is used the whole set
+// greys out: a stale menu from three turns ago sends the agent somewhere it
+// has already been.
+function showChoices({ question, choices }) {
+  const n = el('div', 'choices')
+  if (question) {
+    const q = el('div', 'q', esc(question))
+    if (isArabic(question)) q.dir = 'rtl'
+    n.append(q)
+  }
+  for (const c of choices ?? []) {
+    const b = el('button', c.kind === 'primary' ? 'primary' : c.kind === 'caution' ? 'caution' : '', esc(c.label))
+    if (isArabic(c.label)) b.dir = 'rtl'
+    b.onclick = () => { n.classList.add('spent'); send(c.send) }
+    n.append(b)
+  }
+  log.append(n); bottom(log)
+}
+
 /* ── cards ──────────────────────────────────────────────────────────────── */
 function card(title, { real, sim } = {}) {
   const c = el('div', 'card')
@@ -87,6 +106,23 @@ function renderArtifact({ name, args, result, simulated, real }) {
     }
     b.append(g)
     if (result.headline_ar) b.append(el('div', 'why', `titre incrusté : <b dir="rtl">${esc(result.headline_ar)}</b>`))
+    return
+  }
+
+  if (name === 'build_site') {
+    const b = card(`Site — ${result.shop_name}`, { real: true })
+    const f = el('iframe'); f.src = result.home; f.loading = 'lazy'
+    b.append(f)
+    const list = el('div', 'pages')
+    list.append(Object.assign(el('a', null, `<span>🏠 accueil</span><span class="price">${result.count} produits</span>`), { href: result.home, target: '_blank' }))
+    for (const p of result.pages ?? []) {
+      list.append(Object.assign(
+        el('a', null, `<span>${esc(p.product)}</span><span class="price">${money(p.price_dzd)}</span>`),
+        { href: p.url, target: '_blank' }
+      ))
+    }
+    b.append(el('div', 'why', 'Chaque page est un vrai fichier, générée par muse-spark. Clique pour l\'ouvrir.'), list)
+    for (const f2 of result.failed ?? []) b.append(el('pre', null, `⚠ ${esc(f2.product)} : ${esc(f2.error)}`))
     return
   }
 
@@ -180,6 +216,7 @@ async function send(input) {
       if (e.type === 'tool:start') step.lastChild.textContent = e.name.replace(/_/g, ' ') + '…'
       if (e.type === 'tool:end') {
         if (e.name === 'ask_merchant') say('bot', e.result.question, 'ask')
+        else if (e.name === 'propose_choices') showChoices(e.result)
         else renderArtifact(e)
       }
       if (e.type === 'error') say('bot', '⚠ ' + e.error)

@@ -7,7 +7,7 @@
 import { chat, visibleAnswer } from '../models/llm.js'
 import { TOOLS, SIMULATED, REAL } from './tools.js'
 import { systemPrompt } from './system.js'
-import { buildLandingPage, buildStorefront } from '../creative/landing.js'
+import { buildLandingPage, buildStorefront, buildSite } from '../creative/landing.js'
 import { generate, save, headlinePrompt } from '../models/image.js'
 import { configureCampaign, launchCampaign, campaignResults, adjustCampaign } from '../meta-graph/campaign-sim.js'
 import { ONBOARDING } from './system.js'
@@ -22,8 +22,16 @@ async function runTool(name, args, ctx) {
     case 'ask_merchant':
       return { ...args, blocking: true }
 
+    // The model's own output, passed through. The UI turns it into buttons,
+    // and the model is told the merchant tapped one on the next turn.
+    case 'propose_choices':
+      return args
+
     case 'marketing_angles':
       return args // the model's own proposal; nothing to compute
+
+    case 'build_site':
+      return buildSite(args)
 
     case 'generate_creatives': {
       const photo = ctx.photos?.[args.product_image] ?? ctx.photos?.[0]

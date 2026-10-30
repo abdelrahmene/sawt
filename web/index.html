@@ -50,6 +50,25 @@
   .heard .gap{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);
     color:var(--warn);font-size:12px}
 
+  /* tappable next steps — a shopkeeper with one hand free would rather tap */
+  .choices{align-self:flex-start;max-width:96%;display:flex;flex-wrap:wrap;gap:7px}
+  .choices .q{flex:0 0 100%;color:var(--dim);font-size:13px;margin-bottom:1px}
+  .choices button{background:#15151b;border:1px solid var(--line);color:var(--ink);
+    border-radius:99px;padding:8px 14px;font:inherit;font-size:13.5px;cursor:pointer;
+    transition:border-color .12s,background .12s}
+  .choices button:hover{border-color:#39465f;background:#1a1a22}
+  .choices button.primary{border-color:#27402f;background:#172a22;color:var(--accent)}
+  .choices button.primary:hover{background:#1c3329}
+  .choices button.caution{border-color:#4a3c1a;background:#241e11;color:var(--warn)}
+  .choices button.caution::before{content:"◆ ";opacity:.7}
+  .choices.spent{opacity:.4;pointer-events:none}
+
+  .pages{display:flex;flex-direction:column;gap:7px}
+  .pages a{display:flex;align-items:center;gap:10px;padding:9px 11px;background:#0e0e13;
+    border:1px solid var(--line);border-radius:10px;text-decoration:none;font-size:13.5px}
+  .pages a:hover{border-color:#2f3f36}
+  .pages a .price{margin-inline-start:auto;color:var(--dim);font:12px var(--mono)}
+
   #dock{border-top:1px solid var(--line);padding:12px 14px;display:flex;gap:9px;align-items:center}
   #text{flex:1;background:#0c0c11;border:1px solid var(--line);border-radius:11px;
     color:var(--ink);padding:10px 12px;font:inherit;outline:none}

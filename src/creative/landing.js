@@ -7,11 +7,29 @@
 // one angle, one price, right-to-left, and a form that posts to a real
 // endpoint, it returns something a shop can use this afternoon.
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { ROOT } from '../config.js'
 import { chat, visibleAnswer } from '../models/llm.js'
 
 export const OUT_DIR = join(ROOT, 'out')
+
+/**
+ * A product named in Arabic has no ASCII left once you strip it, so the naive
+ * slug collapsed every product to "produit" and each page silently overwrote
+ * the last — a two-product shop shipped with both buttons pointing at the
+ * casquette. Latin names keep a readable slug; anything else gets a short
+ * digest of the name, which is stable (the same product always lands on the
+ * same file) and unique.
+ */
+export function slugify(name) {
+  const ascii = String(name ?? '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
+  if (ascii.length >= 3) return ascii
+  const digest = createHash('sha1').update(String(name ?? '')).digest('hex').slice(0, 8)
+  return ascii ? `${ascii}-${digest}` : digest
+}
 
 const BRIEF = `You write landing pages for Algerian cash-on-delivery shops. Output ONE complete
 HTML document and nothing else — no explanation, no markdown fence.
@@ -54,12 +72,52 @@ export async function buildLandingPage({ product, price_dzd, angle, language = '
     throw new Error('The model did not return an HTML document.')
   }
 
-  const slug = String(product).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'produit'
-  const file = `lp-${slug}.html`
+  const file = `lp-${slugify(product)}.html`
   mkdirSync(OUT_DIR, { recursive: true })
   writeFileSync(join(OUT_DIR, file), html, 'utf8')
 
   return { file, url: `/out/${file}`, bytes: html.length, product, price_dzd, angle, language }
+}
+
+/**
+ * A whole shop: one landing page per product, then a home page that links
+ * them. Built product-first so the home page can be given the real hrefs
+ * instead of inventing them — a model asked to link pages it has not seen
+ * writes plausible paths that 404.
+ */
+export async function buildSite({ shop_name, tagline, products, language = 'ar' }) {
+  const pages = []
+  for (const p of products) {
+    try {
+      const lp = await buildLandingPage({
+        product: p.name,
+        price_dzd: p.price_dzd,
+        angle: p.angle,
+        language,
+        images: p.image ? [p.image] : [],
+        shop: shop_name,
+      })
+      pages.push({ ...p, ...lp })
+    } catch (e) {
+      pages.push({ ...p, error: e.message })
+    }
+  }
+
+  const ok = pages.filter((p) => !p.error)
+  const home = await buildStorefront({
+    shop_name,
+    language,
+    products: ok.map((p) => ({ name: p.name, price: p.price_dzd, image: p.image, href: p.url })),
+    tagline,
+  })
+
+  return {
+    shop_name,
+    home: home.url,
+    pages: ok.map((p) => ({ product: p.name, url: p.url, price_dzd: p.price_dzd })),
+    failed: pages.filter((p) => p.error).map((p) => ({ product: p.name, error: p.error })),
+    count: ok.length,
+  }
 }
 
 const STORE_BRIEF = `You write storefronts for Algerian cash-on-delivery shops. Output ONE complete
@@ -72,9 +130,10 @@ A storefront is a grid of products. Each card shows the photo, the name, the
 price in DZD, and links to that product's landing page at the href given.
 Above the grid: the shop name and one honest line about what it sells.`
 
-export async function buildStorefront({ shop_name, products, language = 'ar' }) {
+export async function buildStorefront({ shop_name, products, language = 'ar', tagline }) {
   const prompt = [
     `Shop: ${shop_name}`,
+    tagline ? `Tagline: ${tagline}` : '',
     `Language: ${language === 'fr' ? 'French' : 'Algerian darija, Arabic script'}`,
     'Products:',
     ...products.map((p) =>

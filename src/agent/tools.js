@@ -27,6 +27,70 @@ export const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'propose_choices',
+      description:
+        'ALWAYS CALL THIS LAST, in every turn where you did not call ask_merchant. Offer two to four concrete next steps as buttons the merchant can tap — a shopkeeper on a phone, often one-handed in a shop, would rather tap than type. Never write your suggestions as prose instead: prose is not tappable. Each choice must be an action you can actually carry out next, phrased the way the merchant would say it.',
+      parameters: {
+        type: 'object',
+        properties: {
+          question: { type: 'string', description: 'One short line above the buttons, in the merchant\'s language.' },
+          choices: {
+            type: 'array',
+            minItems: 2,
+            maxItems: 4,
+            items: {
+              type: 'object',
+              properties: {
+                label: { type: 'string', description: 'What the button says. Three to six words.' },
+                send: { type: 'string', description: 'What gets sent back to you if they tap it. Write it as the merchant would.' },
+                kind: { type: 'string', enum: ['primary', 'normal', 'caution'], description: 'caution = it spends money or goes live.' },
+              },
+              required: ['label', 'send'],
+            },
+          },
+        },
+        required: ['choices'],
+      },
+    },
+  },
+  // There is deliberately no separate "build a storefront" tool. Offered both,
+  // the model reliably picked the cheaper one and shipped a bare index page
+  // with dead links. build_site writes the product pages first and only then
+  // the home page, so the links it writes are ones that exist.
+  {
+    type: 'function',
+    function: {
+      name: 'build_site',
+      description:
+        'REAL, not simulated: generate a whole multi-page shop — one landing page per product, then a home page linking them. This is the ONLY way to build a site or a storefront. Use it as soon as the merchant has given you a product and a price.',
+      parameters: {
+        type: 'object',
+        properties: {
+          shop_name: { type: 'string' },
+          tagline: { type: 'string', description: 'One honest line about what the shop sells.' },
+          language: { type: 'string', enum: ['ar', 'fr'] },
+          products: {
+            type: 'array',
+            minItems: 1,
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                price_dzd: { type: 'number' },
+                angle: { type: 'string', description: 'The reason to buy this one.' },
+                image: { type: 'string', description: 'Photo url if the merchant gave one.' },
+              },
+              required: ['name', 'price_dzd'],
+            },
+          },
+        },
+        required: ['shop_name', 'products'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'marketing_angles',
       description:
         'Propose distinct marketing angles for a product before any creative is made. An angle is a reason to buy, not a slogan.',
@@ -85,23 +149,6 @@ export const TOOLS = [
           images: { type: 'array', items: { type: 'string' }, description: 'Photo ids to use.' },
         },
         required: ['product', 'price_dzd'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'build_storefront',
-      description:
-        'REAL, not simulated: generate a storefront listing several products, each linking to its landing page.',
-      parameters: {
-        type: 'object',
-        properties: {
-          shop_name: { type: 'string' },
-          products: { type: 'array', items: { type: 'string' }, description: 'Product names already known.' },
-          language: { type: 'string', enum: ['ar', 'fr'] },
-        },
-        required: ['shop_name', 'products'],
       },
     },
   },
@@ -205,4 +252,8 @@ export const SIMULATED = new Set([
 ])
 
 // Tools that produce something the merchant can actually open.
-export const REAL = new Set(['build_landing_page', 'build_storefront', 'generate_creatives'])
+export const REAL = new Set(['build_landing_page', 'build_storefront', 'build_site', 'generate_creatives'])
+
+// Tools whose result is a prompt back to the merchant rather than an artifact:
+// the loop keeps going after them, but the UI renders them in the conversation.
+export const CONVERSATIONAL = new Set(['propose_choices', 'ask_merchant'])
