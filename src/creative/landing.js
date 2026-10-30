@@ -1,16 +1,16 @@
-// REAL, not simulated: the agent writes a landing page and the merchant can
-// open it. The HTML is produced by muse-spark — the model writes the page, we
-// only enforce the shell it has to fit in.
+// REAL, not simulated: the agent builds pages the merchant can open.
 //
-// Why constrain it at all: a model asked for "a landing page" returns a lorem
-// ipsum template with stock-photo placeholders. Constrained to one product,
-// one angle, one price, right-to-left, and a form that posts to a real
-// endpoint, it returns something a shop can use this afternoon.
+// A landing page is written in two halves — landing-content.js asks the model
+// for the copy as JSON, landing-render.js draws it. The storefront is still a
+// single generated document, because a grid of cards has no spine worth
+// enforcing and the model does it well.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { ROOT } from '../config.js'
 import { chat, visibleAnswer } from '../models/llm.js'
+import { landingContent } from './landing-content.js'
+import { renderLanding } from './landing-render.js'
 
 export const OUT_DIR = join(ROOT, 'out')
 
@@ -31,62 +31,43 @@ export function slugify(name) {
   return ascii ? `${ascii}-${digest}` : digest
 }
 
-const BRIEF = `You write landing pages for Algerian cash-on-delivery shops. Output ONE complete
-HTML document and nothing else — no explanation, no markdown fence.
+/**
+ * Copy from the model, layout from code.
+ *
+ * This used to ask muse-spark for a whole HTML document. It produced good
+ * pages and unpredictable ones in roughly equal measure: sections appearing
+ * and vanishing between runs, right-to-left handled differently each time,
+ * and once in three tries the product photo left out altogether. Now the model
+ * writes the words as JSON and renderLanding draws them, so every page has the
+ * same spine — problem, solution, proof you can see, three steps, the order
+ * form — and the photo is never optional.
+ */
+export async function buildLandingPage({ product, price_dzd, angle, language = 'ar', images = [], shop, notes }) {
+  const content = await landingContent({
+    product, price_dzd, angle, language, shop, notes,
+    // Local paths are inlined as data URLs for the vision call; the page
+    // itself references the served /out/ URLs.
+    photos: images.map((u) => (u.startsWith('/out/') ? join(ROOT, u.replace(/^\//, '')) : u)),
+  })
 
-Hard requirements:
-- Single file. Inline <style>. No external CSS, no framework, no build step.
-- USE EVERY PRODUCT IMAGE URL YOU ARE GIVEN, exactly as written, with no
-  prefix and no change. One large hero image at the top, the rest further
-  down. The first URLs are generated studio shots and belong at the top; the
-  later ones are the merchant's own photos.
-- Never invent an image path, never use a placeholder service, never leave an
-  <img> out because you think the page looks better without it. A product page
-  with no product on it is worthless, and the merchant cannot add them later.
-- If you are given no image at all, design around typography and say nothing
-  about photos.
-- If the language is Arabic: <html dir="rtl" lang="ar">, and all copy in
-  Algerian darija a shopkeeper would actually write — not Modern Standard Arabic.
-- Mobile first. Most buyers arrive on a phone, on 4G, through an ad.
-- The order form asks for: full name, phone, wilaya, commune, and nothing else.
-  Cash on delivery: never ask for an email or a card.
-- The form posts to /api/order. Keep the input names: name, phone, wilaya, commune, qty.
-- One clear price, in DZD, large. State delivery is paid on receipt.
-- Lead with the angle you are given — the whole page argues that one point.
-- No invented certifications, no fake reviews, no fake counters, no fake urgency.
-
-Taste: dark, high contrast, generous spacing, one accent colour, a real
-typographic hierarchy. It should look like a brand, not a template.`
-
-export async function buildLandingPage({ product, price_dzd, angle, language = 'ar', images = [], shop }) {
-  const prompt = [
-    `Product: ${product}`,
-    `Price: ${price_dzd} DZD`,
-    angle ? `Angle to lead with: ${angle}` : '',
-    `Language: ${language === 'fr' ? 'French' : 'Algerian darija, Arabic script'}`,
-    shop ? `Shop name: ${shop}` : '',
-    images.length
-      ? `Product image URLs — use ALL of them, exactly as written:\n${images.map((u, i) => `  ${i + 1}. ${u}${i === 0 ? '   ← hero, show it large' : ''}`).join('\n')}`
-      : 'No photo available: design around typography.',
-  ].filter(Boolean).join('\n')
-
-  const msg = await chat(
-    [{ role: 'system', content: BRIEF }, { role: 'user', content: prompt }],
-    { temperature: 0.7 }
-  )
-
-  let html = visibleAnswer(msg).trim()
-  // Models wrap HTML in a fence about a third of the time, whatever you ask.
-  html = html.replace(/^```(?:html)?\s*/i, '').replace(/\s*```$/, '').trim()
-  if (!/^<!doctype html/i.test(html) && !/^<html/i.test(html)) {
-    throw new Error('The model did not return an HTML document.')
-  }
+  const html = renderLanding(content, { images, shop })
 
   const file = `lp-${slugify(product)}.html`
   mkdirSync(OUT_DIR, { recursive: true })
   writeFileSync(join(OUT_DIR, file), html, 'utf8')
 
-  return { file, url: `/out/${file}`, bytes: html.length, product, price_dzd, angle, language }
+  return {
+    file, url: `/out/${file}`, bytes: html.length,
+    product, price_dzd, angle, language,
+    images: images.length,
+    sections: {
+      problem: !!content.problem.title, solution: !!content.solution.title,
+      benefits: content.benefits.length, features: content.features.length,
+      steps: content.steps.length, faq: content.faq.length,
+    },
+    theme: content.theme,
+    scenes: content.scenes,
+  }
 }
 
 /**
