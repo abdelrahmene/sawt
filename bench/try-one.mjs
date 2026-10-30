@@ -28,10 +28,21 @@ if (file) {
     console.error('\n  MODEL_API_KEY is required to transcribe audio. Put it in .env\n')
     process.exit(1)
   }
-  process.stdout.write('\n  transcribing with muse-voice-transcribe-1.0 … ')
-  const t0 = Date.now()
+  console.log('')
+
+  // Auto-detect is shown on purpose. Left to guess, the model does not return
+  // broken darija — it returns fluent, confident, invented English. Seeing the
+  // two side by side is the whole argument for pinning the language.
+  const t1 = Date.now()
+  const auto = await transcribe(file, { language: null, prompt: null })
+    .catch((e) => `FAILED ${e.message.slice(0, 80)}`)
+  console.log(`  auto-detect   ${auto}`)
+  console.log(`  ${' '.repeat(13)}${Date.now() - t1} ms\n`)
+
+  const t2 = Date.now()
   heard = await transcribe(file)
-  console.log(`${Date.now() - t0} ms`)
+  console.log(`  language=ar   ${heard}`)
+  console.log(`  ${' '.repeat(13)}${Date.now() - t2} ms`)
 }
 
 console.log(`\n  heard  ${heard}\n`)

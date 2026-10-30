@@ -12,12 +12,31 @@ import { basename } from 'node:path'
 import { META } from '../config.js'
 import { chat, visibleAnswer } from './llm.js'
 
-export async function transcribe(audioPath) {
+// Left on auto-detect, a darija voice note does not come back as bad darija.
+// It comes back as confident, fluent, invented ENGLISH — the model hedges
+// towards the language it knows best and writes a plausible sentence that was
+// never spoken. Observed on the very first clip we tried: a question about
+// leather shoes was returned as "Say, Michael, could I get a model car?".
+//
+// So the language is pinned, and a prompt of domain vocabulary is passed to
+// bias the decoder towards the words that actually occur in Algerian commerce.
+// `bench/run.mjs --auto` measures how much this is worth.
+const DARIJA_HINT = [
+  'محادثة تجارية بالدارجة الجزائرية بين زبون وبائع.',
+  'كلمات متوقعة: الثمن، شحال، بزاف، كاين، ماكانش، التوصيل، الدار، بوانتير، قياس، دينار، دج.',
+  'ولايات: الجزائر، وهران، قسنطينة، عنابة، سطيف، البليدة، تيزي وزو، بجاية، تلمسان، باتنة.',
+  'Mots français fréquents dans la phrase : livraison, pointure, taille, commande, stop desk.',
+].join(' ')
+
+export async function transcribe(audioPath, { language = 'ar', prompt = DARIJA_HINT } = {}) {
   if (!META.key) throw new Error('MODEL_API_KEY is required for transcription in live mode.')
 
   const form = new FormData()
   form.append('model', 'muse-voice-transcribe-1.0')
   form.append('file', new Blob([readFileSync(audioPath)]), basename(audioPath))
+  // language = null means "let it auto-detect", which is the failure case above.
+  if (language) form.append('language', language)
+  if (prompt) form.append('prompt', prompt)
 
   const res = await fetch(`${META.base}/audio/transcriptions`, {
     method: 'POST',
@@ -28,6 +47,8 @@ export async function transcribe(audioPath) {
   const json = await res.json()
   return json.text ?? ''
 }
+
+export { DARIJA_HINT }
 
 const INTENTS = [
   'price', 'sizes', 'availability', 'delivery_time', 'delivery_cost',
