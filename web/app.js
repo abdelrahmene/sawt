@@ -1,6 +1,12 @@
 const $ = (s) => document.querySelector(s)
 const log = $('#log'), canvas = $('#canvas')
-const SESSION = Math.random().toString(36).slice(2)
+
+// The session id outlives the tab, and the server keeps the screen's timeline
+// beside the model's history. Reloading a page mid-build used to throw away an
+// afternoon of generated pages; now it replays them.
+const KEY = 'sawt.session'
+let SESSION = localStorage.getItem(KEY)
+if (!SESSION) { SESSION = Math.random().toString(36).slice(2); localStorage.setItem(KEY, SESSION) }
 
 const el = (tag, cls, html) => {
   const n = document.createElement(tag)
@@ -10,7 +16,47 @@ const el = (tag, cls, html) => {
 }
 const esc = (s) => String(s ?? '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
 const isArabic = (s) => /[؀-ۿ]/.test(s || '')
-const bottom = (n) => { n.scrollTop = n.scrollHeight }
+
+// Auto-scroll only when the reader is already at the bottom. Yanking the view
+// down while someone is looking at a creative three cards up is how you make a
+// screen unusable — and it is what stopped him scrolling at all.
+const NEAR = 120
+const atBottom = (n) => n.scrollHeight - n.scrollTop - n.clientHeight < NEAR
+const toLatest = $('#tolatest')
+function bottom(n) {
+  if (atBottom(n)) { n.scrollTop = n.scrollHeight; if (n === canvas) toLatest.classList.remove('on') }
+  else if (n === canvas) toLatest.classList.add('on')
+}
+toLatest.onclick = () => { canvas.scrollTo({ top: canvas.scrollHeight, behavior: 'smooth' }); toLatest.classList.remove('on') }
+canvas.addEventListener('scroll', () => { if (atBottom(canvas)) toLatest.classList.remove('on') })
+
+/* ── lightbox ───────────────────────────────────────────────────────────── */
+const lb = $('#lightbox'), lbImg = lb.querySelector('img')
+const zoom = (src, alt) => { lbImg.src = src; lbImg.alt = alt ?? ''; lb.classList.add('on') }
+lb.onclick = () => lb.classList.remove('on')
+addEventListener('keydown', (e) => { if (e.key === 'Escape') lb.classList.remove('on') })
+
+// A preview with a way out: an iframe you cannot open in a real tab is a
+// screenshot, and these pages are meant to be used.
+function frame(url) {
+  const wrap = el('div', 'frame')
+  const f = el('iframe'); f.src = url; f.loading = 'lazy'
+  const a = Object.assign(el('a', 'open', 'ouvrir ↗'), { href: url, target: '_blank', rel: 'noopener' })
+  wrap.append(f, a)
+  return wrap
+}
+
+// Every generated image is clickable, and openable on its own.
+function thumb(src, caption) {
+  const f = el('figure')
+  const img = Object.assign(new Image(), { src, alt: caption ?? '', loading: 'lazy' })
+  img.onclick = () => zoom(src, caption)
+  const cap = el('figcaption')
+  cap.append(el('span', null, esc(caption ?? '')))
+  cap.append(Object.assign(el('a', null, 'ouvrir ↗'), { href: src, target: '_blank', rel: 'noopener' }))
+  f.append(img, cap)
+  return f
+}
 
 function say(who, text, cls) {
   const n = el('div', `msg ${cls || who}`)
@@ -82,6 +128,18 @@ function card(title, { real, sim } = {}) {
 }
 const clearEmpty = () => { const e = canvas.querySelector('.empty'); if (e) e.remove() }
 
+// One photo card that grows, rather than a new card per upload.
+function photoGrid() {
+  clearEmpty()
+  const existing = canvas.querySelector('.card.photos .grid')
+  if (existing) return existing
+  const body = card('Photos produit', { real: true })
+  body.parentElement.classList.add('photos')
+  const g = el('div', 'grid')
+  body.append(g)
+  return g
+}
+
 const money = (n) => (n == null ? '—' : Number(n).toLocaleString('fr-FR') + ' DA')
 
 function renderArtifact({ name, args, result, simulated, real }) {
@@ -100,20 +158,16 @@ function renderArtifact({ name, args, result, simulated, real }) {
   if (name === 'generate_creatives') {
     const b = card('Créatives', { real: true })
     const g = el('div', 'grid')
-    for (const c of result.creatives ?? []) {
-      const f = el('figure')
-      f.append(Object.assign(new Image(), { src: c.url, alt: c.angle }), el('figcaption', null, esc(c.angle)))
-      g.append(f)
-    }
+    for (const c of result.creatives ?? []) g.append(thumb(c.url, c.angle))
     b.append(g)
+    if (result.subject) b.append(el('div', 'why', `d'après ce qu'il a vu : <b>${esc(result.subject)}</b>`))
     if (result.headline_ar) b.append(el('div', 'why', `titre incrusté : <b dir="rtl">${esc(result.headline_ar)}</b>`))
     return
   }
 
   if (name === 'build_site') {
     const b = card(`Site — ${result.shop_name}`, { real: true })
-    const f = el('iframe'); f.src = result.home; f.loading = 'lazy'
-    b.append(f)
+    b.append(frame(result.home))
     const list = el('div', 'pages')
     list.append(Object.assign(el('a', null, `<span>🏠 accueil</span><span class="price">${result.count} produits</span>`), { href: result.home, target: '_blank' }))
     for (const p of result.pages ?? []) {
@@ -129,8 +183,7 @@ function renderArtifact({ name, args, result, simulated, real }) {
 
   if (name === 'build_landing_page' || name === 'build_storefront') {
     const b = card(name === 'build_storefront' ? `Vitrine — ${result.shop_name}` : `Landing — ${result.product}`, { real: true })
-    const f = el('iframe'); f.src = result.url; f.loading = 'lazy'
-    b.append(f, el('div', 'why', `<a href="${result.url}" target="_blank">ouvrir en vrai</a> · ${Math.round(result.bytes / 1024)} Ko générés par muse-spark`))
+    b.append(frame(result.url), el('div', 'why', `${Math.round(result.bytes / 1024)} Ko générés par muse-spark`))
     return
   }
 
@@ -340,17 +393,8 @@ $('#file').onchange = async (e) => {
     document.body.classList.remove('busy')
     if (r.error) { say('bot', '⚠ ' + r.error, 'ask'); continue }
 
-    clearEmpty()
-    const b = canvas.querySelector('.card.photos')?.querySelector('.grid') ?? (() => {
-      const body = card('Photos produit', { real: true })
-      body.parentElement.classList.add('photos')
-      const g = el('div', 'grid'); body.append(g); return g
-    })()
     const d = r.described ?? {}
-    const fig = el('figure')
-    fig.append(Object.assign(new Image(), { src: r.url }))
-    fig.append(el('figcaption', null, esc(d.product || f.name)))
-    b.append(fig)
+    photoGrid().append(thumb(r.url, d.product || f.name))
 
     // What it saw, said out loud. A merchant who watches the agent describe
     // their own shirt stops wondering whether it is really looking.
@@ -369,4 +413,36 @@ $('#text').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); const v = e.target.value; e.target.value = ''; send(v) }
 })
 
-fetch(`/api/state?session=${SESSION}`).then((r) => r.json()).then((s) => { $('#mode').textContent = s.mode })
+/* ── restore ────────────────────────────────────────────────────────────── */
+function replay(timeline) {
+  if (!timeline?.length) return
+  clearEmpty()
+  // Only the most recent menu is still live; the earlier ones were answered.
+  const lastChoices = timeline.map((e) => e.k).lastIndexOf('choices')
+  timeline.forEach((e, i) => {
+    if (e.k === 'me') say('me', e.text)
+    else if (e.k === 'bot') say('bot', e.text)
+    else if (e.k === 'ask') say('bot', e.text, 'ask')
+    else if (e.k === 'heard') showHeard(e)
+    else if (e.k === 'photo') {
+      const g = photoGrid()
+      g.append(thumb(e.url, e.described?.product ?? ''))
+    } else if (e.k === 'choices') {
+      showChoices(e)
+      if (i !== lastChoices) log.lastElementChild.classList.add('spent')
+    } else if (e.k === 'artifact') renderArtifact(e)
+  })
+  requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; canvas.scrollTop = canvas.scrollHeight })
+}
+
+$('#reset').onclick = async () => {
+  if (!confirm('Effacer cette conversation et repartir de zéro ?')) return
+  await fetch(`/api/reset?session=${SESSION}`, { method: 'POST' }).catch(() => {})
+  localStorage.removeItem(KEY)
+  location.reload()
+}
+
+fetch(`/api/state?session=${SESSION}`).then((r) => r.json()).then((s) => {
+  $('#mode').textContent = s.mode
+  replay(s.timeline)
+}).catch(() => {})

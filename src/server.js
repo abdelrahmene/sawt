@@ -30,8 +30,17 @@ const MIME = {
 // conversation have no business outliving the process.
 const sessions = new Map()
 const session = (id) => {
-  if (!sessions.has(id)) sessions.set(id, { history: [], photos: [], products: [], shop: null })
+  if (!sessions.has(id)) sessions.set(id, { history: [], photos: [], products: [], shop: null, timeline: [] })
   return sessions.get(id)
+}
+
+// `history` is what the model is replayed; `timeline` is what the SCREEN is
+// replayed. They are not the same thing — the screen also holds the two
+// readings of each voice note, the photos, and every artifact — and a reload
+// that loses an afternoon of work is not something anyone forgives.
+const remember = (s, entry) => {
+  s.timeline.push(entry)
+  if (s.timeline.length > 300) s.timeline.splice(0, s.timeline.length - 300)
 }
 
 const json = (res, code, body) => {
@@ -108,11 +117,13 @@ const server = createServer(async (req, res) => {
       } catch (e) {
         console.error('[vision]', e.message)
       }
+      remember(s, { k: 'photo', url: entry.url, described: entry.described })
       return json(res, 200, { url: entry.url, described: entry.described, count: s.photos.length })
     }
 
     // ---- a voice note -----------------------------------------------------
     if (req.method === 'POST' && p === '/api/voice') {
+      const s = session(url.searchParams.get('session') ?? 'default')
       const ext = (url.searchParams.get('ext') ?? 'webm').replace(/[^a-z0-9]/gi, '').slice(0, 5)
       const buf = await body(req)
       await mkdir(UPLOADS, { recursive: true })
@@ -154,6 +165,7 @@ const server = createServer(async (req, res) => {
       }
 
       const understood = await understand(transcript).catch(() => null)
+      remember(s, { k: 'heard', transcript, transcript_auto, understood })
       return json(res, 200, { transcript, transcript_auto, understood, seconds })
     }
 
@@ -170,6 +182,7 @@ const server = createServer(async (req, res) => {
         Connection: 'keep-alive',
       })
       const send = (e) => res.write(`data: ${JSON.stringify(e)}\n\n`)
+      remember(s, { k: 'me', text: input })
 
       try {
         const out = await runTurn({
@@ -177,7 +190,15 @@ const server = createServer(async (req, res) => {
           input,
           ctx: { shop: s.shop, products: s.products, photos: s.photos, productName,
                  productGuess: s.photos.at(-1)?.described?.product ?? null },
-          onEvent: send,
+          onEvent: (e) => {
+            send(e)
+            if (e.type === 'say:end' && e.text?.trim()) remember(s, { k: 'bot', text: e.text })
+            if (e.type === 'tool:end') {
+              if (e.name === 'ask_merchant') remember(s, { k: 'ask', text: e.result?.question })
+              else if (e.name === 'propose_choices') remember(s, { k: 'choices', ...e.result })
+              else remember(s, { k: 'artifact', name: e.name, args: e.args, result: e.result, simulated: e.simulated, real: e.real })
+            }
+          },
         })
         s.history = out.messages.slice(-20)
         send({ type: 'done', text: out.text, blocked: !!out.blocked, missing: out.missing ?? null })
@@ -198,7 +219,20 @@ const server = createServer(async (req, res) => {
 
     if (req.method === 'GET' && p === '/api/state') {
       const s = session(url.searchParams.get('session') ?? 'default')
-      return json(res, 200, { mode: MODE, photos: s.photos, shop: s.shop, turns: s.history.length })
+      return json(res, 200, {
+        mode: MODE,
+        shop: s.shop,
+        turns: s.history.length,
+        photos: s.photos.map((x) => x.url),
+        timeline: s.timeline,
+      })
+    }
+
+    // Start over without losing the port: a fresh session id and an empty
+    // screen, on purpose, when the merchant wants one.
+    if (req.method === 'POST' && p === '/api/reset') {
+      sessions.delete(url.searchParams.get('session') ?? 'default')
+      return json(res, 200, { ok: true })
     }
 
     res.writeHead(404); res.end('Not found')
