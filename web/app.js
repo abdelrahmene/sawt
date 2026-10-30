@@ -330,16 +330,36 @@ $('#photo').onclick = () => $('#file').click()
 $('#file').onchange = async (e) => {
   for (const f of e.target.files) {
     const ext = (f.name.split('.').pop() || 'jpg').toLowerCase()
-    const r = await fetch(`/api/photo?session=${SESSION}&ext=${ext}`, { method: 'POST', body: f }).then((x) => x.json())
+    const step = newStep('regarde la photo')
+    document.body.classList.add('busy')
+    let r
+    try {
+      r = await fetch(`/api/photo?session=${SESSION}&ext=${ext}`, { method: 'POST', body: f }).then((x) => x.json())
+    } catch (err) { r = { error: err.message } }
+    step.drop()
+    document.body.classList.remove('busy')
+    if (r.error) { say('bot', '⚠ ' + r.error, 'ask'); continue }
+
     clearEmpty()
     const b = canvas.querySelector('.card.photos')?.querySelector('.grid') ?? (() => {
       const body = card('Photos produit', { real: true })
       body.parentElement.classList.add('photos')
       const g = el('div', 'grid'); body.append(g); return g
     })()
+    const d = r.described ?? {}
     const fig = el('figure')
-    fig.append(Object.assign(new Image(), { src: r.url }), el('figcaption', null, esc(f.name)))
+    fig.append(Object.assign(new Image(), { src: r.url }))
+    fig.append(el('figcaption', null, esc(d.product || f.name)))
     b.append(fig)
+
+    // What it saw, said out loud. A merchant who watches the agent describe
+    // their own shirt stops wondering whether it is really looking.
+    if (d.product) {
+      const lines = [`Je vois : ${d.product}.`, d.details].filter(Boolean)
+      if (d.photo_quality && d.photo_quality !== 'bonne') lines.push(`Photo : ${d.photo_quality}`)
+      say('bot', lines.join('\n'))
+      if (d.caution) say('bot', `⚠ ${d.caution}`, 'ask')
+    }
   }
   e.target.value = ''
 }

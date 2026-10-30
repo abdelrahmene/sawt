@@ -36,16 +36,21 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       return buildSite({ ...args, onProgress: (p) => onEvent({ type: 'progress', tool: 'build_site', ...p }) })
 
     case 'generate_creatives': {
-      const photo = ctx.photos?.[args.product_image] ?? ctx.photos?.[0]
+      const photos = ctx.photos ?? []
+      const photo = photos[Number(args.product_image)] ?? photos.at(-1) ?? null
+      // What the model saw in the photo beats what anyone typed: the creative
+      // should depict the product that exists, not the one described.
+      const subject = photo?.described?.product || ctx.productName || ctx.productGuess || 'the product'
+      const seen = photo?.described?.details ? ` ${photo.described.details}` : ''
       const out = []
       for (const angle of (args.angles ?? ['default']).slice(0, 3)) {
-        const b64 = await generate(headlinePrompt(ctx.productName ?? 'the product', angle))
+        const b64 = await generate(headlinePrompt(subject + seen, angle))
         mkdirSync(OUT_DIR, { recursive: true })
         const file = `creative-${Date.now().toString(36)}-${out.length}.png`
         save(b64, join(OUT_DIR, file))
         out.push({ angle, url: `/out/${file}` })
       }
-      return { creatives: out, headline_ar: args.headline_ar ?? null, source_photo: photo ?? null }
+      return { creatives: out, headline_ar: args.headline_ar ?? null, subject, source_photo: photo?.url ?? null }
     }
 
     case 'build_landing_page':

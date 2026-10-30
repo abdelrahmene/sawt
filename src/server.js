@@ -4,15 +4,15 @@
 // hand to avoid a dependency is a bad trade, and the browser can post an
 // ArrayBuffer just as easily.
 import { createServer } from 'node:http'
-import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join, extname, basename } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { ROOT, MODE } from './config.js'
 import { runTurn } from './agent/loop.js'
-import { transcribe } from './models/voice.js'
-import { understand } from './models/voice.js'
+import { transcribe, understand } from './models/voice.js'
+import { describePhoto } from './models/vision.js'
 import { OUT_DIR } from './creative/landing.js'
 
 const run = promisify(execFile)
@@ -60,6 +60,16 @@ async function toWav(input) {
   return out
 }
 
+// 16 kHz mono 16-bit: 32000 bytes per second, minus a 44-byte header. Reading
+// the file beats shelling out to ffprobe for a number we only need to sanity
+// check.
+async function durationOf(wavPath) {
+  try {
+    const { size } = await stat(wavPath)
+    return Math.max(0, (size - 44) / 32000)
+  } catch { return 0 }
+}
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`)
   const p = url.pathname
@@ -77,16 +87,28 @@ const server = createServer(async (req, res) => {
     }
 
     // ---- a product photo --------------------------------------------------
+    // Described on arrival, not later: the agent has to know what it is
+    // selling before the merchant says a word, and the description is what
+    // goes into the system prompt.
     if (req.method === 'POST' && p === '/api/photo') {
       const sid = url.searchParams.get('session') ?? 'default'
       const ext = (url.searchParams.get('ext') ?? 'jpg').replace(/[^a-z0-9]/gi, '').slice(0, 5)
       const buf = await body(req)
       await mkdir(UPLOADS, { recursive: true })
       const file = `photo-${Date.now().toString(36)}.${ext}`
-      await writeFile(join(UPLOADS, file), buf)
+      const path = join(UPLOADS, file)
+      await writeFile(path, buf)
+
+      const entry = { url: `/out/uploads/${file}`, path, described: null }
       const s = session(sid)
-      s.photos.push(`/out/uploads/${file}`)
-      return json(res, 200, { url: `/out/uploads/${file}`, count: s.photos.length })
+      s.photos.push(entry)
+
+      try {
+        entry.described = await describePhoto(path)
+      } catch (e) {
+        console.error('[vision]', e.message)
+      }
+      return json(res, 200, { url: entry.url, described: entry.described, count: s.photos.length })
     }
 
     // ---- a voice note -----------------------------------------------------
@@ -99,17 +121,40 @@ const server = createServer(async (req, res) => {
 
       let wav
       try { wav = await toWav(raw) } catch (e) {
-        return json(res, 500, { error: `ffmpeg is required to convert voice notes to WAV. ${e.message}` })
+        return json(res, 500, { error: `ffmpeg est nécessaire pour convertir les vocaux en WAV. ${e.message}` })
+      }
+
+      // A silent or near-empty clip used to come back as an empty transcript,
+      // which the UI showed as a blank box and the agent never received —
+      // nothing happened and nothing said why. Measure the audio first and
+      // fail out loud.
+      const seconds = await durationOf(wav)
+      if (seconds < 0.4) {
+        return json(res, 200, {
+          error: `Le vocal ne fait que ${seconds.toFixed(1)}s. Maintiens le micro pendant que tu parles, puis relâche.`,
+          seconds,
+        })
       }
 
       // Both readings, every time. The point of this project is that they
       // disagree, and that the gap is where orders get lost.
-      const [pinned, auto] = await Promise.all([
-        transcribe(wav).catch((e) => `(failed: ${e.message})`),
-        transcribe(wav, { languageBias: null }).catch(() => null),
+      const [pinned, auto] = await Promise.allSettled([
+        transcribe(wav),
+        transcribe(wav, { languageBias: null }),
       ])
-      const understood = await understand(pinned).catch(() => null)
-      return json(res, 200, { transcript: pinned, transcript_auto: auto, understood })
+      const transcript = pinned.status === 'fulfilled' ? (pinned.value ?? '').trim() : ''
+      const transcript_auto = auto.status === 'fulfilled' ? (auto.value ?? '').trim() || null : null
+
+      if (!transcript) {
+        const why = pinned.status === 'rejected'
+          ? pinned.reason?.message?.slice(0, 200)
+          : "le modèle n'a rien entendu (micro muet, ou trop de bruit)"
+        console.error('[voice] empty transcript', { seconds, why })
+        return json(res, 200, { error: `Rien n'a été transcrit sur ${seconds.toFixed(1)}s d'audio — ${why}`, seconds, transcript_auto })
+      }
+
+      const understood = await understand(transcript).catch(() => null)
+      return json(res, 200, { transcript, transcript_auto, understood, seconds })
     }
 
     // ---- the agent, streamed ---------------------------------------------
@@ -130,7 +175,8 @@ const server = createServer(async (req, res) => {
         const out = await runTurn({
           history: s.history,
           input,
-          ctx: { shop: s.shop, products: s.products, photos: s.photos, productName },
+          ctx: { shop: s.shop, products: s.products, photos: s.photos, productName,
+                 productGuess: s.photos.at(-1)?.described?.product ?? null },
           onEvent: send,
         })
         s.history = out.messages.slice(-20)

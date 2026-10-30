@@ -81,16 +81,35 @@ app, they stay on Standard Access and need NO App Review and NO Business
 Verification. Review is for apps serving people who have no role on them.
 Say it takes about 30 minutes and is fiddly. Do not pretend it is one click.`
 
-export function systemPrompt({ shop, products = [], simulated = true } = {}) {
+export function systemPrompt({ shop, products = [], photos = [], simulated = true } = {}) {
+  // The agent used to be told a filename and nothing else, so it asked for a
+  // photo it already had. Each upload is described on arrival and the
+  // description goes here: it knows what it is selling before anyone says.
+  const seen = photos.length
+    ? `\nPHOTOS THE MERCHANT HAS ALREADY SENT YOU — you have looked at these:\n${photos
+        .map((p, i) => {
+          const d = p.described
+          if (!d) return `  [${i}] ${p.url} — not described yet`
+          return [
+            `  [${i}] ${d.product ?? 'unclear'} — ${d.details ?? ''}`,
+            d.angles?.length ? `        angles visible: ${d.angles.join(' · ')}` : '',
+            d.photo_quality && d.photo_quality !== 'bonne' ? `        photo problem: ${d.photo_quality}` : '',
+            d.caution ? `        ⚠ ${d.caution}` : '',
+          ].filter(Boolean).join('\n')
+        })
+        .join('\n')}\n\nNEVER ask for a photo you already have. Work from what you can see above.`
+    : '\nThe merchant has not sent a photo yet. Ask for one.'
+
   const inventory = products.length
-    ? `\nPRODUCTS THE MERCHANT HAS GIVEN YOU\n${products
+    ? `\nPRODUCTS WITH A PRICE\n${products
         .map((p, i) => `  ${i + 1}. ${p.name}${p.price ? ` — ${p.price} DZD` : ''}${p.variants?.length ? ` — variants: ${p.variants.join(', ')}` : ''}`)
         .join('\n')}`
-    : '\nThe merchant has not given you any product yet. Ask for a photo.'
+    : ''
 
   return [
     ROLE,
     shop ? `\nTHE SHOP\n  ${shop}` : '',
+    seen,
     inventory,
     simulated ? '\nMODE: prototype. The Facebook/Instagram side is SIMULATED. The storefront and landing pages you generate are REAL files the merchant can open.' : '',
     RULES,
