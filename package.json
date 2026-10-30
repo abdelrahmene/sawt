@@ -10,7 +10,8 @@
     "start": "node src/index.js --replay",
     "live": "node src/index.js --live",
     "bench": "node bench/run.mjs",
-    "try": "node bench/try-one.mjs"
+    "try": "node bench/try-one.mjs",
+    "web": "node src/server.js"
   },
   "license": "MIT",
   "dependencies": {}
