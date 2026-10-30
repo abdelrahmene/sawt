@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+*.log
+
+# Recorded audio that has not been cleared for publication.
+bench/clips/private/
+
+# Never commit anything that came out of a real customer conversation.
+fixtures/private/
