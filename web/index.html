@@ -79,6 +79,10 @@
   .msg.ask::before{content:"il lui manque quelque chose";display:block;font:500 10px/1 var(--mono);
     letter-spacing:.1em;text-transform:uppercase;color:var(--warn);margin-bottom:7px;opacity:.8}
   .msg[dir=rtl]{text-align:right}
+  .msg a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-line);
+    word-break:break-all}
+  .msg a:hover{border-bottom-color:var(--accent)}
+  .msg.me a{color:#7ee3c0;border-bottom-color:rgba(126,227,192,.4)}
   /* the cursor only exists while tokens are arriving */
   .msg.live::after{content:"";display:inline-block;width:2px;height:1em;background:var(--accent);
     margin-inline-start:2px;vertical-align:-2px;animation:blink .9s steps(2) infinite}

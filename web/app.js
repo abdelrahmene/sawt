@@ -60,9 +60,26 @@ function thumb(src, caption) {
   return f
 }
 
+// The model writes markdown links and bare paths, and textContent rendered
+// them as "[/out/lp-x.html](/out/lp-x.html)" — the one thing on screen the
+// merchant most wants to click, printed as punctuation.
+function linkify(node, text) {
+  node.textContent = ''
+  const re = /\[([^\]]+)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)|(\/out\/[^\s<>"')]+|https?:\/\/[^\s<>"')]+)/g
+  let last = 0, m
+  while ((m = re.exec(text))) {
+    if (m.index > last) node.append(text.slice(last, m.index))
+    const href = m[2] ?? m[3]
+    const label = m[1] ?? href.replace(/^\/out\//, '')
+    node.append(Object.assign(el('a', null, esc(label)), { href, target: '_blank', rel: 'noopener' }))
+    last = re.lastIndex
+  }
+  if (last < text.length) node.append(text.slice(last))
+}
+
 function say(who, text, cls) {
   const n = el('div', `msg ${cls || who}`)
-  n.textContent = text
+  linkify(n, String(text ?? ''))
   if (isArabic(text)) n.dir = 'rtl'
   log.append(n); bottom(log); return n
 }
@@ -315,7 +332,11 @@ async function send(input) {
         }
         if (e.type === 'say:end') {
           const b = bubbles.get(e.id)
-          if (b) { b.classList.remove('live'); if (!b.textContent.trim()) b.remove() }
+          if (b) {
+            b.classList.remove('live')
+            if (!b.textContent.trim()) b.remove()
+            else linkify(b, b.textContent)   // only once the text has stopped moving
+          }
           continue
         }
         if (e.type === 'tool:start') {
