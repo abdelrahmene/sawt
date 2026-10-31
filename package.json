@@ -1,17 +1,18 @@
 {
   "name": "sawt",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "An AI agent that runs social media marketing by voice — and understands Algerian darija.",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.5"
   },
   "scripts": {
-    "start": "node src/index.js --replay",
+    "start": "node --disable-warning=ExperimentalWarning src/server.js",
+    "cli": "node src/index.js --replay",
     "live": "node src/index.js --live",
     "bench": "node bench/run.mjs",
     "try": "node bench/try-one.mjs",
-    "web": "node src/server.js"
+    "web": "node --disable-warning=ExperimentalWarning src/server.js"
   },
   "license": "MIT",
   "dependencies": {}

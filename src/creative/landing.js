@@ -1,16 +1,24 @@
 // REAL, not simulated: the agent builds pages the merchant can open.
 //
-// A landing page is written in two halves — landing-content.js asks the model
-// for the copy as JSON, landing-render.js draws it. The storefront is still a
+// A landing page is written in three passes — landing-content.js asks the model
+// for the copy as JSON, scenes.js turns that JSON's scene descriptions into
+// real pictures, landing-render.js draws the result. The storefront is still a
 // single generated document, because a grid of cards has no spine worth
 // enforcing and the model does it well.
+//
+// Everything built here is also a row in the database, so the Sites screen can
+// list it, a domain can point at it, and an order posted from it has somewhere
+// to land.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { ROOT } from '../config.js'
 import { chat, visibleAnswer } from '../models/llm.js'
+import { insert, run, one, now, J } from '../db.js'
 import { landingContent } from './landing-content.js'
 import { renderLanding } from './landing-render.js'
+import { renderScenes } from './scenes.js'
+import { normaliseOptions, briefFor, slotsFor } from './landing-options.js'
 
 export const OUT_DIR = join(ROOT, 'out')
 
@@ -32,41 +40,87 @@ export function slugify(name) {
 }
 
 /**
- * Copy from the model, layout from code.
+ * Copy from the model, pictures from the model, layout from code.
  *
  * This used to ask muse-spark for a whole HTML document. It produced good
  * pages and unpredictable ones in roughly equal measure: sections appearing
  * and vanishing between runs, right-to-left handled differently each time,
- * and once in three tries the product photo left out altogether. Now the model
- * writes the words as JSON and renderLanding draws them, so every page has the
- * same spine — problem, solution, proof you can see, three steps, the order
- * form — and the photo is never optional.
+ * and once in three tries the product photo left out altogether.
+ *
+ * Splitting it fixed the structure but left the page plain, because the only
+ * picture on it was the merchant's own photo. The scenes close that gap: four
+ * generated images, one per section, from descriptions the copy model wrote
+ * for exactly that purpose and which nothing used to read.
  */
-export async function buildLandingPage({ product, price_dzd, angle, language = 'ar', images = [], shop, notes }) {
+export async function buildLandingPage({
+  product, price_dzd, angle, language, images = [], shop, notes,
+  sessionId = null, siteId = null, freshScenes = false, options = {}, onProgress = () => {},
+}) {
+  // The merchant's settings, filled in with the defaults. Nothing downstream
+  // reads the raw object, so an option that was never sent cannot leak through
+  // as `undefined` and change the page by accident.
+  const o = normaliseOptions({ ...options, language: language ?? options.language })
+  const slots = slotsFor(o)
+  if (o.photos.length) images = o.photos
+
+  onProgress({ phase: 'copy', label: product })
   const content = await landingContent({
-    product, price_dzd, angle, language, shop, notes,
+    product, price_dzd, angle, language: o.language, shop, notes,
+    extra: briefFor(o),
     // Local paths are inlined as data URLs for the vision call; the page
     // itself references the served /out/ URLs.
     photos: images.map((u) => (u.startsWith('/out/') ? join(ROOT, u.replace(/^\//, '')) : u)),
   })
+  if (o.colorMode === 'impose' && o.color) content.theme.primary = o.color
 
-  const html = renderLanding(content, { images, shop })
+  const slug = slugify(product)
+  let scenes = {}, sceneFails = [], reused = 0
+  if (slots.length) {
+    onProgress({ phase: 'scenes', label: product })
+    const r = await renderScenes(content.scenes, {
+      slug, only: slots, scenario: o.scenario, force: freshScenes, onProgress,
+    }).catch((e) => {
+      // A page without its scenery is still a page. A page that threw is not.
+      return { images: {}, failed: [{ slot: 'all', error: e.message }], asked: slots.length, reused: 0 }
+    })
+    scenes = r.images
+    sceneFails = r.failed
+    reused = r.reused ?? 0
+  }
 
-  const file = `lp-${slugify(product)}.html`
+  const file = `lp-${slug}.html`
+  const url = `/out/${file}`
+
+  // The row goes in before the render so the form can carry its id, which is
+  // what connects an order on the page back to the page that sold it.
+  const existing = one('SELECT id FROM pages WHERE url=?', url)
+  const pageId = existing?.id ?? insert(
+    `INSERT INTO pages(site,session,product,slug,url,price_dzd,angle,bytes,theme,content,at)
+     VALUES(?,?,?,?,?,?,?,0,?,?,?)`,
+    siteId, sessionId, product, slug, url, Math.round(price_dzd ?? 0), angle ?? null,
+    J(content.theme), J(content), now()
+  )
+
+  const html = renderLanding(content, { images, scenes, shop, pageId, opts: o })
   mkdirSync(OUT_DIR, { recursive: true })
   writeFileSync(join(OUT_DIR, file), html, 'utf8')
 
+  run('UPDATE pages SET site=COALESCE(?,site), bytes=?, theme=?, content=?, price_dzd=?, angle=? WHERE id=?',
+    siteId, html.length, J(content.theme), J(content), Math.round(price_dzd ?? 0), angle ?? null, pageId)
+
   return {
-    file, url: `/out/${file}`, bytes: html.length,
-    product, price_dzd, angle, language,
+    id: pageId, file, url, bytes: html.length,
+    product, price_dzd, angle, language: o.language, options: o,
     images: images.length,
+    scenes: Object.keys(scenes),
+    scenes_reused: reused,
+    scenes_failed: sceneFails,
     sections: {
       problem: !!content.problem.title, solution: !!content.solution.title,
       benefits: content.benefits.length, features: content.features.length,
       steps: content.steps.length, faq: content.faq.length,
     },
     theme: content.theme,
-    scenes: content.scenes,
   }
 }
 
@@ -76,19 +130,26 @@ export async function buildLandingPage({ product, price_dzd, angle, language = '
  * instead of inventing them — a model asked to link pages it has not seen
  * writes plausible paths that 404.
  */
-export async function buildSite({ shop_name, tagline, products, language = 'ar', onProgress = () => {} }) {
+export async function buildSite({ shop_name, tagline, products, language = 'ar', sessionId = null, options = {}, onProgress = () => {} }) {
+  const siteId = insert(
+    'INSERT INTO sites(session,shop,tagline,language,at) VALUES(?,?,?,?,?)',
+    sessionId, shop_name, tagline ?? null, language, now()
+  )
+
   const pages = []
   const total = products.length + 1
   for (const [i, p] of products.entries()) {
     onProgress({ step: i + 1, total, label: p.name, phase: 'page' })
     try {
       const lp = await buildLandingPage({
-        product: p.name,
-        price_dzd: p.price_dzd,
-        angle: p.angle,
-        language,
+        product: p.name, price_dzd: p.price_dzd, angle: p.angle, language,
         images: p.image ? [p.image] : [],
-        shop: shop_name,
+        // The studio's settings apply to every page of the shop, minus the
+        // photo pick — that one is per product, and reusing it would put the
+        // casquette's photo on the sandal's page.
+        options: { ...options, photos: [] },
+        shop: shop_name, sessionId, siteId,
+        onProgress: (e) => onProgress({ ...e, step: i + 1, total }),
       })
       pages.push({ ...p, ...lp })
     } catch (e) {
@@ -99,16 +160,23 @@ export async function buildSite({ shop_name, tagline, products, language = 'ar',
   const ok = pages.filter((p) => !p.error)
   onProgress({ step: total, total, label: shop_name, phase: 'home' })
   const home = await buildStorefront({
-    shop_name,
-    language,
+    shop_name, language, tagline,
     products: ok.map((p) => ({ name: p.name, price: p.price_dzd, image: p.image, href: p.url })),
-    tagline,
   })
 
+  run('UPDATE sites SET home_url=? WHERE id=?', home.url, siteId)
+
+  // Every shop gets a subdomain the moment it exists, the way a real platform
+  // hands you one before you own a domain.
+  const host = `${slugify(shop_name) || 'boutique'}.sawt.dz`
+  if (!one('SELECT 1 FROM domains WHERE host=?', host)) {
+    insert('INSERT INTO domains(site,host,kind,status,at) VALUES(?,?,?,?,?)',
+      siteId, host, 'subdomain', 'live', now())
+  }
+
   return {
-    shop_name,
-    home: home.url,
-    pages: ok.map((p) => ({ product: p.name, url: p.url, price_dzd: p.price_dzd })),
+    site_id: siteId, shop_name, home: home.url, host,
+    pages: ok.map((p) => ({ id: p.id, product: p.name, url: p.url, price_dzd: p.price_dzd, scenes: p.scenes })),
     failed: pages.filter((p) => p.error).map((p) => ({ product: p.name, error: p.error })),
     count: ok.length,
   }
@@ -117,14 +185,18 @@ export async function buildSite({ shop_name, tagline, products, language = 'ar',
 const STORE_BRIEF = `You write storefronts for Algerian cash-on-delivery shops. Output ONE complete
 HTML document and nothing else.
 
-Same rules as a landing page: single file, inline <style>, mobile first, RTL
-when Arabic, no external assets beyond the photos given, no fake social proof.
+Single file, inline <style>, mobile first, RTL when Arabic, no external assets
+beyond the photos given, no fake social proof, no emoji.
 
-A storefront is a grid of products. Each card MUST show the photo at the URL
-given for that product — exactly as written, no prefix, no placeholder — then
-the name, the price in DZD, and a link to that product's landing page at the
-href given. A card with no photo is a dead card.
-Above the grid: the shop name and one honest line about what it sells.`
+Design it like a real shop front, not a list: a tall header with the shop name
+and one honest line, then a responsive grid of product cards with generous
+whitespace, rounded corners (16px), soft shadows and a hover lift.
+
+Each card MUST show the photo at the URL given for that product — exactly as
+written, no prefix, no placeholder — then the name, the price in DZD, and a
+link to that product's landing page at the href given. A card with no photo is
+a dead card. Prices stay readable in right-to-left text: wrap each one in
+<bdi dir="ltr">.`
 
 export async function buildStorefront({ shop_name, products, language = 'ar', tagline }) {
   const prompt = [
@@ -150,7 +222,8 @@ export async function buildStorefront({ shop_name, products, language = 'ar', ta
     throw new Error('The model did not return an HTML document.')
   }
 
+  const file = `storefront-${slugify(shop_name) || 'boutique'}.html`
   mkdirSync(OUT_DIR, { recursive: true })
-  writeFileSync(join(OUT_DIR, 'storefront.html'), html, 'utf8')
-  return { file: 'storefront.html', url: '/out/storefront.html', bytes: html.length, shop_name, count: products.length }
+  writeFileSync(join(OUT_DIR, file), html, 'utf8')
+  return { file, url: `/out/${file}`, bytes: html.length, shop_name, count: products.length }
 }

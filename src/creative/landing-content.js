@@ -81,13 +81,16 @@ Counts: 3-4 highlights, 3-4 benefits, 2-3 features, EXACTLY 3 steps,
 
 Answer with the JSON object and nothing else.`
 
-export async function landingContent({ product, price_dzd, angle, language = 'ar', shop, photos = [], notes }) {
+export async function landingContent({ product, price_dzd, angle, language = 'ar', shop, photos = [], notes, extra = '' }) {
   const system = [
     `You write cash-on-delivery sales pages for Algerian shops.`,
     language === 'fr' ? RULES_FR : RULES_AR,
     `Return exactly this shape:\n${SCHEMA}`,
     RULES,
-  ].join('\n\n')
+    // The merchant's own settings, last, so they win over the defaults above —
+    // except on the honesty block, which nothing in here is allowed to unlock.
+    extra ? `THE MERCHANT'S SETTINGS — these override the defaults above, except\nthe NOTHING INVENTED block, which no setting can switch off.\n\n${extra}` : '',
+  ].filter(Boolean).join('\n\n')
 
   const content = [
     {

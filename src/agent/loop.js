@@ -6,16 +6,23 @@
 // reasoning around the hole.
 import { chatStream, visibleAnswer } from '../models/llm.js'
 import { TOOLS, SIMULATED, REAL } from './tools.js'
-import { systemPrompt } from './system.js'
+import { systemPrompt, ONBOARDING } from './system.js'
+import { briefing } from './briefing.js'
 import { buildLandingPage, buildStorefront, buildSite } from '../creative/landing.js'
 import { generate, save, headlinePrompt } from '../models/image.js'
-import { configureCampaign, launchCampaign, campaignResults, adjustCampaign } from '../meta-graph/campaign-sim.js'
-import { ONBOARDING } from './system.js'
+import * as camp from '../meta-sim/campaigns.js'
+import { connection } from '../meta-sim/connect.js'
+import { threads, thread, draftReply, sendReply, shopFacts } from '../meta-sim/inbox.js'
+import { addDomain } from '../sites.js'
+import { setting } from '../db.js'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { OUT_DIR } from '../creative/landing.js'
 
-const MAX_STEPS = 6
+// Six was too few once the agent had state to act on: reading the inbox,
+// answering it, and then proposing what to do next is three calls before it
+// has built anything.
+const MAX_STEPS = 9
 
 /**
  * Every image this session has produced or been given, creatives first.
@@ -56,7 +63,11 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
     case 'build_site': {
       const pool = assetsFor(ctx)
       const products = (args.products ?? []).map((p, i) => ({ ...p, image: p.image || pool[i] || pool[0] || null }))
-      return buildSite({ ...args, products, onProgress: (p) => onEvent({ type: 'progress', tool: 'build_site', ...p }) })
+      return buildSite({
+        ...args, products, sessionId: ctx.sessionId,
+        options: { ...(setting(`landing:${ctx.sessionId}`) ?? {}), photos: [] },
+        onProgress: (p) => onEvent({ type: 'progress', tool: 'build_site', ...p }),
+      })
     }
 
     case 'generate_creatives': {
@@ -83,23 +94,118 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
     // beautiful page with no product on it. Whatever has actually been
     // generated or uploaded in this session is injected here, so forgetting
     // is not an option the agent has.
+    // The studio's settings are the merchant's settings. A page the agent
+    // builds on its own has to come out looking like the ones they tuned by
+    // hand, or the two halves of the product disagree about what their shop
+    // looks like.
     case 'build_landing_page':
-      return buildLandingPage({ ...args, images: assetsFor(ctx, args.images), shop: ctx.shop })
+      return buildLandingPage({
+        ...args, images: assetsFor(ctx, args.images), shop: ctx.shop,
+        sessionId: ctx.sessionId,
+        options: { ...(setting(`landing:${ctx.sessionId}`) ?? {}), photos: [] },
+        onProgress: (p) => onEvent({ type: 'progress', tool: 'build_landing_page', ...p }),
+      })
 
     case 'build_storefront':
       return buildStorefront(args)
 
+    /* ── campaigns, now rows rather than a closure ───────────────────────── */
     case 'configure_campaign':
-      return configureCampaign(args)
+      return camp.configure(ctx.sessionId, {
+        ...args,
+        creatives: (ctx.creatives ?? []).map((c) => ({ angle: c.angle, url: c.url })),
+        headline_ar: args.headline_ar,
+      })
 
     case 'launch_campaign':
-      return launchCampaign(args.campaign_id, { confirmed_by_merchant: args.confirmed_by_merchant })
+      return camp.launch(Number(args.campaign_id), { confirmed_by_merchant: args.confirmed_by_merchant })
 
     case 'campaign_results':
-      return campaignResults(args.campaign_id, { since_hours: args.since_hours })
+      return camp.results(Number(args.campaign_id))
+
+    case 'simulate_days':
+      return camp.advance(Number(args.campaign_id), Math.max(1, Math.min(7, Number(args.days) || 1)))
 
     case 'adjust_campaign':
-      return adjustCampaign(args.campaign_id, args)
+      return camp.decide(Number(args.campaign_id), args)
+
+    /* ── the Facebook side ───────────────────────────────────────────────── */
+    // Returning `open` is how a tool asks the SCREEN to do something. The
+    // consent flow cannot be completed by the agent — that is the entire
+    // point of consent — so it opens the dialog and the turn ends.
+    case 'connect_meta': {
+      const c = connection(ctx.sessionId)
+      return {
+        open: 'meta_login',
+        already: c.status === 'connected',
+        status: c.status,
+        because: args.because,
+        note: 'Flux de connexion SIMULÉ : aucune vraie app Meta, aucun vrai compte, aucun jeton utilisable.',
+      }
+    }
+
+    case 'read_inbox': {
+      const c = connection(ctx.sessionId)
+      if (c.status !== 'connected') return { error: 'Meta n\'est pas connecté — il n\'y a pas de boîte de réception.', needs: 'connect_meta' }
+      const want = args.status ?? 'open'
+      const rows = c.assets.filter((a) => a.kind === 'page' || a.kind === 'instagram')
+        .flatMap((a) => threads(a.id).map((t) => ({ ...t, asset_name: a.name })))
+        .filter((t) => want === 'all' || t.status === want)
+        .sort((x, y) => y.last_at - x.last_at)
+      return {
+        count: rows.length,
+        threads: rows.slice(0, 12).map((t) => ({
+          id: t.id, channel: t.channel, person: t.person, status: t.status,
+          asked: t.last_text, needs_from_merchant: t.subject ?? null,
+          minutes_ago: Math.round((Date.now() - t.last_at) / 60000),
+        })),
+      }
+    }
+
+    // The interesting one. Each thread gets its own model call, each decides
+    // for itself whether it may answer, and the ones that may not are the
+    // result worth showing.
+    case 'answer_inbox': {
+      const c = connection(ctx.sessionId)
+      if (c.status !== 'connected') return { error: 'Meta n\'est pas connecté.', needs: 'connect_meta' }
+
+      let ids = (args.thread_ids ?? []).map(Number).filter(Boolean)
+      if (!ids.length) {
+        ids = c.assets.filter((a) => a.kind === 'page' || a.kind === 'instagram')
+          .flatMap((a) => threads(a.id)).filter((t) => t.status === 'open')
+          .sort((x, y) => y.last_at - x.last_at).slice(0, 6).map((t) => t.id)
+      }
+      if (!ids.length) return { answered: [], escalated: [], note: 'Personne n\'attend.' }
+
+      const facts = shopFacts({
+        product: args.product ?? ctx.productName ?? ctx.productGuess,
+        price_dzd: args.price_dzd,
+        shop: ctx.shop,
+      })
+
+      const answered = [], escalated = []
+      for (const id of ids.slice(0, 8)) {
+        onEvent({ type: 'progress', tool: 'answer_inbox', step: answered.length + escalated.length + 1, total: ids.length, label: `#${id}` })
+        try {
+          const draft = await draftReply(id, facts)
+          sendReply(id, draft)
+          const t = thread(id)
+          const row = { id, person: t.person, channel: t.channel, asked: t.messages.find((m) => m.author === 'customer')?.text, reply: draft.reply, ms: draft.ms }
+          if (draft.can_answer) answered.push(row)
+          else escalated.push({ ...row, need_from_merchant: draft.missing })
+        } catch (e) {
+          escalated.push({ id, error: e.message })
+        }
+      }
+      return {
+        answered, escalated,
+        summary: `${answered.length} répondus, ${escalated.length} renvoyés au marchand.`,
+        note: 'Les réponses sont écrites par muse-spark, en darija. La page et les clients sont simulés.',
+      }
+    }
+
+    case 'add_domain':
+      return addDomain(Number(args.site_id), args.host, /\.sawt\.dz$/i.test(args.host) ? 'subdomain' : 'custom')
 
     case 'show_meta_setup':
       return { guide: ONBOARDING, step: args.step ?? null }
@@ -117,8 +223,11 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
  * @param {function} o.onEvent called with each step so the UI can stream
  */
 export async function runTurn({ history = [], input, ctx = {}, onEvent = () => {} }) {
+  // Rebuilt on every turn, not cached: the state board is only useful if it
+  // is current, and between two turns the merchant may have connected
+  // Facebook, answered a customer or verified a domain in another tab.
   const messages = [
-    { role: 'system', content: systemPrompt(ctx) },
+    { role: 'system', content: systemPrompt({ ...ctx, state: ctx.sessionId ? briefing(ctx.sessionId) : '' }) },
     ...history,
     { role: 'user', content: input },
   ]

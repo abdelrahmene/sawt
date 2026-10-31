@@ -3,19 +3,31 @@
 // Uploads come in as raw bodies rather than multipart: parsing multipart by
 // hand to avoid a dependency is a bad trade, and the browser can post an
 // ArrayBuffer just as easily.
+//
+// State lives in SQLite now (src/db.js). The conversation, the pages, the
+// domains, the simulated Meta connection, the inbox and every campaign row are
+// queried, not held in a Map — which is what makes a restart survivable and
+// the screens consistent with each other.
+import './preflight.js'
 import { createServer } from 'node:http'
 import { readFile, writeFile, mkdir, stat } from 'node:fs/promises'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join, extname, basename } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { ROOT, MODE } from './config.js'
+import { all, one, run, insert, now, J, unJ, session, touch, setting, importLegacyJson, DB_FILE } from './db.js'
 import { runTurn } from './agent/loop.js'
 import { transcribe, understand } from './models/voice.js'
 import { describePhoto } from './models/vision.js'
-import { OUT_DIR } from './creative/landing.js'
+import * as meta from './meta-sim/connect.js'
+import * as inbox from './meta-sim/inbox.js'
+import * as camp from './meta-sim/campaigns.js'
+import * as sites from './sites.js'
+import * as opts from './creative/landing-options.js'
+import { buildLandingPage } from './creative/landing.js'
 
-const run = promisify(execFile)
+const sh = promisify(execFile)
 const PORT = Number(process.env.PORT || 7070)
 const UPLOADS = join(ROOT, 'out', 'uploads')
 
@@ -26,55 +38,42 @@ const MIME = {
   '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
 }
 
-// Kept in memory on purpose: this is a prototype, and a merchant's photos and
-// conversation have no business outliving the process.
-// On disk, not just in memory. Restarting the server to pick up a code change
-// used to wipe every conversation, every generated page and every creative
-// from the screen while the files sat right there in out/ — and a judge who
-// restarts it loses the demo they were half way through.
-const STORE = join(ROOT, 'out', 'sessions.json')
-const sessions = new Map()
+const imported = importLegacyJson()
+if (imported) console.log(`  ${imported} session(s) reprise(s) depuis l'ancien out/sessions.json`)
 
-try {
-  if (existsSync(STORE)) {
-    for (const [id, s] of Object.entries(JSON.parse(readFileSync(STORE, 'utf8')))) sessions.set(id, s)
-    console.log(`  ${sessions.size} session(s) restaurée(s)`)
-  }
-} catch (e) { console.error('[sessions] illisible, on repart à vide:', e.message) }
+/* ── session helpers ──────────────────────────────────────────────────────
+   `turns` is what the MODEL is replayed; `events` is what the SCREEN is
+   replayed. They are not the same thing — the screen also holds the two
+   readings of each voice note, the photos and every artifact — and a reload
+   that loses an afternoon of work is not something anyone forgives. */
 
-let saveTimer = null
-function persist() {
-  clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => {
-    try {
-      mkdirSync(join(ROOT, 'out'), { recursive: true })
-      writeFileSync(STORE, JSON.stringify(Object.fromEntries(sessions), null, 0))
-    } catch (e) { console.error('[sessions]', e.message) }
-  }, 400)
+const history = (sid) =>
+  all('SELECT json FROM turns WHERE session=? ORDER BY id', sid).map((r) => unJ(r.json)).filter(Boolean)
+
+function saveHistory(sid, messages) {
+  run('DELETE FROM turns WHERE session=?', sid)
+  for (const m of messages.slice(-20)) run('INSERT INTO turns(session,json,at) VALUES(?,?,?)', sid, J(m), now())
 }
 
-const session = (id) => {
-  if (!sessions.has(id)) {
-    sessions.set(id, { history: [], photos: [], creatives: [], products: [], shop: null, timeline: [] })
-  }
-  const s = sessions.get(id)
-  // Older saved sessions may predate a field; fill the gaps rather than crash.
-  s.history ??= []; s.photos ??= []; s.creatives ??= []; s.products ??= []; s.timeline ??= []
-  return s
+const remember = (sid, entry) => {
+  insert('INSERT INTO events(session,kind,json,at) VALUES(?,?,?,?)', sid, entry.k ?? 'bot', J(entry), now())
+  touch(sid)
 }
 
-// `history` is what the model is replayed; `timeline` is what the SCREEN is
-// replayed. They are not the same thing — the screen also holds the two
-// readings of each voice note, the photos, and every artifact — and a reload
-// that loses an afternoon of work is not something anyone forgives.
-const remember = (s, entry) => {
-  s.timeline.push(entry)
-  if (s.timeline.length > 300) s.timeline.splice(0, s.timeline.length - 300)
-  persist()
-}
+const timeline = (sid) =>
+  all('SELECT json FROM events WHERE session=? ORDER BY id LIMIT 400', sid).map((r) => unJ(r.json)).filter(Boolean)
+
+const photosOf = (sid) =>
+  all('SELECT url,path,described FROM photos WHERE session=? ORDER BY id', sid)
+    .map((p) => ({ ...p, described: unJ(p.described) }))
+
+const creativesOf = (sid) =>
+  all('SELECT url,angle FROM creatives WHERE session=? ORDER BY id', sid)
+
+/* ── tiny helpers ─────────────────────────────────────────────────────────── */
 
 const json = (res, code, body) => {
-  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' })
+  res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' })
   res.end(JSON.stringify(body))
 }
 
@@ -83,21 +82,21 @@ async function body(req) {
   for await (const c of req) chunks.push(c)
   return Buffer.concat(chunks)
 }
+const jsonBody = async (req) => { try { return JSON.parse((await body(req)).toString('utf8') || '{}') } catch { return {} } }
 
 async function serveStatic(res, path, method = 'GET') {
   if (!existsSync(path)) { res.writeHead(404); return res.end('Not found') }
   const type = MIME[extname(path).toLowerCase()] ?? 'application/octet-stream'
   if (method === 'HEAD') { res.writeHead(200, { 'Content-Type': type }); return res.end() }
-  const data = await readFile(path)
-  res.writeHead(200, { 'Content-Type': type })
-  res.end(data)
+  res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' })
+  res.end(await readFile(path))
 }
 
 // Voice notes arrive as webm/ogg/mp4 from the browser and from WhatsApp.
 // muse-voice-transcribe takes WAV only — mono PCM at 16 kHz.
 async function toWav(input) {
   const out = input.replace(/\.[^.]+$/, '') + '.wav'
-  await run('ffmpeg', ['-y', '-loglevel', 'error', '-i', input, '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', out])
+  await sh('ffmpeg', ['-y', '-loglevel', 'error', '-i', input, '-ar', '16000', '-ac', '1', '-c:a', 'pcm_s16le', out])
   return out
 }
 
@@ -105,37 +104,67 @@ async function toWav(input) {
 // the file beats shelling out to ffprobe for a number we only need to sanity
 // check.
 async function durationOf(wavPath) {
-  try {
-    const { size } = await stat(wavPath)
-    return Math.max(0, (size - 44) / 32000)
-  } catch { return 0 }
+  try { const { size } = await stat(wavPath); return Math.max(0, (size - 44) / 32000) } catch { return 0 }
 }
+
+/** The badge numbers behind the left-hand menu, in one query each. */
+function counts(sid) {
+  const c = one('SELECT id FROM meta_connections WHERE session=? AND status=? ORDER BY id DESC LIMIT 1', sid, 'connected')
+  const assetIds = c ? all('SELECT id FROM meta_assets WHERE connection=?', c.id).map((a) => a.id) : []
+  const open = assetIds.length
+    ? one(`SELECT COUNT(*) n FROM threads WHERE status='open' AND asset IN (${assetIds.map(() => '?').join(',')})`, ...assetIds)?.n ?? 0
+    : 0
+  const stuck = assetIds.length
+    ? one(`SELECT COUNT(*) n FROM threads WHERE status='needs_merchant' AND asset IN (${assetIds.map(() => '?').join(',')})`, ...assetIds)?.n ?? 0
+    : 0
+  return {
+    connected: !!c,
+    inbox_open: open,
+    inbox_stuck: stuck,
+    pages: one('SELECT COUNT(*) n FROM pages WHERE session=?', sid)?.n ?? 0,
+    sites: one('SELECT COUNT(*) n FROM sites WHERE session=?', sid)?.n ?? 0,
+    campaigns: one('SELECT COUNT(*) n FROM campaigns WHERE session=?', sid)?.n ?? 0,
+    live: one("SELECT COUNT(*) n FROM campaigns WHERE session=? AND status='ACTIVE'", sid)?.n ?? 0,
+    orders: one('SELECT COUNT(*) n FROM orders WHERE page IN (SELECT id FROM pages WHERE session=?)', sid)?.n ?? 0,
+  }
+}
+
+/** The Page and Instagram assets of the current connection, inbox seeded. */
+function surfaces(sid) {
+  const c = meta.connection(sid)
+  if (c.status !== 'connected') return []
+  return c.assets
+    .filter((a) => a.kind === 'page' || a.kind === 'instagram')
+    .map((a) => {
+      inbox.seedInbox(a.id, a.kind)
+      return { ...a, stats: inbox.inboxStats(a.id) }
+    })
+}
+
+/* ── the server ───────────────────────────────────────────────────────────── */
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`)
   const p = url.pathname
+  const sid = url.searchParams.get('session') ?? 'default'
+  const reading = req.method === 'GET' || req.method === 'HEAD'
+  const seg = p.split('/').filter(Boolean)
 
   try {
-    // ---- static -----------------------------------------------------------
+    /* ── static ─────────────────────────────────────────────────────────── */
     // HEAD as well as GET: link checkers and prefetchers use it, and answering
     // 404 to a HEAD on a file that exists makes a working link look broken.
-    const reading = req.method === 'GET' || req.method === 'HEAD'
-    if (reading && (p === '/' || p === '/index.html')) {
-      return serveStatic(res, join(ROOT, 'web', 'index.html'), req.method)
-    }
-    if (reading && p.startsWith('/web/')) {
-      return serveStatic(res, join(ROOT, 'web', basename(p)), req.method)
-    }
-    if (reading && p.startsWith('/out/')) {
-      return serveStatic(res, join(ROOT, decodeURIComponent(p).replace(/^\//, '')), req.method)
-    }
+    if (reading && (p === '/' || p === '/index.html')) return serveStatic(res, join(ROOT, 'web', 'index.html'), req.method)
+    if (reading && p.startsWith('/web/')) return serveStatic(res, join(ROOT, 'web', ...p.split('/').slice(2)), req.method)
+    if (reading && p.startsWith('/out/')) return serveStatic(res, join(ROOT, decodeURIComponent(p).replace(/^\//, '')), req.method)
 
-    // ---- a product photo --------------------------------------------------
+    if (p.startsWith('/api/')) session(sid)
+
+    /* ── a product photo ────────────────────────────────────────────────── */
     // Described on arrival, not later: the agent has to know what it is
     // selling before the merchant says a word, and the description is what
     // goes into the system prompt.
     if (req.method === 'POST' && p === '/api/photo') {
-      const sid = url.searchParams.get('session') ?? 'default'
       const ext = (url.searchParams.get('ext') ?? 'jpg').replace(/[^a-z0-9]/gi, '').slice(0, 5)
       const buf = await body(req)
       await mkdir(UPLOADS, { recursive: true })
@@ -143,22 +172,17 @@ const server = createServer(async (req, res) => {
       const path = join(UPLOADS, file)
       await writeFile(path, buf)
 
-      const entry = { url: `/out/uploads/${file}`, path, described: null }
-      const s = session(sid)
-      s.photos.push(entry)
+      let described = null
+      try { described = await describePhoto(path) } catch (e) { console.error('[vision]', e.message) }
 
-      try {
-        entry.described = await describePhoto(path)
-      } catch (e) {
-        console.error('[vision]', e.message)
-      }
-      remember(s, { k: 'photo', url: entry.url, described: entry.described })
-      return json(res, 200, { url: entry.url, described: entry.described, count: s.photos.length })
+      insert('INSERT INTO photos(session,url,path,described,at) VALUES(?,?,?,?,?)',
+        sid, `/out/uploads/${file}`, path, J(described), now())
+      remember(sid, { k: 'photo', url: `/out/uploads/${file}`, described })
+      return json(res, 200, { url: `/out/uploads/${file}`, described, count: photosOf(sid).length })
     }
 
-    // ---- a voice note -----------------------------------------------------
+    /* ── a voice note ───────────────────────────────────────────────────── */
     if (req.method === 'POST' && p === '/api/voice') {
-      const s = session(url.searchParams.get('session') ?? 'default')
       const ext = (url.searchParams.get('ext') ?? 'webm').replace(/[^a-z0-9]/gi, '').slice(0, 5)
       const buf = await body(req)
       await mkdir(UPLOADS, { recursive: true })
@@ -184,10 +208,7 @@ const server = createServer(async (req, res) => {
 
       // Both readings, every time. The point of this project is that they
       // disagree, and that the gap is where orders get lost.
-      const [pinned, auto] = await Promise.allSettled([
-        transcribe(wav),
-        transcribe(wav, { languageBias: null }),
-      ])
+      const [pinned, auto] = await Promise.allSettled([transcribe(wav), transcribe(wav, { languageBias: null })])
       const transcript = pinned.status === 'fulfilled' ? (pinned.value ?? '').trim() : ''
       const transcript_auto = auto.status === 'fulfilled' ? (auto.value ?? '').trim() || null : null
 
@@ -200,87 +221,271 @@ const server = createServer(async (req, res) => {
       }
 
       const understood = await understand(transcript).catch(() => null)
-      remember(s, { k: 'heard', transcript, transcript_auto, understood })
+      remember(sid, { k: 'heard', transcript, transcript_auto, understood })
       return json(res, 200, { transcript, transcript_auto, understood, seconds })
     }
 
-    // ---- the agent, streamed ---------------------------------------------
+    /* ── the agent, streamed ────────────────────────────────────────────── */
     if (req.method === 'POST' && p === '/api/chat') {
-      const sid = url.searchParams.get('session') ?? 'default'
-      const s = session(sid)
-      const { input, shop, productName } = JSON.parse((await body(req)).toString('utf8') || '{}')
-      if (shop) s.shop = shop
+      const { input, shop, productName } = await jsonBody(req)
+      if (shop) run('UPDATE sessions SET shop=? WHERE id=?', shop, sid)
+      const s = one('SELECT * FROM sessions WHERE id=?', sid)
 
       res.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
+        'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no',
       })
       const send = (e) => res.write(`data: ${JSON.stringify(e)}\n\n`)
-      remember(s, { k: 'me', text: input })
+      remember(sid, { k: 'me', text: input })
+
+      const photos = photosOf(sid)
+      // Held by reference so generate_creatives can push into it and a landing
+      // page built later in the same turn still has the studio shots.
+      const creatives = creativesOf(sid)
 
       try {
         const out = await runTurn({
-          history: s.history,
+          history: history(sid),
           input,
-          // `creatives` is the session's array by reference: the loop pushes
-          // into it as muse-image produces them, so the landing page built
-          // three turns later still has the studio shots to use.
-          ctx: { shop: s.shop, products: s.products, photos: s.photos, creatives: s.creatives, productName,
-                 productGuess: s.photos.at(-1)?.described?.product ?? null },
+          ctx: {
+            sessionId: sid, shop: s?.shop ?? shop ?? null, products: [], photos, creatives, productName,
+            productGuess: photos.at(-1)?.described?.product ?? null,
+          },
           onEvent: (e) => {
             send(e)
-            if (e.type === 'say:end' && e.text?.trim()) remember(s, { k: 'bot', text: e.text })
+            if (e.type === 'say:end' && e.text?.trim()) remember(sid, { k: 'bot', text: e.text })
             if (e.type === 'tool:end') {
-              if (e.name === 'ask_merchant') remember(s, { k: 'ask', text: e.result?.question })
-              else if (e.name === 'propose_choices') remember(s, { k: 'choices', ...e.result })
-              else remember(s, { k: 'artifact', name: e.name, args: e.args, result: e.result, simulated: e.simulated, real: e.real })
+              if (e.name === 'ask_merchant') remember(sid, { k: 'ask', text: e.result?.question })
+              else if (e.name === 'propose_choices') remember(sid, { k: 'choices', ...e.result })
+              else remember(sid, { k: 'artifact', name: e.name, args: e.args, result: e.result, simulated: e.simulated, real: e.real })
             }
           },
         })
-        s.history = out.messages.slice(-20)
-        persist()
-        send({ type: 'done', text: out.text, blocked: !!out.blocked, missing: out.missing ?? null })
+
+        // Whatever the creatives array gained during the turn gets written out.
+        const known = new Set(creativesOf(sid).map((c) => c.url))
+        for (const c of creatives) {
+          if (!known.has(c.url)) {
+            insert('INSERT INTO creatives(session,url,angle,model,at) VALUES(?,?,?,?,?)',
+              sid, c.url, c.angle ?? null, 'muse-image-1.0', now())
+          }
+        }
+
+        saveHistory(sid, out.messages)
+        send({ type: 'done', text: out.text, blocked: !!out.blocked, missing: out.missing ?? null, counts: counts(sid) })
       } catch (e) {
+        console.error('[chat]', e)
         send({ type: 'error', error: e.message })
       }
       return res.end()
     }
 
-    // ---- orders from a generated landing page ----------------------------
+    /* ── orders from a generated landing page ───────────────────────────── */
     if (req.method === 'POST' && p === '/api/order') {
-      const raw = (await body(req)).toString('utf8')
-      const data = Object.fromEntries(new URLSearchParams(raw))
-      console.log('[order]', data)
+      const data = Object.fromEntries(new URLSearchParams((await body(req)).toString('utf8')))
+      const order = sites.recordOrder(data)
+      console.log('[order]', order)
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-      return res.end('<meta charset="utf-8"><body style="background:#0b0b0f;color:#eee;font:16px system-ui;display:grid;place-items:center;height:100vh"><p>تم تسجيل طلبك ✅</p>')
+      return res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تم</title><body style="margin:0;background:#0d1117;color:#e7eaee;font:16px/1.8 system-ui;display:grid;place-items:center;height:100dvh;text-align:center;padding:24px">
+<div><div style="font-size:46px;margin-bottom:12px">✓</div>
+<p style="font-size:21px;font-weight:700" dir="rtl">تم تسجيل طلبك</p>
+<p style="color:#8b949e" dir="rtl">نعيطولك قريب باش نأكّدو الطلب.</p>
+<p style="color:#6e7681;font-size:13px;margin-top:22px">commande nº ${order.id} — enregistrée dans la base</p></div></body>`)
     }
 
-    if (req.method === 'GET' && p === '/api/state') {
-      const s = session(url.searchParams.get('session') ?? 'default')
+    /* ── state for the shell ────────────────────────────────────────────── */
+    if (reading && p === '/api/state') {
+      const s = one('SELECT * FROM sessions WHERE id=?', sid)
       return json(res, 200, {
         mode: MODE,
-        shop: s.shop,
-        turns: s.history.length,
-        photos: s.photos.map((x) => x.url),
-        timeline: s.timeline,
+        db: basename(DB_FILE),
+        shop: s?.shop ?? null,
+        turns: history(sid).length,
+        photos: photosOf(sid).map((x) => x.url),
+        timeline: timeline(sid),
+        counts: counts(sid),
+        settings: {
+          shop: s?.shop ?? null,
+          language: s?.language ?? 'ar',
+          edge_ip: sites.EDGE_IP,
+        },
       })
     }
 
-    // Start over without losing the port: a fresh session id and an empty
-    // screen, on purpose, when the merchant wants one.
+    if (req.method === 'POST' && p === '/api/settings') {
+      const b = await jsonBody(req)
+      if (b.shop !== undefined) run('UPDATE sessions SET shop=? WHERE id=?', b.shop || null, sid)
+      if (b.language) run('UPDATE sessions SET language=? WHERE id=?', b.language, sid)
+      if (b.key && b.value !== undefined) setting(b.key, b.value)
+      return json(res, 200, { ok: true, counts: counts(sid) })
+    }
+
+    // Start over without losing the port: a fresh session and an empty screen,
+    // on purpose, when the merchant wants one. ON DELETE CASCADE does the rest.
     if (req.method === 'POST' && p === '/api/reset') {
-      sessions.delete(url.searchParams.get('session') ?? 'default')
-      persist()
+      run('DELETE FROM sessions WHERE id=?', sid)
       return json(res, 200, { ok: true })
+    }
+
+    /* ── the simulated Meta connection ──────────────────────────────────── */
+    if (reading && p === '/api/meta') {
+      return json(res, 200, { ...meta.connection(sid), scope_catalog: meta.SCOPES, surfaces: surfaces(sid) })
+    }
+    if (req.method === 'POST' && p === '/api/meta/login') return json(res, 200, meta.startLogin(sid))
+    if (req.method === 'POST' && p === '/api/meta/review') return json(res, 200, meta.reviewPermissions(sid))
+    if (req.method === 'POST' && p === '/api/meta/grant') {
+      const b = await jsonBody(req)
+      const c = meta.grant(sid, b.granted ?? meta.SCOPES.map((s) => s.name))
+      return json(res, 200, { ...c, surfaces: surfaces(sid), counts: counts(sid) })
+    }
+    if (req.method === 'POST' && p === '/api/meta/disconnect') return json(res, 200, meta.disconnect(sid))
+    if (reading && p === '/api/meta/graph') return json(res, 200, meta.graphEcho(sid) ?? { error: 'non connecté' })
+
+    /* ── the inbox ──────────────────────────────────────────────────────── */
+    if (reading && p === '/api/inbox') {
+      const asset = Number(url.searchParams.get('asset')) || null
+      const list = surfaces(sid)
+      const chosen = asset ? list.filter((a) => a.id === asset) : list
+      return json(res, 200, {
+        surfaces: list.map((a) => ({ id: a.id, kind: a.kind, name: a.name, handle: a.handle, followers: a.followers, stats: a.stats })),
+        threads: chosen.flatMap((a) => inbox.threads(a.id).map((t) => ({ ...t, asset_name: a.name, asset_kind: a.kind }))),
+      })
+    }
+    if (reading && seg[1] === 'inbox' && seg[2]) {
+      const t = inbox.thread(Number(seg[2]))
+      return t ? json(res, 200, t) : json(res, 404, { error: 'introuvable' })
+    }
+    // The model writes the reply AND decides whether it may be sent. The
+    // screen shows both outcomes, because the refusals are the point.
+    if (req.method === 'POST' && seg[1] === 'inbox' && seg[3] === 'answer') {
+      const b = await jsonBody(req)
+      const facts = inbox.shopFacts({ product: b.product, price_dzd: b.price_dzd, shop: one('SELECT shop FROM sessions WHERE id=?', sid)?.shop })
+      const draft = await inbox.draftReply(Number(seg[2]), facts)
+      const t = b.dry ? inbox.thread(Number(seg[2])) : inbox.sendReply(Number(seg[2]), draft)
+      return json(res, 200, { draft, thread: t, counts: counts(sid) })
+    }
+    if (req.method === 'POST' && seg[1] === 'inbox' && seg[3] === 'reply') {
+      const b = await jsonBody(req)
+      if (!b.text?.trim()) return json(res, 400, { error: 'texte vide' })
+      return json(res, 200, { thread: inbox.merchantReply(Number(seg[2]), b.text.trim()), counts: counts(sid) })
+    }
+
+    /* ── campaigns ──────────────────────────────────────────────────────── */
+    if (reading && p === '/api/campaigns') return json(res, 200, { campaigns: camp.list(sid), placements: camp.PLACEMENTS })
+    if (reading && seg[1] === 'campaigns' && seg[2]) {
+      const c = camp.get(Number(seg[2]))
+      if (!c) return json(res, 404, { error: 'introuvable' })
+      return json(res, 200, { ...c, results: c.status === 'ACTIVE' ? camp.results(c.id) : null })
+    }
+    if (req.method === 'POST' && seg[1] === 'campaigns' && seg[3] === 'launch') {
+      return json(res, 200, { campaign: camp.launch(Number(seg[2]), { confirmed_by_merchant: true }), counts: counts(sid) })
+    }
+    if (req.method === 'POST' && seg[1] === 'campaigns' && seg[3] === 'advance') {
+      const b = await jsonBody(req)
+      return json(res, 200, camp.advance(Number(seg[2]), Math.max(1, Math.min(7, Number(b.days) || 1))))
+    }
+    if (req.method === 'POST' && seg[1] === 'campaigns' && seg[3] === 'decide') {
+      const b = await jsonBody(req)
+      return json(res, 200, camp.decide(Number(seg[2]), b))
+    }
+
+    /* ── sites, pages, domains ──────────────────────────────────────────── */
+    if (reading && p === '/api/sites') {
+      return json(res, 200, { sites: sites.sites(sid), loose: sites.loosePages(), edge_ip: sites.EDGE_IP })
+    }
+    if (reading && seg[1] === 'sites' && seg[2]) {
+      const s = sites.site(Number(seg[2]))
+      return s ? json(res, 200, s) : json(res, 404, { error: 'introuvable' })
+    }
+    if (req.method === 'POST' && p === '/api/domains') {
+      const b = await jsonBody(req)
+      return json(res, 200, sites.addDomain(Number(b.site) || null, b.host, b.kind))
+    }
+    if (req.method === 'POST' && seg[1] === 'domains' && seg[3] === 'verify') {
+      return json(res, 200, await sites.verifyDomain(Number(seg[2])))
+    }
+    if (req.method === 'POST' && seg[1] === 'domains' && seg[3] === 'pretend') {
+      return json(res, 200, sites.pretendVerified(Number(seg[2])))
+    }
+    if (req.method === 'DELETE' && seg[1] === 'domains' && seg[2]) {
+      return json(res, 200, sites.removeDomain(Number(seg[2])))
+    }
+
+    if (reading && p === '/api/orders') return json(res, 200, { orders: sites.orders() })
+
+    /* ── the landing studio ─────────────────────────────────────────────── */
+    // The catalogue of knobs, what this session last chose, and everything it
+    // could put on a page.
+    if (reading && p === '/api/landing') {
+      const saved = setting(`landing:${sid}`) ?? {}
+      const o = opts.normaliseOptions(saved)
+      const s = one('SELECT * FROM sessions WHERE id=?', sid)
+      return json(res, 200, {
+        catalogue: opts.OPTIONS, sections: opts.SECTIONS, refused: opts.REFUSED,
+        options: o, estimate: opts.estimate(o),
+        shop: s?.shop ?? null,
+        photos: [
+          ...creativesOf(sid).map((c) => ({ url: c.url, kind: 'creative', label: c.angle ?? 'créative' })),
+          ...photosOf(sid).map((x) => ({ url: x.url, kind: 'photo', label: x.described?.product ?? 'photo' })),
+        ],
+        pages: all(`SELECT id,product,url,price_dzd,angle,bytes,at FROM pages WHERE session=? ORDER BY id DESC LIMIT 12`, sid),
+        products: [...new Set(all('SELECT DISTINCT product FROM pages WHERE session=?', sid).map((x) => x.product))],
+      })
+    }
+
+    if (req.method === 'POST' && p === '/api/landing/defaults') {
+      const o = opts.normaliseOptions(await jsonBody(req))
+      setting(`landing:${sid}`, o)
+      return json(res, 200, { options: o, estimate: opts.estimate(o) })
+    }
+
+    // Streamed, because a page with four generated scenes takes over a minute
+    // and a button that sits disabled for ninety seconds reads as broken.
+    if (req.method === 'POST' && p === '/api/landing/build') {
+      const b = await jsonBody(req)
+      const o = opts.normaliseOptions(b.options ?? {})
+      setting(`landing:${sid}`, o)
+
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache', Connection: 'keep-alive', 'X-Accel-Buffering': 'no',
+      })
+      const send = (e) => res.write(`data: ${JSON.stringify(e)}\n\n`)
+
+      try {
+        if (!b.product?.trim()) throw new Error('Il manque le nom du produit.')
+        const shop = b.shop?.trim() || one('SELECT shop FROM sessions WHERE id=?', sid)?.shop || null
+        if (b.shop?.trim()) run('UPDATE sessions SET shop=? WHERE id=?', b.shop.trim(), sid)
+
+        const r = await buildLandingPage({
+          product: b.product.trim(),
+          price_dzd: Number(b.price_dzd) || 0,
+          angle: b.angle?.trim() || null,
+          notes: b.notes?.trim() || null,
+          shop, sessionId: sid, options: o,
+          freshScenes: !!b.fresh,
+          images: o.photos.length ? o.photos : [...creativesOf(sid), ...photosOf(sid)].map((x) => x.url).slice(0, 6),
+          onProgress: (e) => send({ type: 'progress', ...e }),
+        })
+        remember(sid, { k: 'artifact', name: 'build_landing_page', args: { product: b.product }, result: r, real: true })
+        send({ type: 'done', result: r, counts: counts(sid) })
+      } catch (e) {
+        console.error('[landing]', e)
+        send({ type: 'error', error: e.message })
+      }
+      return res.end()
     }
 
     res.writeHead(404); res.end('Not found')
   } catch (e) {
-    json(res, 500, { error: e.message })
+    console.error('[server]', p, e)
+    if (!res.headersSent) return json(res, 500, { error: e.message })
+    res.end()
   }
 })
 
 server.listen(PORT, () => {
-  console.log(`\n  Sawt  →  http://localhost:${PORT}\n  mode: ${MODE}\n`)
+  console.log(`\n  Sawt  →  http://localhost:${PORT}`)
+  console.log(`  mode: ${MODE}   ·   base: out/${basename(DB_FILE)}\n`)
 })

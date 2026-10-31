@@ -230,6 +230,86 @@ export const TOOLS = [
       },
     },
   },
+  // ── the Facebook side ───────────────────────────────────────────────────
+  // Everything below needs a connection. Without one there is no Page, no
+  // inbox and no ad account, and the agent has to say so rather than mime it.
+  {
+    type: 'function',
+    function: {
+      name: 'connect_meta',
+      description:
+        'Open the "Continue with Facebook" screen for the merchant. Call this the FIRST time they ask for anything that needs their Page, their Instagram, their inbox or their ad account, and the state board says Meta is not connected. SIMULATED: it is a staged consent flow, no real Meta account is touched. It returns immediately — the merchant then has to click through it themselves, so end your turn and wait.',
+      parameters: {
+        type: 'object',
+        properties: {
+          because: { type: 'string', description: 'One short sentence, in the merchant\'s language, saying what it unlocks.' },
+        },
+        required: ['because'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_inbox',
+      description:
+        'List the customers waiting on the Page and on Instagram: comments and private messages, newest first, with what each one asked. Call it before answering so you know what you are dealing with.',
+      parameters: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['open', 'needs_merchant', 'answered', 'all'], description: 'Default open.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'answer_inbox',
+      description:
+        'Answer customers in darija. For each thread the model drafts a reply AND decides whether it may send it at all: a question that needs a fact you do not have (stock for a size, the fee for a wilaya, where an existing parcel is, whether the product is authentic) is NOT answered — it comes back marked for the merchant, with the single fact you need from them. Report both kinds honestly afterwards: how many you answered, and what you need from them for the rest.',
+      parameters: {
+        type: 'object',
+        properties: {
+          thread_ids: { type: 'array', items: { type: 'number' }, description: 'Which threads. Leave empty to take every open one.' },
+          product: { type: 'string', description: 'The product being asked about, if you know it.' },
+          price_dzd: { type: 'number', description: 'Its price, if you know it.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'simulate_days',
+      description:
+        'Fast-forward a running campaign by one or more days so there is a trend to read. SIMULATED, and say so: it writes the days of data the campaign would have produced. Use it when the merchant wants to see results now rather than tomorrow.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'number' },
+          days: { type: 'number', description: 'How many days to add. 1 or 2 is usually enough.' },
+        },
+        required: ['campaign_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_domain',
+      description:
+        "Attach a domain name to a site the merchant has built. A subdomain of the platform is live at once; their own domain returns the exact DNS records to add, and the DNS check afterwards is a REAL lookup. Never claim a custom domain is live before it verifies.",
+      parameters: {
+        type: 'object',
+        properties: {
+          site_id: { type: 'number', description: 'From the state board.' },
+          host: { type: 'string', description: 'e.g. sabat-dzair.dz' },
+        },
+        required: ['site_id', 'host'],
+      },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -253,10 +333,19 @@ export const TOOL_NAMES = TOOLS.map((t) => t.function.name)
 // never do is let a simulated number read as a measured one.
 export const SIMULATED = new Set([
   'configure_campaign', 'launch_campaign', 'campaign_results', 'adjust_campaign',
+  'simulate_days', 'connect_meta', 'read_inbox',
 ])
 
 // Tools that produce something the merchant can actually open.
-export const REAL = new Set(['build_landing_page', 'build_storefront', 'build_site', 'generate_creatives'])
+export const REAL = new Set([
+  'build_landing_page', 'build_storefront', 'build_site', 'generate_creatives', 'add_domain',
+])
+
+// answer_inbox is deliberately in NEITHER set: the thread it posts into is
+// staged, but the darija it writes is a real model call, and the refusal to
+// answer what it cannot verify is the real behaviour on show. Badging it
+// "simulé" would undersell it; badging it "réel" would oversell it. The UI
+// labels it for what it is — a real reply, on a simulated Page.
 
 // Tools whose result is a prompt back to the merchant rather than an artifact:
 // the loop keeps going after them, but the UI renders them in the conversation.

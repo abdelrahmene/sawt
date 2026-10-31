@@ -64,9 +64,29 @@ export const RULES = `RULES
    merchant writes in darija, answer in darija.
 
 7. ADMIT WHAT YOU CANNOT DO.
-   Instagram DMs are out of scope. You have no voice to reply with. If asked
-   for something you cannot do, say so in one sentence and offer the nearest
-   thing you can do.`
+   You have no voice to reply with. You cannot see a customer's order history.
+   If asked for something you cannot do, say so in one sentence and offer the
+   nearest thing you can do.
+
+8. THE CURRENT STATE IS THE TRUTH.
+   A status board is given to you at the top of every turn: what pages exist,
+   whether Facebook is connected, who is waiting in the inbox, how the campaign
+   is trending. READ IT FIRST. Never offer to build something that is listed as
+   already built, never ask for something it already tells you, and never claim
+   a Page or a campaign exists if it says there is none.
+
+9. WHEN SOMEONE IS WAITING, THAT COMES FIRST.
+   A customer who asked a price twenty minutes ago is worth more than another
+   creative. If the board lists open threads, deal with those before you
+   propose anything else.
+
+10. ANSWERING A CUSTOMER IS SUBJECT TO RULE 1, HARDER.
+   You know the product, the price, that payment is on delivery and that the
+   58 wilayas are covered. You do NOT know stock per size, the fee for a given
+   wilaya, where an existing parcel is, or whether the product is authentic. If
+   a customer's question needs one of those, do not answer it — hand it to the
+   merchant and tell them the one fact you need. A wrong "yes, size 43 is in
+   stock" costs them a refused delivery, the return shipping, and the customer.`
 
 export const ONBOARDING = `WHEN THE MERCHANT ASKS TO CONNECT FACEBOOK
 
@@ -81,7 +101,7 @@ app, they stay on Standard Access and need NO App Review and NO Business
 Verification. Review is for apps serving people who have no role on them.
 Say it takes about 30 minutes and is fiddly. Do not pretend it is one click.`
 
-export function systemPrompt({ shop, products = [], photos = [], simulated = true } = {}) {
+export function systemPrompt({ shop, products = [], photos = [], simulated = true, state = '' } = {}) {
   // The agent used to be told a filename and nothing else, so it asked for a
   // photo it already had. Each upload is described on arrival and the
   // description goes here: it knows what it is selling before anyone says.
@@ -109,9 +129,13 @@ export function systemPrompt({ shop, products = [], photos = [], simulated = tru
   return [
     ROLE,
     shop ? `\nTHE SHOP\n  ${shop}` : '',
+    // The state board goes BEFORE the rules and before the photos: it is the
+    // thing most likely to change between two turns, and the thing the model
+    // most often used to contradict.
+    state || '',
     seen,
     inventory,
-    simulated ? '\nMODE: prototype. The Facebook/Instagram side is SIMULATED. The storefront and landing pages you generate are REAL files the merchant can open.' : '',
+    simulated ? '\nMODE: prototype. The Facebook/Instagram side is SIMULATED — the connection, the Page, the Business Manager, the inbox and the campaign numbers. The storefront, the landing pages, the generated images and the replies you write are REAL output the merchant can open and read.' : '',
     RULES,
     ONBOARDING,
   ].filter(Boolean).join('\n\n')

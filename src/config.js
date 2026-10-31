@@ -23,10 +23,20 @@ export const arg = (name, fallback = null) => {
 }
 
 // Three modes, deliberately explicit — see the table in the README.
-//   replay : nothing is live. No key, no network. This is what `npm start` runs.
-//   live   : Meta's MODELS are live, the Facebook/Instagram side stays replayed.
+//   replay : nothing is live. No key, no network.
+//   live   : Meta's MODELS are live, the Facebook/Instagram side stays staged.
 //   real   : everything live, against a Meta app you own. See SETUP.md.
-export const MODE = flag('real') ? 'real' : flag('live') ? 'live' : 'replay'
+//
+// The mode is DERIVED from whether a key is present, not from a flag nobody
+// passes. It used to default to "replay" while the server happily made real
+// model calls behind the label, which is the one kind of inaccuracy this
+// project cannot afford: the badge in the corner of the screen is a claim
+// about what just happened.
+const KEY_PRESENT = !!(process.env.MODEL_API_KEY || process.env.BASETEN_API_KEY)
+export const MODE = flag('real') ? 'real'
+  : flag('replay') ? 'replay'
+  : flag('live') || KEY_PRESENT ? 'live'
+  : 'replay'
 
 export const PROVIDER = process.env.LLM_PROVIDER || 'meta'
 

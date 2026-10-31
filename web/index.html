@@ -4,271 +4,70 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sawt</title>
-<!-- No webfonts on purpose. Loading them from a CDN stalls the page on a slow
-     Algerian connection and breaks it entirely for a judge running offline —
-     and the whole point of this repo is that it runs with no network at all.
-     System stacks only. -->
-<style>
-  :root{
-    --bg:#f4f5f7; --panel:#fff; --raise:#fbfbfc;
-    --ink:#101317; --ink-2:#3d444d; --dim:#79818c; --faint:#aab0b9;
-    --line:#e6e8ec; --line-2:#d6d9df;
-    --accent:#0d7a5f; --accent-soft:#e7f4ef; --accent-line:#b9e0d1;
-    --warn:#a35c06; --warn-soft:#fdf3e4; --warn-line:#f0d9b0;
-    --bad:#b4302c; --bad-soft:#fdeeed;
-    --r:12px; --r-lg:16px;
-    --sh:0 1px 2px rgba(16,19,23,.05), 0 6px 20px -8px rgba(16,19,23,.09);
-    --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
-    --sans:system-ui,-apple-system,"Segoe UI Variable Text","Segoe UI",Roboto,"Helvetica Neue",sans-serif;
-    --arabic:"Segoe UI","Noto Kufi Arabic","Geeza Pro",Tahoma,"Arabic Typesetting",sans-serif;
-  }
-  *{box-sizing:border-box}
-  html{height:100%}
-  /* grid-template-rows must be minmax(0,1fr), not 1fr: an auto row refuses to
-     shrink below its content, so both columns grew past the viewport and the
-     panes clipped instead of scrolling. */
-  body{
-    margin:0;height:100dvh;overflow:hidden;background:var(--bg);color:var(--ink);
-    font:15px/1.6 var(--sans);
-    -webkit-font-smoothing:antialiased;
-    display:grid;grid-template-columns:minmax(380px,500px) minmax(0,1fr);
-    grid-template-rows:minmax(0,1fr);
-  }
-  :lang(ar),[dir=rtl]{font-family:var(--arabic)}
-  /* Stacked, the second row must be CONSTRAINED, not `auto`. An auto row grows
-     to its content, the total passes 100dvh, and body{overflow:hidden} then
-     crops the canvas instead of letting it scroll — the creatives were there,
-     below the fold, with no way to reach them. */
-  @media (max-width:980px){
-    body{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,48dvh)}
-    #canvas{border-top:1px solid var(--line);padding:16px}
-  }
-
-  /* ── conversation ───────────────────────────────────────────────────── */
-  #chat{display:flex;flex-direction:column;min-height:0;background:var(--panel);
-        border-right:1px solid var(--line);position:relative;z-index:2}
-  header{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
-
-  /* the orb: idle it rests, working it breathes. the only animation on the
-     page that is always visible, so it has to be calm */
-  .orb{width:26px;height:26px;border-radius:50%;flex:0 0 auto;position:relative;
-    background:radial-gradient(circle at 32% 30%,#2fd0a3,var(--accent) 62%)}
-  .orb::after{content:"";position:absolute;inset:-5px;border-radius:50%;
-    border:1.5px solid var(--accent);opacity:0;transform:scale(.8)}
-  body.busy .orb::after{animation:breathe 1.9s cubic-bezier(.4,0,.2,1) infinite}
-  @keyframes breathe{0%{opacity:.55;transform:scale(.82)}70%,100%{opacity:0;transform:scale(1.45)}}
-
-  header h1{margin:0;font-size:16px;font-weight:650;letter-spacing:-.01em}
-  header .ar{color:var(--faint);font-size:14px;font-family:var(--arabic)}
-  header .mode{margin-inline-start:auto;font:500 10.5px/1 var(--mono);letter-spacing:.09em;
-    text-transform:uppercase;color:var(--warn);background:var(--warn-soft);
-    border:1px solid var(--warn-line);padding:5px 9px;border-radius:99px}
-  header .icon{background:none;border:1px solid transparent;color:var(--faint);cursor:pointer;
-    width:28px;height:28px;border-radius:8px;font-size:15px;line-height:1;display:grid;place-items:center;
-    transition:.14s}
-  header .icon:hover{color:var(--accent);border-color:var(--line-2);background:var(--raise)}
-
-  #log{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:12px;min-height:0;
-       scroll-behavior:smooth}
-  #log::-webkit-scrollbar{width:9px}
-  #log::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px;border:3px solid var(--panel)}
-
-  .msg{flex:0 0 auto;max-width:88%;padding:10px 14px;border-radius:var(--r);white-space:pre-wrap;
-    word-wrap:break-word;animation:rise .28s cubic-bezier(.2,.8,.3,1) both;font-size:14.5px}
-  @keyframes rise{from{opacity:0;transform:translateY(7px)}}
-  .msg.me{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:4px}
-  .msg.bot{align-self:flex-start;background:var(--raise);border:1px solid var(--line);
-    border-bottom-left-radius:4px;color:var(--ink-2)}
-  .msg.ask{align-self:flex-start;background:var(--warn-soft);border:1px solid var(--warn-line);color:#6b3d04}
-  .msg.ask::before{content:"il lui manque quelque chose";display:block;font:500 10px/1 var(--mono);
-    letter-spacing:.1em;text-transform:uppercase;color:var(--warn);margin-bottom:7px;opacity:.8}
-  .msg[dir=rtl]{text-align:right}
-  .msg .inline-img{display:block;width:100%;max-width:230px;aspect-ratio:1;object-fit:cover;
-    border-radius:10px;border:1px solid var(--line);margin:7px 0;cursor:zoom-in;transition:.16s}
-  .msg .inline-img:hover{border-color:var(--accent-line);box-shadow:var(--sh)}
-  .msg a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-line);
-    word-break:break-all}
-  .msg a:hover{border-bottom-color:var(--accent)}
-  .msg.me a{color:#7ee3c0;border-bottom-color:rgba(126,227,192,.4)}
-  /* the cursor only exists while tokens are arriving */
-  .msg.live::after{content:"";display:inline-block;width:2px;height:1em;background:var(--accent);
-    margin-inline-start:2px;vertical-align:-2px;animation:blink .9s steps(2) infinite}
-  @keyframes blink{50%{opacity:0}}
-
-  /* what the model heard — twice */
-  .heard{flex:0 0 auto;align-self:stretch;border:1px solid var(--line);border-radius:var(--r);
-    background:var(--raise);padding:12px 14px;font-size:13px;animation:rise .28s both}
-  .heard b{display:block;font:500 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
-    color:var(--faint);margin-bottom:9px}
-  .heard .row{display:flex;gap:9px;align-items:flex-start;margin-bottom:6px}
-  .heard .tag{flex:0 0 auto;font:500 9.5px/1 var(--mono);padding:4px 6px;border-radius:5px;margin-top:2px;
-    letter-spacing:.06em;text-transform:uppercase}
-  .heard .tag.a{background:var(--bad-soft);color:var(--bad)}
-  .heard .tag.p{background:var(--accent-soft);color:var(--accent)}
-  .heard .txt{flex:1;direction:rtl;text-align:right;font-family:var(--arabic);line-height:1.9}
-  .heard .gap{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line-2);
-    color:var(--warn);font-size:12px;display:flex;gap:7px;align-items:flex-start}
-
-  /* live step chips: name of the tool, a spinner, and a running clock, so a
-     three-minute wait reads as progress rather than a freeze */
-  .step{flex:0 0 auto;align-self:flex-start;display:flex;align-items:center;gap:9px;padding:7px 12px;
-    border:1px solid var(--line);border-radius:99px;background:var(--panel);font-size:12.5px;
-    color:var(--dim);animation:rise .22s both;box-shadow:var(--sh)}
-  .step .spin{width:11px;height:11px;border-radius:50%;border:1.6px solid var(--line-2);
-    border-top-color:var(--accent);animation:spin .75s linear infinite;flex:0 0 auto}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .step .t{font:500 11px var(--mono);color:var(--faint);margin-inline-start:3px}
-  .step.done{color:var(--accent);border-color:var(--accent-line);background:var(--accent-soft)}
-  .step.done .spin{border:0;background:none;position:relative}
-  .step.done .spin::before{content:"✓";position:absolute;inset:-3px 0 0 -1px;font-size:12px}
-  .step .sub{color:var(--faint)}
-
-  /* tappable next steps */
-  .choices{flex:0 0 auto;align-self:flex-start;max-width:96%;display:flex;flex-wrap:wrap;gap:8px;animation:rise .3s both}
-  .choices .q{flex:0 0 100%;color:var(--dim);font-size:13px;margin-bottom:2px}
-  .choices button{background:var(--panel);border:1px solid var(--line-2);color:var(--ink-2);
-    border-radius:99px;padding:9px 15px;font:500 13.5px var(--sans);cursor:pointer;
-    transition:.14s;box-shadow:var(--sh)}
-  .choices button:hover{border-color:var(--accent-line);color:var(--accent);transform:translateY(-1px)}
-  .choices button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  .choices button.primary:hover{background:#0a6650;color:#fff}
-  .choices button.caution{border-color:var(--warn-line);background:var(--warn-soft);color:var(--warn)}
-  .choices.spent{opacity:.35;pointer-events:none;filter:saturate(.3)}
-
-  #dock{border-top:1px solid var(--line);padding:13px 16px;display:flex;gap:9px;align-items:center;
-    background:var(--panel)}
-  #text{flex:1;background:var(--bg);border:1px solid var(--line-2);border-radius:11px;
-    color:var(--ink);padding:11px 14px;font:inherit;font-size:14.5px;outline:none;transition:.14s}
-  #text::placeholder{color:var(--faint)}
-  #text:focus{border-color:var(--accent-line);background:var(--panel);box-shadow:0 0 0 3px var(--accent-soft)}
-  .btn{background:var(--panel);border:1px solid var(--line-2);color:var(--ink-2);border-radius:11px;
-    width:42px;height:42px;cursor:pointer;font-size:16px;display:grid;place-items:center;transition:.14s;flex:0 0 auto}
-  .btn:hover{border-color:var(--accent-line);color:var(--accent)}
-  .btn.rec{background:var(--accent);border-color:var(--accent);color:#fff}
-  .btn.rec:hover{background:#0a6650;color:#fff}
-  .btn.rec.on{background:var(--bad);border-color:var(--bad);animation:rec 1s infinite}
-  @keyframes rec{50%{box-shadow:0 0 0 7px rgba(180,48,44,.15)}}
-
-  /* ── canvas ─────────────────────────────────────────────────────────── */
-  #canvas{position:relative;overflow-y:auto;padding:26px 30px;display:flex;flex-direction:column;
-    gap:18px;min-height:0;min-width:0}
-  #canvas::-webkit-scrollbar{width:10px}
-  #canvas::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px;border:3px solid var(--bg)}
-  .empty{margin:auto;max-width:430px;text-align:center;color:var(--dim);line-height:1.8}
-  .empty h2{color:var(--ink);font-size:19px;font-weight:650;margin:0 0 10px;letter-spacing:-.01em}
-  .empty .quote{margin:18px 0;padding:16px 18px;background:var(--panel);border:1px solid var(--line);
-    border-radius:var(--r);direction:rtl;font-family:var(--arabic);font-size:14px;
-    line-height:2;color:var(--ink-2);box-shadow:var(--sh)}
-  .empty kbd{font:500 12px var(--mono);background:var(--panel);border:1px solid var(--line-2);
-    border-bottom-width:2px;border-radius:6px;padding:2px 7px}
-
-  /* flex-shrink:0 is load-bearing. In a flex column with a constrained height
-     the default shrinks every card to fit, so scrollHeight equals clientHeight
-     and NOTHING scrolls — the cards were squashed, images clipped, and the
-     column looked frozen. They must keep their natural height and overflow. */
-  .card{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);
-    overflow:hidden;box-shadow:var(--sh);animation:rise .34s cubic-bezier(.2,.8,.3,1) both}
-  .card > h3{margin:0;padding:13px 17px;font-size:13.5px;font-weight:600;letter-spacing:-.005em;
-    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;background:var(--raise)}
-  .card .body{padding:16px 17px}
-  .badge{font:500 9.5px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase;
-    padding:5px 9px;border-radius:99px;margin-inline-start:auto}
-  .badge.real{background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent-line)}
-  .badge.sim{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn-line)}
-
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:13px}
-  .grid figure{margin:0}
-  .grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;border:1px solid var(--line);
-    display:block;cursor:zoom-in;transition:.16s}
-  .grid img:hover{border-color:var(--accent-line);transform:scale(1.015);box-shadow:var(--sh)}
-  .grid figcaption{font-size:12.5px;color:var(--dim);margin-top:7px;display:flex;align-items:center;gap:7px}
-  .grid figcaption a{margin-inline-start:auto;font-size:11px;text-decoration:none;opacity:.75}
-  .grid figcaption a:hover{opacity:1}
-
-  /* pointer-events:none on the preview is the whole fix for "the right side
-     won't scroll": a 470px iframe swallows the wheel, so the page inside
-     scrolled while the column stood still and there was no way to tell. The
-     preview is a picture you click to open; the wheel belongs to the column. */
-  iframe{width:100%;height:470px;border:0;background:#fff;display:block;
-    border-bottom:1px solid var(--line);pointer-events:none}
-  .frame{position:relative;cursor:pointer}
-  .frame::after{content:"";position:absolute;inset:0;background:transparent;transition:.16s}
-  .frame:hover::after{background:rgba(13,122,95,.05)}
-  .frame .open{position:absolute;top:10px;inset-inline-end:10px;z-index:2;background:rgba(255,255,255,.94);
-    border:1px solid var(--line-2);border-radius:9px;padding:6px 11px;font:500 12px var(--sans);
-    text-decoration:none;color:var(--ink-2);box-shadow:var(--sh);backdrop-filter:blur(4px)}
-  .frame .open:hover{border-color:var(--accent-line);color:var(--accent)}
-
-  /* click any image to see it full size */
-  #lightbox{position:fixed;inset:0;z-index:50;background:rgba(12,14,17,.86);display:none;
-    place-items:center;padding:36px;cursor:zoom-out;backdrop-filter:blur(3px)}
-  #lightbox.on{display:grid;animation:fade .18s both}
-  @keyframes fade{from{opacity:0}}
-  #lightbox img{max-width:100%;max-height:100%;border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.4)}
-  #lightbox .hint{position:absolute;bottom:20px;color:#fff;opacity:.6;font-size:12.5px}
-
-  /* jump back to the newest card after scrolling up */
-  #tolatest{position:absolute;bottom:18px;inset-inline-end:26px;background:var(--panel);
-    border:1px solid var(--line-2);border-radius:99px;padding:9px 15px;font:500 12.5px var(--sans);
-    color:var(--ink-2);cursor:pointer;box-shadow:var(--sh);display:none;z-index:5}
-  #tolatest.on{display:block;animation:rise .2s both}
-  #tolatest:hover{border-color:var(--accent-line);color:var(--accent)}
-
-  table{width:100%;border-collapse:collapse;font:12.5px var(--mono)}
-  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
-  th{color:var(--faint);font-weight:500;font-size:10px;letter-spacing:.09em;text-transform:uppercase}
-  td.num{text-align:right}
-  tbody tr:hover{background:var(--raise)}
-  tr.best td{color:var(--accent);font-weight:500}
-  tr.worst td{color:var(--bad)}
-
-  pre{margin:0;font:12px/1.65 var(--mono);color:var(--ink-2);white-space:pre-wrap;word-break:break-word;
-    background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
-  .kv{display:grid;grid-template-columns:auto 1fr;gap:7px 18px;font-size:13.5px;margin:0}
-  .kv dt{color:var(--dim)}
-  .kv dd{margin:0;color:var(--ink-2)}
-  .why{margin-top:13px;padding:11px 13px;background:var(--accent-soft);
-    border-inline-start:2.5px solid var(--accent);border-radius:0 9px 9px 0;font-size:13.5px;color:#0a5a46}
-  .why b{font-weight:650}
-  .why + .why{margin-top:8px}
-  a{color:var(--accent)}
-  .pages{display:flex;flex-direction:column;gap:8px;margin-top:13px}
-  .pages a{display:flex;align-items:center;gap:11px;padding:11px 13px;background:var(--raise);
-    border:1px solid var(--line);border-radius:10px;text-decoration:none;font-size:13.5px;
-    color:var(--ink-2);transition:.14s}
-  .pages a:hover{border-color:var(--accent-line);background:var(--accent-soft);color:var(--accent)}
-  .pages a .price{margin-inline-start:auto;color:var(--faint);font:500 12px var(--mono)}
-</style>
+<link rel="stylesheet" href="/web/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='13' fill='%230d7a5f'/><circle cx='12' cy='12' r='5' fill='%2338e0ad'/></svg>">
 </head>
 <body>
-  <section id="chat">
-    <header>
-      <span class="orb"></span>
-      <h1>Sawt</h1><span class="ar">صوت</span>
-      <span class="mode" id="mode">prototype</span>
-      <button class="icon" id="reset" title="Nouvelle conversation">↻</button>
-    </header>
-    <div id="log"></div>
-    <div id="dock">
-      <button class="btn" id="photo" title="Ajouter une photo produit">🖼</button>
-      <input id="text" placeholder="Écris, ou tiens le micro et parle en darija…" autocomplete="off">
-      <button class="btn rec" id="mic" title="Maintenir pour parler">🎤</button>
+
+<!-- The rail is the menu he asked for: every surface of the product in one
+     column, with the number of people waiting on it. -->
+<aside id="rail">
+  <span class="orb" title="Sawt"></span>
+  <nav id="tabs"></nav>
+  <div class="foot">
+    <span class="mode" id="mode">…</span>
+  </div>
+</aside>
+
+<main>
+  <!-- ══ the agent ══════════════════════════════════════════════════════ -->
+  <section class="view on" id="v-chat">
+    <div id="chat">
+      <div class="top">
+        <h2>Sawt</h2><span class="ar">صوت</span>
+        <div class="actions">
+          <button class="icon sm" id="reset" title="Nouvelle conversation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="log"></div>
+      <div id="dock">
+        <button class="icon" id="photo" title="Ajouter une photo produit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3 16.5l5-4.5 4 3.5 3-2.5 4 3.5"/></svg>
+        </button>
+        <input id="text" placeholder="Écris, ou tiens le micro et parle en darija…" autocomplete="off">
+        <button class="icon rec" id="mic" title="Maintenir pour parler">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3.5"/></svg>
+        </button>
+      </div>
+      <input type="file" id="file" accept="image/*" multiple hidden>
     </div>
-    <input type="file" id="file" accept="image/*" multiple hidden>
+
+    <div id="canvas">
+      <div class="empty" id="canvas-empty">
+        <div class="big">◍</div>
+        <h3>Parle-lui. Il construit.</h3>
+        <p>Donne-lui une photo de produit, puis dis-lui ce que tu veux. Il écrit la page, dessine les visuels, prépare la campagne et répond à tes clients.</p>
+        <div class="post" style="margin:18px 0;max-width:none">دير لي إشهار على هاد الصباط<br>و لانسيه بـ 2000 دينار في النهار</div>
+        <p style="font-size:13px;color:var(--faint)">Tiens le micro enfoncé pendant que tu parles.</p>
+      </div>
+      <button id="tolatest">↓ nouveau</button>
+    </div>
   </section>
 
-  <section id="canvas">
-    <div class="empty">
-      <h2>Parle-lui. Il construit.</h2>
-      <p>Donne-lui une photo de produit, puis dis-lui ce que tu veux.</p>
-      <div class="quote">دير لي إشهار على هاد الصباط<br>و لانسيه بـ 2000 دينار في النهار</div>
-      <p>Tiens <kbd>🎤</kbd> enfoncé pendant que tu parles.</p>
-    </div>
-    <button id="tolatest">↓ nouveau</button>
-  </section>
+  <!-- ══ the rest, each rendered by its own module ══════════════════════ -->
+  <section class="view" id="v-studio"></section>
+  <section class="view scroll" id="v-sites"></section>
+  <section class="view scroll" id="v-campaigns"></section>
+  <section class="view" id="v-inbox"></section>
+  <section class="view scroll" id="v-meta"></section>
+  <section class="view scroll" id="v-settings"></section>
+</main>
 
-  <div id="lightbox"><img alt=""><span class="hint">clique pour fermer · Échap</span></div>
+<div id="lightbox"><img alt=""><span class="hint">clique pour fermer · Échap</span></div>
+<div class="toast" id="toast"></div>
 
-  <script type="module" src="/web/app.js"></script>
+<script type="module" src="/web/app.js"></script>
 </body>
 </html>
