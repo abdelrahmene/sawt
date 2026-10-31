@@ -232,6 +232,24 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
     return
   }
 
+  if (name === 'restyle_photo') {
+    const b = card(`Photo refaite — ${result.product ?? ''}`, { real: true })
+    const g = el('div', 'thumbs')
+    if (result.source_photo) g.append(thumb(result.source_photo, 'ta photo'))
+    if (result.isolated?.url) g.append(thumb(result.isolated.url, `détouré · sam-3.1`))
+    for (const p of result.photos ?? []) g.append(thumb(p.url, p.look))
+    b.append(g)
+    if (result.note) b.append(el('div', 'why', esc(result.note)))
+    // L'avertissement de marque passe avant tout le reste : c'est le compte
+    // publicitaire du marchand qui est en jeu.
+    if (result.brand_risk) {
+      b.append(el('div', 'why warn',
+        `<b>Marque visible sur la photo.</b><br>${esc(result.brand_risk.seen)}<br>` +
+        `<span style="color:var(--dim)">Le rendu ne la rend pas plus lisible que sur ton original — mais une pub Meta avec un logo sans autorisation ferme le compte.</span>`))
+    }
+    return
+  }
+
   if (name === 'generate_creatives') {
     const b = card('Créatives', { real: true })
     const g = el('div', 'thumbs')
@@ -551,7 +569,17 @@ export async function send(input) {
       }
     }
   } catch (err) {
-    say('bot', '⚠ connexion interrompue : ' + err.message, 'ask')
+    // Une coupure réseau n'est pas une question de l'agent. L'afficher dans
+    // le style « il lui manque quelque chose » laissait croire qu'il
+    // attendait une réponse, alors que c'est le serveur qui est tombé.
+    const n = el('div', 'msg offline')
+    n.innerHTML = `<b>Connexion au serveur perdue.</b> Ce n'est pas l'agent : rien n'a été perdu, ` +
+      `la conversation est en base. Relance <code>npm start</code> puis réessaie.` +
+      `<br><span style="opacity:.7">${esc(err.message)}</span>`
+    const b = el('button', 'btn sm', 'réessayer')
+    b.onclick = () => { n.remove(); send(input) }
+    n.append(document.createElement('br'), b)
+    log.append(n); bottom(log)
   }
 
   step.drop()
@@ -560,17 +588,77 @@ export async function send(input) {
   refresh()
 }
 
-/* ── voice: hold to talk ─────────────────────────────────────────────────── */
+/* ── la voix, dessinée ────────────────────────────────────────────────────
+   Le produit s'appelle « la voix ». Un micro qui ne montre rien pendant
+   qu'on parle, c'est un bouton sur lequel on doute — surtout en darija, où
+   le marchand ne sait pas encore si on le comprend. Les barres bougent avec
+   SA voix, en direct, depuis le même flux que l'enregistrement : rien de
+   décoratif, c'est la mesure du signal qui part au modèle. */
+const wave = $('#wave')
+const wctx = wave.getContext('2d')
+let analyser = null, raf = 0
+
+function dessinerOnde() {
+  if (!analyser) return
+  const n = analyser.frequencyBinCount
+  const data = new Uint8Array(n)
+  analyser.getByteFrequencyData(data)
+
+  const dpr = Math.min(devicePixelRatio || 1, 2)
+  const W = wave.clientWidth, H = wave.clientHeight
+  if (wave.width !== W * dpr) { wave.width = W * dpr; wave.height = H * dpr }
+  wctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  wctx.clearRect(0, 0, W, H)
+
+  const barres = Math.floor(W / 6)
+  const styles = getComputedStyle(document.documentElement)
+  const vif = styles.getPropertyValue('--accent').trim() || '#0d7a5f'
+  for (let i = 0; i < barres; i++) {
+    // Les graves portent la voix : on échantillonne le bas du spectre.
+    const v = data[Math.floor((i / barres) * n * 0.55)] / 255
+    const h = Math.max(2, v * v * H * 0.92)
+    wctx.fillStyle = vif
+    wctx.globalAlpha = 0.25 + v * 0.75
+    wctx.beginPath()
+    wctx.roundRect(i * 6 + 1, (H - h) / 2, 3, h, 2)
+    wctx.fill()
+  }
+  wctx.globalAlpha = 1
+  raf = requestAnimationFrame(dessinerOnde)
+}
+
+function arreterOnde() {
+  cancelAnimationFrame(raf)
+  analyser = null
+  wctx.clearRect(0, 0, wave.width, wave.height)
+  document.body.classList.remove('listening')
+}
+
 const mic = $('#mic')
-let rec = null, chunks = []
+let rec = null, chunks = [], audioCtx = null
 
 async function startRec() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     rec = new MediaRecorder(stream)
     chunks = []
+
+    try {
+      audioCtx ??= new AudioContext()
+      if (audioCtx.state === 'suspended') await audioCtx.resume()
+      analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 256
+      analyser.smoothingTimeConstant = 0.72
+      audioCtx.createMediaStreamSource(stream).connect(analyser)
+      document.body.classList.add('listening')
+      dessinerOnde()
+    } catch (e) {
+      // Pas d'onde, mais l'enregistrement doit marcher quand même.
+      console.warn('[onde]', e.message)
+    }
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data)
     rec.onstop = async () => {
+      arreterOnde()
       stream.getTracks().forEach((t) => t.stop())
       const blob = new Blob(chunks, { type: 'audio/webm' })
       if (blob.size < 1200) return
@@ -587,9 +675,9 @@ async function startRec() {
       send(r.transcript)
     }
     rec.start(); mic.classList.add('on')
-  } catch (e) { say('bot', '⚠ micro indisponible : ' + e.message) }
+  } catch (e) { arreterOnde(); say('bot', '⚠ micro indisponible : ' + e.message) }
 }
-const stopRec = () => { if (rec?.state === 'recording') rec.stop(); rec = null; mic.classList.remove('on') }
+const stopRec = () => { if (rec?.state === 'recording') rec.stop(); else arreterOnde(); rec = null; mic.classList.remove('on') }
 
 mic.addEventListener('pointerdown', (e) => { e.preventDefault(); startRec() })
 mic.addEventListener('pointerup', stopRec)
@@ -625,8 +713,19 @@ $('#file').onchange = async (e) => {
   e.target.value = ''
 }
 
-$('#text').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); const v = e.target.value; e.target.value = ''; send(v) }
+// Le composeur grandit avec ce qu'on écrit, comme partout ailleurs. Sans ça,
+// une consigne de quatre lignes se tape dans une fente d'une ligne.
+const ta = $('#text')
+const pousse = () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 170) + 'px' }
+ta.addEventListener('input', pousse)
+ta.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    const v = ta.value
+    ta.value = ''
+    pousse()
+    send(v)
+  }
 })
 
 $('#reset').onclick = async () => {

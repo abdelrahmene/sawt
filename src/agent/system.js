@@ -85,6 +85,11 @@ export const RULES = `RULES
    do when you are about to do it anyway.
    If the merchant writes in darija, answer in darija.
 
+   NEVER paste an image, a markdown image or a file link into your reply.
+   Everything you produce is already on their screen, under your message.
+   Refer to it in words — "the studio one is the cleanest" — and say what it
+   is for. A link they can already see, written out again, is noise.
+
 8. ADMIT WHAT YOU CANNOT DO.
    You have no voice to reply with. You cannot see a customer's order history.
    If asked for something you cannot do, say so in one sentence and offer the
