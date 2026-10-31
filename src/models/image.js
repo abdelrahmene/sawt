@@ -49,6 +49,37 @@ export function save(b64, path) {
   return path
 }
 
+/**
+ * NE JAMAIS RENDRE UN LOGO PLUS LISIBLE QU'IL NE L'ÉTAIT.
+ *
+ * Mesuré, pas supposé. Photo d'un marchand : basket noire posée sur une
+ * table, patte rouge au talon avec une inscription illisible. La vision avait
+ * prévenu — « inscription en relief évoquant une marque de luxe, authenticité
+ * à vérifier » — et restyle_photo a quand même réédité l'image : sur le rendu
+ * studio, on lit distinctement « PRA… ».
+ *
+ * L'outil n'avait pas embelli une photo, il avait fabriqué une contrefaçon
+ * plus convaincante que l'originale. À 4 500 DA la paire, ce n'est pas du
+ * Prada, et une publicité portant ce logo, c'est le compte publicitaire fermé
+ * et une plainte en contrefaçon — pas une hypothèse : c'est la règle que ce
+ * marchand s'applique déjà à lui-même sur ses autres produits.
+ *
+ * On ne refuse pas de retoucher : un produit de marque peut être légitime, et
+ * décider à sa place serait présomptueux. On refuse de RÉVÉLER ce que
+ * l'original cachait.
+ */
+export const GARDE_MARQUE =
+  'Do not sharpen, complete, redraw, invent or make legible any logo, brand name, ' +
+  'monogram or trademark. Anything blurred, partial or unreadable in the source ' +
+  'must stay exactly as blurred, partial and unreadable in the result.'
+
+/** La vision signale-t-elle une marque ? Son champ `caution` est en français. */
+export function risqueMarque(described) {
+  const c = String(described?.caution ?? '')
+  if (!c) return null
+  return /marque|logo|authenticit|contrefa|luxe|réplique|replique|griffe/i.test(c) ? c : null
+}
+
 // Arabic headlines are composited as a deterministic SVG layer rather than
 // drawn by the model: generative models reorder digits inside a right-to-left
 // run, which turns a price into a different price. The model makes the scene,

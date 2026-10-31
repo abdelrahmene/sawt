@@ -285,6 +285,22 @@ input.f:focus,select.f:focus,textarea.f:focus{border-color:var(--accent);box-sha
 .step.done .spin::before{content:"✓";position:absolute;inset:-3px 0 0 -1px;font-size:12px}
 .step .sub{color:var(--faint)}
 
+/* le résultat, dans le fil */
+.inline-out{flex:0 0 auto;align-self:stretch;display:flex;flex-wrap:wrap;gap:9px;
+  animation:rise .3s both;margin:2px 0}
+.inline-out figure{margin:0;width:118px}
+.inline-out img{width:118px;height:118px;object-fit:cover;border-radius:11px;
+  border:1px solid var(--line);cursor:zoom-in;transition:.16s;background:var(--sunk);display:block}
+.inline-out img:hover{border-color:var(--accent-line);transform:scale(1.03);box-shadow:var(--sh)}
+.inline-out figcaption{font-size:11px;color:var(--faint);margin-top:5px;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inline-out a.page{display:inline-flex;align-items:center;gap:7px;background:var(--panel);
+  border:1px solid var(--line-2);border-radius:10px;padding:9px 13px;font:600 13px var(--sans);
+  color:var(--ink-2);text-decoration:none;transition:.15s;box-shadow:var(--sh-1);max-width:100%}
+.inline-out a.page span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inline-out a.page:hover{border-color:var(--accent-line);color:var(--accent);transform:translateY(-1px)}
+.inline-out a.page svg{flex:0 0 auto;opacity:.7}
+
 .choices{flex:0 0 auto;align-self:flex-start;max-width:96%;display:flex;flex-wrap:wrap;gap:8px;
   animation:rise .3s both}
 .choices .q{flex:0 0 100%;color:var(--dim);font-size:13px;margin-bottom:2px}

@@ -131,6 +131,44 @@ function showChoices({ question, choices }) {
   log.append(n); bottom(log)
 }
 
+/* ── le résultat, dans le fil ─────────────────────────────────────────────
+   Le motif qui revient partout dans les interfaces d'agents de 2026 : ce
+   qu'on vient de produire s'affiche LÀ OÙ on l'a demandé. Jusqu'ici tout
+   partait dans la colonne de droite, et une réponse comme « Photo refaite »
+   obligeait le marchand à chercher ailleurs ce qu'il venait de demander.
+   La carte de droite reste — elle garde l'historique et les détails — mais
+   la conversation ne renvoie plus à plus tard. */
+const INLINE = {
+  restyle_photo: (r) => (r.photos ?? []).map((p) => ({ url: p.url, label: p.look })),
+  generate_creatives: (r) => (r.creatives ?? []).map((c) => ({ url: c.url, label: c.angle })),
+  build_landing_page: (r) => (r.url ? [{ page: r.url, label: r.product }] : []),
+  build_site: (r) => [
+    ...(r.home ? [{ page: r.home, label: 'accueil' }] : []),
+    ...(r.pages ?? []).map((p) => ({ page: p.url, label: p.product })),
+  ],
+  build_storefront: (r) => (r.url ? [{ page: r.url, label: r.shop_name }] : []),
+}
+
+function inline(name, result) {
+  const items = INLINE[name]?.(result ?? {}) ?? []
+  if (!items.length) return
+  const n = el('div', 'inline-out')
+  for (const it of items.slice(0, 6)) {
+    if (it.page) {
+      const a = Object.assign(el('a', 'page', `${icon('ext', 13)}<span>${esc(it.label ?? 'page')}</span>`),
+        { href: it.page, target: '_blank', rel: 'noopener' })
+      n.append(a)
+    } else {
+      const f = el('figure')
+      const img = Object.assign(new Image(), { src: it.url, alt: it.label ?? '', loading: 'lazy' })
+      img.onclick = () => zoom(it.url, it.label)
+      f.append(img, el('figcaption', null, esc(it.label ?? '')))
+      n.append(f)
+    }
+  }
+  log.append(n); bottom(log)
+}
+
 /* ── cards on the canvas ─────────────────────────────────────────────────── */
 function card(title, { real, sim, note } = {}) {
   const c = el('div', 'card')
@@ -497,7 +535,7 @@ export async function send(input) {
           if (e.name === 'ask_merchant') { step.drop(); say('bot', e.result.question, 'ask'); step = newStep('réfléchit') }
           else if (e.name === 'propose_choices') showChoices(e.result)
           else {
-            step.done(); renderArtifact(e); step = newStep('réfléchit')
+            step.done(); inline(e.name, e.result); renderArtifact(e); step = newStep('réfléchit')
             // A tool can ask the SCREEN to move. Consent is the obvious case:
             // the agent cannot click through a permission dialog on the
             // merchant's behalf, which is the entire point of consent.
@@ -615,7 +653,7 @@ export function hydrate(state) {
       else if (e.k === 'choices') {
         showChoices(e)
         if (i !== lastChoices) log.lastElementChild.classList.add('spent')
-      } else if (e.k === 'artifact') renderArtifact(e)
+      } else if (e.k === 'artifact') { inline(e.name, e.result); renderArtifact(e) }
     } catch (err) { console.error('[replay]', e?.k, err) }
   })
   requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; canvas.scrollTop = canvas.scrollHeight })

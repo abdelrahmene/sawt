@@ -13,7 +13,8 @@
     "bench": "node bench/run.mjs",
     "try": "node bench/try-one.mjs",
     "web": "node --disable-warning=ExperimentalWarning src/server.js",
-    "baseten": "node --disable-warning=ExperimentalWarning bench/try-baseten.mjs"
+    "baseten": "node --disable-warning=ExperimentalWarning bench/try-baseten.mjs",
+    "turn": "node --disable-warning=ExperimentalWarning bench/try-turn.mjs"
   },
   "license": "MIT",
   "dependencies": {}

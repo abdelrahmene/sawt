@@ -133,6 +133,31 @@ export const TOOLS = [
       },
     },
   },
+  // Le marchand photographie son produit par terre, au néon, sur un carrelage.
+  // Il ne veut pas « des angles marketing » : il veut que CETTE photo devienne
+  // présentable. Sans cet outil le modèle part sur marketing_angles, qui est
+  // l'étape d'à côté, et le marchand a l'impression de ne pas être écouté.
+  {
+    type: 'function',
+    function: {
+      name: 'restyle_photo',
+      description:
+        "REAL: turn the merchant's own photo into clean studio shots of the SAME product. sam-3.1 cuts the product out of its background, then muse-image re-renders it on a clean surface — same object, same colour, same details, better light. Call this the moment they ask to redo, clean up, improve or re-shoot a photo, or say the background is ugly. Do NOT call marketing_angles first: they asked for a picture, not a strategy.",
+      parameters: {
+        type: 'object',
+        properties: {
+          photo_index: { type: 'number', description: 'Which uploaded photo. Leave out for the most recent.' },
+          product: { type: 'string', description: 'What the product is, in English, for the segmenter — "the black sneaker", "the white polo shirt".' },
+          looks: {
+            type: 'array',
+            items: { type: 'string', enum: ['studio', 'lifestyle', 'closeup', 'packshot'] },
+            description: 'One to three renderings. studio = neutral seamless background; packshot = pure white, for a catalogue; closeup = material detail; lifestyle = in use. Default studio.',
+          },
+        },
+        required: ['product'],
+      },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -339,6 +364,7 @@ export const SIMULATED = new Set([
 // Tools that produce something the merchant can actually open.
 export const REAL = new Set([
   'build_landing_page', 'build_storefront', 'build_site', 'generate_creatives', 'add_domain',
+  'restyle_photo',
 ])
 
 // answer_inbox is deliberately in NEITHER set: the thread it posts into is

@@ -9,7 +9,7 @@ import { TOOLS, SIMULATED, REAL } from './tools.js'
 import { systemPrompt, ONBOARDING } from './system.js'
 import { briefing } from './briefing.js'
 import { buildLandingPage, buildStorefront, buildSite } from '../creative/landing.js'
-import { generate, edit, save, headlinePrompt } from '../models/image.js'
+import { generate, edit, save, headlinePrompt, GARDE_MARQUE, risqueMarque } from '../models/image.js'
 import { isolate } from '../models/segment.js'
 import * as camp from '../meta-sim/campaigns.js'
 import { connection } from '../meta-sim/connect.js'
@@ -104,7 +104,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         onEvent({ type: 'progress', tool: 'generate_creatives', phase: 'creative', step: out.length + 1, total: angles.length, label: angle })
         const prompt = headlinePrompt(subject + seen, angle)
         const b64 = cut?.ok
-          ? await edit(cut.path, `Keep this exact product, unchanged. ${prompt}`)
+          ? await edit(cut.path, `Keep this exact product, unchanged. ${prompt} ${GARDE_MARQUE}`)
           : await generate(prompt)
         mkdirSync(OUT_DIR, { recursive: true })
         const file = `creative-${Date.now().toString(36)}-${out.length}.png`
@@ -120,6 +120,73 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
           ? { model: 'sam-3.1', url: cut.url, coverage: cut.found.coverage, gain: cut.gain,
               from: 'le produit a été détouré de la photo, puis la créative part de CE produit' }
           : cut ? { model: 'sam-3.1', failed: cut.why, from: 'créative générée depuis la description, pas depuis la photo' } : null,
+      }
+    }
+
+    // « Refais-moi l'image. » Rien de plus, rien de moins.
+    //
+    // Sans cet outil le modèle partait sur marketing_angles — l'étape d'à
+    // côté — et le marchand avait raison de trouver qu'on ne l'écoutait pas.
+    // Ici : sam-3.1 détoure, muse-image réédite le MÊME objet sous une
+    // lumière propre. On n'invente pas un produit ; on refait sa photo.
+    case 'restyle_photo': {
+      const photos = ctx.photos ?? []
+      const photo = photos[Number(args.photo_index)] ?? photos.at(-1) ?? null
+      if (!photo?.path) return { error: "Aucune photo dans cette session — envoie-m'en une d'abord." }
+
+      const sujet = args.product || photo.described?.product || ctx.productName || 'the product'
+      onEvent({ type: 'progress', tool: 'restyle_photo', phase: 'isolate', label: sujet })
+      const cut = await isolate(photo.path, sujet)
+      const source = cut.ok ? cut.path : photo.path
+
+      const LOOKS = {
+        studio: 'Re-photograph it in a studio on a clean seamless light-grey background, one large soft light, a soft natural shadow under the object.',
+        packshot: 'Re-photograph it on pure white, evenly lit, no shadow, centred — a catalogue packshot.',
+        closeup: 'Move in close on one real material detail of it, raking light so the texture reads.',
+        lifestyle: 'Place it in a simple real setting where it is used, warm daylight, shallow depth of field.',
+      }
+      const looks = (args.looks?.length ? args.looks : ['studio']).slice(0, 3)
+
+      const out = []
+      for (const look of looks) {
+        onEvent({ type: 'progress', tool: 'restyle_photo', phase: 'render', step: out.length + 1, total: looks.length, label: look })
+        // La consigne la plus importante est la première : garder l'objet.
+        // Un « refais la photo » qui rend un AUTRE produit est pire qu'une
+        // mauvaise photo — le marchand vendrait ce qu'il n'a pas.
+        const prompt = [
+          `This is ${sujet}. Keep this exact object: same shape, same colour, same materials, same wear.`,
+          'Do not redesign it, do not change the model, do not add or remove parts.',
+          LOOKS[look] ?? LOOKS.studio,
+          'Photorealistic, sharp, no text, no letters, no watermark.',
+          GARDE_MARQUE,
+        ].join(' ')
+        const b64 = await edit(source, prompt)
+        mkdirSync(OUT_DIR, { recursive: true })
+        const file = `photo-${look}-${Date.now().toString(36)}.png`
+        save(b64, join(OUT_DIR, file))
+        out.push({ look, url: `/out/${file}` })
+      }
+
+      // Les versions propres deviennent les images par défaut pour la suite :
+      // landing, vitrine, créatives. C'est le but — il ne faut pas qu'il
+      // redemande.
+      ;(ctx.creatives ??= []).unshift(...out.map((o) => ({ angle: `photo ${o.look}`, url: o.url })))
+
+      const marque = risqueMarque(photo.described)
+      return {
+        product: sujet,
+        source_photo: photo.url,
+        isolated: cut.ok ? { model: 'sam-3.1', url: cut.url, coverage: cut.found.coverage } : { failed: cut.why },
+        photos: out,
+        // Remonté jusqu'au marchand, pas avalé en silence : c'est lui qui sait
+        // d'où vient sa marchandise, et c'est son compte publicitaire.
+        brand_risk: marque
+          ? { seen: marque, told_the_model: 'ne rien rendre plus lisible que sur l original',
+              say: "Dis-le-lui en une phrase : un logo de marque sur une publicité Meta, sans autorisation, c'est le compte publicitaire fermé. Demande-lui si le produit est authentique ou s'il préfère une photo où la marque ne se voit pas." }
+          : null,
+        note: cut.ok
+          ? `Produit détouré par sam-3.1 (il n'occupait que ${Math.round(cut.found.coverage * 100)} % de ta photo), puis réédité par muse-image. Même objet, fond propre.`
+          : `Détourage impossible (${cut.why}) — réédition faite depuis la photo entière.`,
       }
     }
 
