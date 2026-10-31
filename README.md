@@ -85,11 +85,30 @@ npm run bench     # regenerates the table below from the clips in bench/clips/
 
 | Model | Used for |
 |---|---|
-| `muse-spark` | the agent loop, tool calls, the landing copy, the darija replies |
-| `muse-spark` (vision) | reading the product photo — what it is, what the photo gets wrong, what looks counterfeit |
-| `muse-voice-transcribe` | merchant and customer voice notes, **two readings of every clip** |
-| `muse-image` | ad creatives, and one generated visual per landing-page section |
+| `muse-spark-1.3` | the agent loop, tool calls, the landing copy, the darija replies |
+| `muse-spark-1.3` (vision) | reading the product photo — what it is, what the photo gets wrong, what looks counterfeit |
+| `muse-voice-transcribe-1.0` | merchant and customer voice notes, **two readings of every clip** |
+| `muse-image-1.0` | ad creatives, and one generated visual per landing-page section |
+| **`sam-3.1`** | finding the product inside a cluttered photo, so the creative shows **their** product |
 | `muse-spark-open` (Baseten) | the open-weights path — no Meta account needed |
+
+### Why `sam-3.1` earns its place
+
+The vision model kept saying things like *"white polo, green collar — cluttered
+background, reshoot it"*. It could see the problem and had no way to fix it. Worse,
+the creative never started from the photo at all: it started from a **description**
+of the photo, so a merchant selling one specific article got a picture of the model's
+idea of that article. Close enough to look right, and not their product.
+
+Now `sam-3.1` locates the product, `ffmpeg` crops to the box, and `muse-image` *edits*
+that crop. Measured on a real photo: the shoe went from **33% of the frame** to filling
+it, and the resulting ad is the same shoe — same patent leather, same canvas toe.
+
+`sam-3.1` is not on `/chat/completions`; the API says so and points at `/v1/responses`.
+It answers with tokens, not JSON: `<|box;x1=…|>` and a `<|mask;…|>` whose encoding is
+undocumented. We read the box and say plainly that we ignore the mask — decoding a blob
+by guesswork three days before a deadline is how you lose the three days. ffmpeg was
+already required for voice notes, so cropping adds no dependency.
 
 Everything else is Node and nothing else: no framework, no bundler, no `node_modules`.
 The database is SQLite through `node:sqlite`, so the whole app is `git clone` then `npm start`.

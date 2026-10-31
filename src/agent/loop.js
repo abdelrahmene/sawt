@@ -9,7 +9,8 @@ import { TOOLS, SIMULATED, REAL } from './tools.js'
 import { systemPrompt, ONBOARDING } from './system.js'
 import { briefing } from './briefing.js'
 import { buildLandingPage, buildStorefront, buildSite } from '../creative/landing.js'
-import { generate, save, headlinePrompt } from '../models/image.js'
+import { generate, edit, save, headlinePrompt } from '../models/image.js'
+import { isolate } from '../models/segment.js'
 import * as camp from '../meta-sim/campaigns.js'
 import { connection } from '../meta-sim/connect.js'
 import { threads, thread, draftReply, sendReply, shopFacts } from '../meta-sim/inbox.js'
@@ -70,6 +71,19 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       })
     }
 
+    // sam-3.1 d'abord, muse-image ensuite.
+    //
+    // La créative partait d'une DESCRIPTION de la photo, jamais de la photo :
+    // `generate(headlinePrompt(subject))` ne reçoit aucune image. Le marchand
+    // envoyait son produit et recevait l'idée que le modèle se fait d'un
+    // produit de ce nom — ressemblant, et pas le sien. Pour un marchand qui
+    // vend UN article précis, c'est la différence entre une publicité et une
+    // promesse qu'il ne peut pas tenir.
+    //
+    // Maintenant : sam-3.1 trouve le produit dans la photo, ffmpeg recadre
+    // dessus, et muse-image ÉDITE ce recadrage. Si le détourage échoue, on
+    // retombe sur l'ancien chemin — le marchand préfère une créative
+    // imparfaite à aucune créative.
     case 'generate_creatives': {
       const photos = ctx.photos ?? []
       const photo = photos[Number(args.product_image)] ?? photos.at(-1) ?? null
@@ -77,9 +91,21 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       // should depict the product that exists, not the one described.
       const subject = photo?.described?.product || ctx.productName || ctx.productGuess || 'the product'
       const seen = photo?.described?.details ? ` ${photo.described.details}` : ''
+
+      let cut = null
+      if (photo?.path) {
+        onEvent({ type: 'progress', tool: 'generate_creatives', phase: 'isolate', label: subject })
+        cut = await isolate(photo.path, subject)
+      }
+
       const out = []
-      for (const angle of (args.angles ?? ['default']).slice(0, 3)) {
-        const b64 = await generate(headlinePrompt(subject + seen, angle))
+      const angles = (args.angles ?? ['default']).slice(0, 3)
+      for (const angle of angles) {
+        onEvent({ type: 'progress', tool: 'generate_creatives', phase: 'creative', step: out.length + 1, total: angles.length, label: angle })
+        const prompt = headlinePrompt(subject + seen, angle)
+        const b64 = cut?.ok
+          ? await edit(cut.path, `Keep this exact product, unchanged. ${prompt}`)
+          : await generate(prompt)
         mkdirSync(OUT_DIR, { recursive: true })
         const file = `creative-${Date.now().toString(36)}-${out.length}.png`
         save(b64, join(OUT_DIR, file))
@@ -87,7 +113,14 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       }
       // Kept on the session so the landing page can use them afterwards.
       ;(ctx.creatives ??= []).push(...out)
-      return { creatives: out, headline_ar: args.headline_ar ?? null, subject, source_photo: photo?.url ?? null }
+      return {
+        creatives: out, headline_ar: args.headline_ar ?? null, subject,
+        source_photo: photo?.url ?? null,
+        isolated: cut?.ok
+          ? { model: 'sam-3.1', url: cut.url, coverage: cut.found.coverage, gain: cut.gain,
+              from: 'le produit a été détouré de la photo, puis la créative part de CE produit' }
+          : cut ? { model: 'sam-3.1', failed: cut.why, from: 'créative générée depuis la description, pas depuis la photo' } : null,
+      }
     }
 
     // The agent kept calling this with images:[] and the model then wrote a

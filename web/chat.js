@@ -200,6 +200,20 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
     for (const c of result.creatives ?? []) g.append(thumb(c.url, c.angle))
     b.append(g)
     if (result.subject) b.append(el('div', 'why', `d'après ce qu'il a vu : <b>${esc(result.subject)}</b>`))
+    // Le détourage est la partie que le marchand ne devine pas tout seul :
+    // on lui dit quelle part de SA photo était du décor.
+    const iso = result.isolated
+    if (iso?.url) {
+      const d = el('div', 'why')
+      d.innerHTML = `<b>sam-3.1</b> a détouré le produit avant de dessiner — ${esc(iso.gain ?? '')}.<br>` +
+        `<span style="color:var(--dim)">${esc(iso.from)}</span>`
+      const im = Object.assign(new Image(), { src: iso.url, className: 'inline-img', loading: 'lazy' })
+      im.onclick = () => zoom(iso.url, 'produit détouré')
+      d.append(im)
+      b.append(d)
+    } else if (iso?.failed) {
+      b.append(el('div', 'why warn', `<b>sam-3.1</b> n'a pas pu détourer : ${esc(iso.failed)}.<br>${esc(iso.from)}`))
+    }
     if (result.headline_ar) b.append(el('div', 'why', `titre incrusté : <b dir="rtl">${esc(result.headline_ar)}</b>`))
     return
   }
