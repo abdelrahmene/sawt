@@ -6,7 +6,7 @@
 // readings of every voice note side by side, and buttons instead of a blank
 // prompt.
 import {
-  $, el, esc, isArabic, icon, money, num, api, toast, zoom, frame, thumb, SESSION, forgetSession,
+  $, el, esc, isArabic, icon, money, num, api, toast, zoom, frame, thumb, prov, SESSION, forgetSession,
 } from './ui.js'
 import { go, refresh } from './app.js'
 
@@ -116,18 +116,65 @@ function showHeard({ transcript, transcript_auto, understood }) {
    Once one is used the whole set greys out: a stale menu from three turns ago
    sends the agent somewhere it has already been. */
 function showChoices({ question, choices }) {
+  const list = choices ?? []
+  // Dès qu'un choix engage de l'argent, le menu devient un point de contrôle.
+  const spend = list.find((c) => c.kind === 'caution')
+  if (spend) return showCheckpoint(question, list, spend)
+
   const n = el('div', 'choices')
   if (question) {
     const q = el('div', 'q', esc(question))
     if (isArabic(question)) q.dir = 'rtl'
     n.append(q)
   }
-  for (const c of choices ?? []) {
+  for (const c of list) {
     const b = el('button', c.kind === 'primary' ? 'primary' : c.kind === 'caution' ? 'caution' : '', esc(c.label))
     if (isArabic(c.label)) b.dir = 'rtl'
     b.onclick = () => { n.classList.add('spent'); send(c.send) }
     n.append(b)
   }
+  log.append(n); bottom(log)
+}
+
+/* ── le point de contrôle ─────────────────────────────────────────────────
+   La règle « ne jamais dépenser sans instruction claire » vivait dans le
+   prompt de l'agent et nulle part à l'écran : « Lance à 2000 par jour » et
+   « Montre-moi les angles » avaient exactement la même tête, la même taille,
+   la même couleur. C'est le motif qui s'est imposé partout en 2026 chez les
+   agents qui engagent quelque chose pour quelqu'un — l'agent prépare, puis
+   s'arrête et attend une main humaine. Ici la bande fait trois choses :
+   elle dit qu'on est à un arrêt, elle colore UNIQUEMENT le bouton qui
+   engage, et elle garantit une sortie même quand l'agent n'en propose pas. */
+function showCheckpoint(question, list, spend) {
+  const n = el('div', 'ckpt')
+  const h = el('div', 'h',
+    '<span class="beat"></span><span class="t">point de contrôle</span><span class="sim">simulé</span>')
+  const b = el('div', 'b')
+  if (question) {
+    const q = el('div', 'q', esc(question))
+    if (isArabic(question)) q.dir = 'rtl'
+    b.append(q)
+  }
+  const acts = el('div', 'acts')
+  const mk = (c, cls) => {
+    const btn = el('button', cls, esc(c.label))
+    if (isArabic(c.label)) btn.dir = 'rtl'
+    btn.onclick = () => { n.classList.add('spent'); send(c.send) }
+    return btn
+  }
+  acts.append(mk(spend, 'go'))
+  for (const c of list) if (c !== spend) acts.append(mk(c, ''))
+  // Une porte de sortie, toujours. Un point de contrôle dont les trois
+  // boutons avancent n'est pas un point de contrôle.
+  if (!list.some((c) => /annul|pas maintenant|plus tard|ne pas|non merci|arrêt/i.test(c.label))) {
+    const out = el('button', 'out', 'Pas maintenant')
+    out.onclick = () => { n.classList.add('spent'); send('pas maintenant, ne lance rien') }
+    acts.append(out)
+  }
+  b.append(acts, el('div', 'foot',
+    "Rien n'est engagé avant ton clic. Et dans ce prototype le côté Facebook " +
+    'est simulé : aucune dépense ne part sur Meta.'))
+  n.append(h, b)
   log.append(n); bottom(log)
 }
 
@@ -149,6 +196,18 @@ const INLINE = {
   build_storefront: (r) => (r.url ? [{ page: r.url, label: r.shop_name }] : []),
 }
 
+/* Par quoi chaque chose a été produite. Écrit à la main et non déduit : le
+   marchand a le droit de savoir que la découpe vient de sam-3.1 et le
+   rhabillage de muse-image, et un jury a le droit de le vérifier. En rejeu
+   aucun modèle n'est appelé — le dire est le minimum. */
+const MADE_BY = {
+  restyle_photo: 'sam-3.1 → muse-image-1.0',
+  generate_creatives: 'sam-3.1 → muse-image-1.0',
+  build_landing_page: 'muse-spark-1.3 → HTML',
+  build_site: 'muse-spark-1.3 → HTML',
+  build_storefront: 'muse-spark-1.3 → HTML',
+}
+
 function inline(name, result) {
   const items = INLINE[name]?.(result ?? {}) ?? []
   if (!items.length) return
@@ -166,7 +225,15 @@ function inline(name, result) {
       n.append(f)
     }
   }
-  log.append(n); bottom(log)
+  log.append(n)
+  const by = MADE_BY[name]
+  if (by) {
+    const replay = (window.SAWT_STATE?.mode ?? '') === 'replay'
+    const w = el('div')
+    w.innerHTML = prov(replay ? `rejeu — aucun appel modèle (${by} en mode live)` : by, 'real')
+    log.append(w.firstElementChild)
+  }
+  bottom(log)
 }
 
 /* ── cards on the canvas ─────────────────────────────────────────────────── */

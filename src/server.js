@@ -17,7 +17,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { ROOT, MODE } from './config.js'
 import { all, one, run, insert, now, J, unJ, session, touch, setting, importLegacyJson, DB_FILE } from './db.js'
-import { runTurn } from './agent/loop.js'
+import { runTurn, marquerEngagement } from './agent/loop.js'
 import { transcribe, understand } from './models/voice.js'
 import { setProvider, currentProvider, providerModel, PROVIDERS } from './models/llm.js'
 import { describePhoto } from './models/vision.js'
@@ -65,8 +65,16 @@ const remember = (sid, entry) => {
   touch(sid)
 }
 
+// Le marquage « ça engage de l'argent » est réappliqué à la relecture, pas
+// seulement au moment où l'outil tourne : sinon une conversation enregistrée
+// avant la garde ressort avec un bouton « Lance-la » en pilule ordinaire, et
+// le point de contrôle qu'on a mis à l'écran ne protège que les sessions
+// neuves. Une seule fonction, appelée aux deux bouts.
 const timeline = (sid) =>
-  all('SELECT json FROM events WHERE session=? ORDER BY id LIMIT 400', sid).map((r) => unJ(r.json)).filter(Boolean)
+  all('SELECT json FROM events WHERE session=? ORDER BY id LIMIT 400', sid)
+    .map((r) => unJ(r.json))
+    .filter(Boolean)
+    .map((e) => (e.k === 'choices' && e.choices ? { ...e, choices: e.choices.map(marquerEngagement) } : e))
 
 const photosOf = (sid) =>
   all('SELECT url,path,described FROM photos WHERE session=? ORDER BY id', sid)

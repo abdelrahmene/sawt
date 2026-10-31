@@ -146,6 +146,15 @@ export const loading = (what = 'chargement') =>
 export const emptyState = (title, text, action = '') =>
   `<div class="empty"><div class="big">◌</div><h3>${esc(title)}</h3><p>${text}</p>${action}</div>`
 
+/** La ligne de provenance : par quoi une chose a été produite, et si c'est
+ *  mesuré ou simulé. C'est un atome et pas trois variantes recopiées, parce
+ *  qu'elle doit être identique sous une image, sous une page et sous un
+ *  chiffre de campagne — tout l'enjeu du projet est qu'un écran simulé ne
+ *  puisse jamais passer pour une mesure. */
+export const prov = (by, kind = 'real') =>
+  `<div class="prov"><span class="by">${esc(by)}</span>` +
+  `<span class="k ${kind === 'sim' ? 'sim' : 'real'}">${kind === 'sim' ? 'simulé' : 'réel'}</span></div>`
+
 export const kpi = (label, value, detail = '', dir = '') =>
   `<div class="kpi"><div class="l">${esc(label)}</div><div class="v">${value}</div>${
     detail ? `<div class="d ${dir}">${detail}</div>` : ''}</div>`

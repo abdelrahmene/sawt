@@ -89,6 +89,21 @@ export async function refresh({ repaint = true } = {}) {
   }
 }
 
+/* ── le thème ─────────────────────────────────────────────────────────────
+   Nuit par défaut. Le jour reste là : une landing page se relit mieux sur
+   fond clair, et un écran à montrer en plein soleil aussi. */
+{
+  const b = $('#theme')
+  const paint = () => { b.textContent = document.documentElement.dataset.theme === 'nuit' ? 'nuit' : 'jour' }
+  b.onclick = () => {
+    const next = document.documentElement.dataset.theme === 'nuit' ? 'jour' : 'nuit'
+    document.documentElement.dataset.theme = next
+    try { localStorage.setItem('sawt.theme', next) } catch {}
+    paint()
+  }
+  paint()
+}
+
 /* ── boot ─────────────────────────────────────────────────────────────────── */
 paintRail()
 const first = (location.hash || '#chat').slice(1)

@@ -46,6 +46,16 @@ function assetsFor(ctx, explicit) {
   return [...creatives, ...photos].slice(0, 6)
 }
 
+/* Ce qui met une campagne en ligne, dans les trois langues du marchand, et ce
+   qui recule. On ne marque que la première sans la seconde : « ne lance rien »
+   contient « lance ». */
+const ENGAGE = /lanc\w*|lansi|publi\w*|activ\w*|d[ée]marr\w*|go.?live|met\w*[\s\-'\w]{0,24}en ligne|start the campaign|أطلق|اطلق|لانسي|نلانسي|شغل الحملة/i
+const RECULE = /\bne\b|\bpas\b|\bnon\b|jamais|annul\w*|plus tard|attend\w*|ما ت|بلا|ماشي/i
+export const marquerEngagement = (c) => {
+  const t = `${c?.label ?? ''} ${c?.send ?? ''}`
+  return ENGAGE.test(t) && !RECULE.test(t) ? { ...c, kind: 'caution' } : c
+}
+
 async function runTool(name, args, ctx, onEvent = () => {}) {
   switch (name) {
     case 'ask_merchant':
@@ -53,8 +63,12 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
 
     // The model's own output, passed through. The UI turns it into buttons,
     // and the model is told the merchant tapped one on the next turn.
+    // Sauf pour une chose : marquer le choix qui engage de l'argent. La règle
+    // existe dans le prompt, donc le modèle l'applique « presque toujours » —
+    // et « presque » ne vaut rien quand le bouton met une campagne en ligne.
+    // L'écran le détecte lui-même, et le marchand voit un point de contrôle.
     case 'propose_choices':
-      return args
+      return { ...args, choices: (args.choices ?? []).map(marquerEngagement) }
 
     case 'marketing_angles':
       return args // the model's own proposal; nothing to compute
