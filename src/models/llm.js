@@ -7,13 +7,33 @@ const MODELS = {
   baseten: { base: () => BASETEN.base, key: () => BASETEN.key, model: BASETEN.model },
 }
 
-export function provider(name = PROVIDER) {
+/**
+ * Which brain is answering, changeable at runtime.
+ *
+ * The open-weights path was a line in the README and an environment variable
+ * nobody would ever set — which is the same as not having one. It is now a
+ * switch in the app: flip it and the next turn runs on Muse Spark Open through
+ * Baseten, with the badge in the corner saying so.
+ *
+ * Measured on 31 Oct 2026 with `npm run baseten` — chat, darija, tool calls
+ * (streamed, arguments valid JSON) and vision all work on the open weights, so
+ * the whole agent loop runs there. Image generation and transcription do not:
+ * they have no open-weights endpoint here and stay on Meta's hosted models.
+ * The settings screen says exactly that rather than implying "100% open".
+ */
+let OVERRIDE = null
+export const setProvider = (name) => { OVERRIDE = MODELS[name] ? name : null; return currentProvider() }
+export const currentProvider = () => OVERRIDE ?? PROVIDER
+export const providerModel = (name = currentProvider()) => MODELS[name]?.model ?? null
+export const PROVIDERS = Object.keys(MODELS)
+
+export function provider(name = currentProvider()) {
   const p = MODELS[name]
   if (!p) throw new Error(`Unknown LLM provider: ${name}`)
   return p
 }
 
-export async function chat(messages, { tools, provider: name = PROVIDER, temperature = 0.3 } = {}) {
+export async function chat(messages, { tools, provider: name = currentProvider(), temperature = 0.3 } = {}) {
   const p = provider(name)
   if (!p.key()) {
     throw new Error(
@@ -47,7 +67,7 @@ export async function chat(messages, { tools, provider: name = PROVIDER, tempera
  * thought when a provider exposes it, so the UI can show that it is thinking
  * without ever showing a customer what it thought.
  */
-export async function chatStream(messages, { tools, provider: name = PROVIDER, temperature = 0.3, onDelta, onReasoning } = {}) {
+export async function chatStream(messages, { tools, provider: name = currentProvider(), temperature = 0.3, onDelta, onReasoning } = {}) {
   const p = provider(name)
   if (!p.key()) throw new Error(`No API key for provider "${name}".`)
 

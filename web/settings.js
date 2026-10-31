@@ -55,6 +55,38 @@ export async function mount(root) {
       </div>
     </div>
 
+    <div class="card" style="margin-top:16px">
+      <h3>${icon('bolt', 15)} Le cerveau de l'agent
+        <span class="chip mono" style="margin-inline-start:auto">${esc(s.provider_model ?? '')}</span></h3>
+      <div class="body">
+        <div class="seg" id="prov" style="max-width:460px">
+          <button data-p="meta" class="${s.provider === 'meta' ? 'on' : ''}">Meta hébergé · muse-spark-1.3</button>
+          <button data-p="baseten" class="${s.provider === 'baseten' ? 'on' : ''}">Poids ouverts · Muse Spark Open</button>
+        </div>
+        <div class="why" style="margin-top:14px">
+          Bascule, puis reparle à l'agent : le tour suivant tourne sur l'autre modèle.
+          Le réglage survit au redémarrage.
+        </div>
+
+        <h2 class="sec" style="margin-top:22px">Ce qui tourne sur les poids ouverts</h2>
+        <div style="overflow:auto"><table><thead><tr>
+          <th>capacité</th><th>Muse Spark Open</th><th>mesuré</th>
+        </tr></thead><tbody>
+          <tr><td>Conversation</td><td><span class="chip ok">oui</span></td><td>réponse propre, le raisonnement arrive dans un champ séparé</td></tr>
+          <tr><td>Darija</td><td><span class="chip ok">oui</span></td><td>« الصباط يدير 4500 دج والدفع عند الاستلام »</td></tr>
+          <tr><td>Appel d'outils</td><td><span class="chip ok">oui</span></td><td>y compris en streaming, arguments JSON valides</td></tr>
+          <tr><td>Vision</td><td><span class="chip ok">oui</span></td><td>test différentiel : « Polo blanc vert » vs « Baskets beiges »</td></tr>
+          <tr><td>Génération d'images</td><td><span class="chip bad">non</span></td><td>pas d'équivalent ici — reste sur muse-image-1.0</td></tr>
+          <tr><td>Transcription vocale</td><td><span class="chip bad">non</span></td><td>pas d'équivalent ici — reste sur muse-voice-transcribe</td></tr>
+        </tbody></table></div>
+        <div class="why warn" style="margin-top:12px">
+          <b>Donc : la tête de l'agent tourne entièrement sur les poids ouverts, pas ses mains ni ses oreilles.</b>
+          Dire « 100 % open weights » serait faux, et c'est vérifiable en trente secondes —
+          <span class="chip mono">npm run baseten</span> rejoue la mesure.
+        </div>
+      </div>
+    </div>
+
     <h2 class="sec">Ce qui est réel ${'<span class="sim real">réel</span>'}</h2>
     <div class="card"><div style="overflow:auto"><table><thead><tr>
       <th>fonction</th><th>modèle / source</th><th>ce que ça veut dire</th>
@@ -74,6 +106,7 @@ export async function mount(root) {
     <div class="card"><div class="body">
       <dl class="kv">
         <dt>mode</dt><dd><span class="chip mono">${esc(s.mode)}</span></dd>
+        <dt>cerveau</dt><dd><span class="chip mono">${esc(s.provider ?? '')}</span> — <span class="chip mono">${esc(s.provider_model ?? '')}</span></dd>
         <dt>base de données</dt><dd><span class="chip mono">out/${esc(s.db ?? '')}</span> — SQLite, via <span class="chip mono">node:sqlite</span>, zéro dépendance</dd>
         <dt>IP de la plateforme</dt><dd><span class="chip mono">${esc(s.settings?.edge_ip ?? '')}</span></dd>
         <dt>tours en mémoire</dt><dd>${s.turns}</dd>
@@ -93,6 +126,15 @@ export async function mount(root) {
       </div>
     </div></div>
   </div>`
+
+  for (const b of root.querySelectorAll('#prov button')) {
+    b.onclick = async () => {
+      const r = await api('/settings', { method: 'POST', body: { provider: b.dataset.p } })
+      await refresh()
+      toast(`Cerveau : ${r.provider_model}`)
+      mount(root)
+    }
+  }
 
   $('#save').onclick = async () => {
     await api('/settings', { method: 'POST', body: { shop: $('#shop').value.trim(), language: $('#lang').value } })

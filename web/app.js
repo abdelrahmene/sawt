@@ -5,6 +5,7 @@
 // share nothing but ui.js and the counts, which is why adding the Meta console
 // did not disturb the chat.
 import { $, el, icon, esc, api, toast } from './ui.js'
+
 import * as chat from './chat.js'
 import * as studio from './studio.js'
 import * as meta from './meta.js'
@@ -61,6 +62,24 @@ export async function refresh({ repaint = true } = {}) {
     COUNTS = s.counts ?? {}
     $('#mode').textContent = s.mode ?? '—'
     $('#mode').title = `mode ${s.mode} · base ${s.db ?? ''}`
+
+    // Le cerveau, toujours à l'écran. Un clic bascule — c'est la démonstration
+    // la plus courte du chemin open-weights : on change, on reparle, ça marche.
+    const brain = $('#brain')
+    const open = s.provider === 'baseten'
+    brain.textContent = open ? 'open' : 'meta'
+    brain.classList.toggle('open', open)
+    brain.title = `${s.provider_model ?? ''} — clique pour basculer`
+    brain.onclick = async () => {
+      brain.textContent = '…'
+      try {
+        const r = await api('/settings', { method: 'POST', body: { provider: open ? 'meta' : 'baseten' } })
+        toast(`Cerveau : ${r.provider_model}`)
+      } catch (e) { toast(e.message, true) }
+      await refresh()
+      if (current === 'settings') go('settings')
+    }
+
     window.SAWT_STATE = s
     if (repaint) paintRail()
     return s

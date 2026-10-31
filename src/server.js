@@ -19,6 +19,7 @@ import { ROOT, MODE } from './config.js'
 import { all, one, run, insert, now, J, unJ, session, touch, setting, importLegacyJson, DB_FILE } from './db.js'
 import { runTurn } from './agent/loop.js'
 import { transcribe, understand } from './models/voice.js'
+import { setProvider, currentProvider, providerModel, PROVIDERS } from './models/llm.js'
 import { describePhoto } from './models/vision.js'
 import * as meta from './meta-sim/connect.js'
 import * as inbox from './meta-sim/inbox.js'
@@ -40,6 +41,10 @@ const MIME = {
 
 const imported = importLegacyJson()
 if (imported) console.log(`  ${imported} session(s) reprise(s) depuis l'ancien out/sessions.json`)
+
+// Le cerveau choisi la dernière fois survit au redémarrage : un juré qui bascule
+// sur les poids ouverts, puis relance le serveur, doit y rester.
+setProvider(setting('provider'))
 
 /* ── session helpers ──────────────────────────────────────────────────────
    `turns` is what the MODEL is replayed; `events` is what the SCREEN is
@@ -300,6 +305,9 @@ const server = createServer(async (req, res) => {
       return json(res, 200, {
         mode: MODE,
         db: basename(DB_FILE),
+        provider: currentProvider(),
+        provider_model: providerModel(),
+        providers: PROVIDERS,
         shop: s?.shop ?? null,
         turns: history(sid).length,
         photos: photosOf(sid).map((x) => x.url),
@@ -317,8 +325,18 @@ const server = createServer(async (req, res) => {
       const b = await jsonBody(req)
       if (b.shop !== undefined) run('UPDATE sessions SET shop=? WHERE id=?', b.shop || null, sid)
       if (b.language) run('UPDATE sessions SET language=? WHERE id=?', b.language, sid)
+      // Le fournisseur est global, pas par session : c'est le cerveau du
+      // serveur, et deux onglets qui ne tourneraient pas sur le même modèle
+      // rendraient toute comparaison impossible.
+      if (b.provider && PROVIDERS.includes(b.provider)) {
+        setProvider(b.provider)
+        setting('provider', b.provider)
+      }
       if (b.key && b.value !== undefined) setting(b.key, b.value)
-      return json(res, 200, { ok: true, counts: counts(sid) })
+      return json(res, 200, {
+        ok: true, counts: counts(sid),
+        provider: currentProvider(), provider_model: providerModel(),
+      })
     }
 
     // Start over without losing the port: a fresh session and an empty screen,

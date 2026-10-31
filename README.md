@@ -94,6 +94,35 @@ npm run bench     # regenerates the table below from the clips in bench/clips/
 Everything else is Node and nothing else: no framework, no bundler, no `node_modules`.
 The database is SQLite through `node:sqlite`, so the whole app is `git clone` then `npm start`.
 
+### The open-weights path is a switch, not a paragraph
+
+Click the badge at the bottom of the rail and the next turn runs on **Muse Spark Open**
+through Baseten. The badge turns green, the settings screen names the model, and the
+agent keeps working — tools and all.
+
+```bash
+npm run baseten     # re-runs the measurement below, ~25 s
+```
+
+| Capability | On the open weights | Measured |
+|---|---|---|
+| Conversation | ✅ | clean `content`; the reasoning arrives in a separate field |
+| Darija | ✅ | *«الصباط يدير 4500 دج والدفع عند الاستلام»* |
+| Tool calling | ✅ | including **streamed**, arguments valid JSON |
+| Vision | ✅ | differential test: *"Polo blanc vert"* vs *"Baskets beiges"* |
+| Image generation | ❌ | no open-weights endpoint here — stays on `muse-image-1.0` |
+| Transcription | ❌ | no open-weights endpoint here — stays on `muse-voice-transcribe` |
+
+**So the agent's head runs entirely on open weights; its hands and ears do not.**
+Claiming "100% open weights" would be false, and the script above checks it in 25 seconds.
+
+The vision row took three attempts to measure honestly. A 1×1 pixel and *"what colour?"*
+cannot tell seeing from guessing — a model that drops the image answers just as
+confidently. Naming the expected object does not work either: my word list said
+"shoe" and the model correctly answered *"Polo blanc"*, so the test failed a right
+answer. The differential version asks the same question of two different images and
+requires two different answers, which assumes nothing about either photo.
+
 ## The one rule
 
 **A missing detail is a question, never a guess.**

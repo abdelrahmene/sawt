@@ -35,12 +35,28 @@ canvas.addEventListener('scroll', () => { if (atBottom(canvas)) toLatest.classLi
    one into the href — every generated image opened a 404. */
 const IS_IMG = /\.(png|jpe?g|webp|gif)$/i
 
+// The model writes markdown, so the bubble has to read it. Three things only —
+// bold, inline code and links — because that is all it actually uses, and a
+// full markdown parser in here would be a dependency and a new class of bug.
+// Before this, a reply listing four waiting customers came out as
+// "**1. Rania S.** demande la pointure 43", asterisks and all.
+function emphase(node, text) {
+  const re = /\*\*([^*]+)\*\*|`([^`\n]+)`/g
+  let last = 0, m
+  while ((m = re.exec(text))) {
+    if (m.index > last) node.append(text.slice(last, m.index))
+    node.append(m[1] != null ? el('b', null, esc(m[1])) : el('code', null, esc(m[2])))
+    last = re.lastIndex
+  }
+  if (last < text.length) node.append(text.slice(last))
+}
+
 function linkify(node, text) {
   node.textContent = ''
   const re = /(!?)\[([^\]]*)\]\((\/[^)\s]+|https?:\/\/[^)\s]+)\)|`?(\/out\/[^\s`<>"')]+|https?:\/\/[^\s`<>"')]+)`?/g
   let last = 0, m
   while ((m = re.exec(text))) {
-    if (m.index > last) node.append(text.slice(last, m.index))
+    if (m.index > last) emphase(node, text.slice(last, m.index))
     const bang = m[1] === '!'
     const href = (m[3] ?? m[4]).replace(/[.,;:!?)\]]+$/, '')   // trailing punctuation is never part of a path
     const label = m[2] || href.replace(/^\/out\//, '')
@@ -53,7 +69,7 @@ function linkify(node, text) {
     }
     last = re.lastIndex
   }
-  if (last < text.length) node.append(text.slice(last))
+  if (last < text.length) emphase(node, text.slice(last))
 }
 
 function say(who, text, cls) {

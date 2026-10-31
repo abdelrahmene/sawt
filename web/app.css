@@ -89,7 +89,14 @@ body.busy #rail .orb::after{animation:breathe 1.9s cubic-bezier(.4,0,.2,1) infin
 #rail .mode{
   font:600 8.5px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase;color:#d4a24c;
   background:rgba(212,162,76,.14);border:1px solid rgba(212,162,76,.3);padding:4px 7px;border-radius:99px;
+  cursor:default;
 }
+/* Le cerveau : vert quand ce sont les poids ouverts, pour qu'on le voie à
+   l'écran pendant une démonstration sans avoir à ouvrir les réglages. */
+#rail .mode.brain{color:#8b949e;background:rgba(139,148,158,.12);border-color:rgba(139,148,158,.26);
+  cursor:pointer}
+#rail .mode.brain.open{color:#5eead4;background:rgba(56,224,173,.14);border-color:rgba(56,224,173,.34)}
+#rail .mode.brain:hover{filter:brightness(1.25)}
 
 /* ══ view frame ════════════════════════════════════════════════════════ */
 main{min-width:0;min-height:0;overflow:hidden;position:relative}
@@ -244,6 +251,11 @@ input.f:focus,select.f:focus,textarea.f:focus{border-color:var(--accent);box-sha
 .msg a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-line);word-break:break-all}
 .msg a:hover{border-bottom-color:var(--accent)}
 .msg.me a{color:#7ee3c0;border-bottom-color:rgba(126,227,192,.4)}
+.msg b{font-weight:680;color:var(--ink)}
+.msg code{font:12.5px var(--mono);background:var(--sunk);border:1px solid var(--line);
+  border-radius:5px;padding:1px 5px;word-break:break-all}
+.msg.me b{color:#fff}
+.msg.me code{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2);color:#fff}
 .msg.live::after{content:"";display:inline-block;width:2px;height:1em;background:var(--accent);
   margin-inline-start:2px;vertical-align:-2px;animation:blink .9s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
