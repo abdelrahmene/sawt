@@ -40,6 +40,19 @@ export function briefing(sessionId) {
       lines.push(`  · ${p.product} — ${money(p.price_dzd)} — ${p.url}${p.orders ? ` — ${p.orders} real order(s) from the form` : ''}`)
     }
   }
+  /* Les visuels que l'agent a lui-même produits. Ils étaient en base et dans
+     aucun briefing : à « prépare une campagne sur ces trois visuels », il
+     répondait « envoie-moi les trois visuels ». Une photo envoyée par le
+     marchand et une créative dessinée par l'agent sont deux tables
+     différentes, et seule la première remontait jusqu'au modèle. */
+  const creas = all('SELECT url,angle FROM creatives WHERE session=? ORDER BY id DESC LIMIT 8', sessionId)
+  if (creas.length) {
+    lines.push(`CREATIVES YOU HAVE ALREADY PRODUCED — ${creas.length} of them, ready to put in an ad.`)
+    for (const c of creas) lines.push(`  · ${c.angle ?? 'no angle recorded'} — ${c.url}`)
+    lines.push('  When the merchant says "these visuals", "the creatives" or "the three images",')
+    lines.push('  they mean these. Never ask them to send you a creative you made yourself.')
+  }
+
   if (sites.length) {
     for (const s of sites) {
       const doms = all('SELECT host,status FROM domains WHERE site=?', s.id)

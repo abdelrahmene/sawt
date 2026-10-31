@@ -90,11 +90,18 @@ export async function refresh({ repaint = true } = {}) {
 }
 
 /* ── le thème ─────────────────────────────────────────────────────────────
-   Nuit par défaut. Le jour reste là : une landing page se relit mieux sur
-   fond clair, et un écran à montrer en plein soleil aussi. */
+   En haut du rail, sous l'orbe : c'est un réglage qu'on cherche du regard
+   avant de commencer, pas une fois arrivé en bas. Clair par défaut.
+   L'icône montre où l'on VA, pas où l'on est — un soleil quand on est dans
+   le noir — parce qu'un bouton dit ce qu'il fait. */
 {
   const b = $('#theme')
-  const paint = () => { b.textContent = document.documentElement.dataset.theme === 'nuit' ? 'nuit' : 'jour' }
+  const paint = () => {
+    const nuit = document.documentElement.dataset.theme === 'nuit'
+    b.innerHTML = icon(nuit ? 'sun' : 'moon', 17)
+    b.title = nuit ? 'Passer en clair' : 'Passer en sombre'
+    b.setAttribute('aria-label', b.title)
+  }
   b.onclick = () => {
     const next = document.documentElement.dataset.theme === 'nuit' ? 'jour' : 'nuit'
     document.documentElement.dataset.theme = next

@@ -60,6 +60,8 @@ const PATHS = {
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>',
   send: '<path d="M4 12l16-7-7 16-2.5-6.5z"/>',
   eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
+  sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.3M12 19.1v2.3M4.3 4.3l1.7 1.7M18 18l1.7 1.7M2.6 12h2.3M19.1 12h2.3M4.3 19.7L6 18M18 6l1.7-1.7"/>',
+  moon: '<path d="M20 14.2A8.4 8.4 0 0 1 9.8 4 8.4 8.4 0 1 0 20 14.2z"/>',
 }
 
 export const icon = (name, size = 18) =>

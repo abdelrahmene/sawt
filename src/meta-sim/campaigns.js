@@ -24,14 +24,31 @@ const rnd = (...parts) =>
 // dinar and convert far worse — which is the real trade-off an Algerian COD
 // advertiser lives with, and the one the agent has to discover from the data
 // rather than be told.
+//
+// `reachPerDzd` était dix fois trop bas : 0,42 personne touchée par dinar,
+// c'est un CPM de 2 400 DA. Le vrai CPM algérien tourne entre 250 et 450 DA,
+// soit 2 à 4 personnes par dinar. Une campagne à 2 000 DA/jour touchait donc
+// 840 personnes au lieu de 5 000, et ne pouvait produire aucune commande.
 export const PLACEMENTS = {
-  facebook_feed:     { label: 'Facebook · fil',        reachPerDzd: 0.42, cvr: 1.00 },
-  facebook_marketplace: { label: 'Facebook · Marketplace', reachPerDzd: 0.30, cvr: 1.15 },
-  instagram_feed:    { label: 'Instagram · fil',       reachPerDzd: 0.55, cvr: 0.80 },
-  instagram_reels:   { label: 'Instagram · Reels',     reachPerDzd: 0.95, cvr: 0.45 },
-  instagram_stories: { label: 'Instagram · stories',   reachPerDzd: 0.70, cvr: 0.60 },
-  messenger_inbox:   { label: 'Messenger',             reachPerDzd: 0.38, cvr: 0.90 },
+  facebook_feed:        { label: 'Facebook · fil',         reachPerDzd: 2.5, cvr: 1.00 },
+  facebook_marketplace: { label: 'Facebook · Marketplace', reachPerDzd: 1.9, cvr: 1.18 },
+  instagram_feed:       { label: 'Instagram · fil',        reachPerDzd: 3.1, cvr: 0.80 },
+  instagram_reels:      { label: 'Instagram · Reels',      reachPerDzd: 4.2, cvr: 0.45 },
+  instagram_stories:    { label: 'Instagram · stories',    reachPerDzd: 3.6, cvr: 0.58 },
+  messenger_inbox:      { label: 'Messenger',              reachPerDzd: 2.3, cvr: 0.92 },
 }
+
+/* Arrondi stochastique, mais déterministe.
+ *
+ * C'est l'autre moitié du bug. Une cellule (une créative × un placement × un
+ * jour) produit une fraction de commande — 0,43 par exemple. `Math.round`
+ * la ramenait à zéro, dans TOUTES les cellules, tous les jours : six jours,
+ * 11 967 DA dépensés, zéro commande. Le total était faux de 100 %.
+ *
+ * Ici 0,43 vaut 1 dans 43 % des cellules et 0 dans les autres, tiré sur la
+ * même empreinte sha256 que le reste — donc la somme est juste, et la vidéo
+ * peut être retournée sans que les chiffres bougent. */
+const arrondiFractionnaire = (x, ...graine) => Math.floor(x + rnd(...graine, 'frac'))
 
 const dayKey = (ms) => new Date(ms).toISOString().slice(0, 10)
 
@@ -172,8 +189,12 @@ export function generate(id, days = 1) {
         const reach = Math.round(spend * p.reachPerDzd * fatigue * jitter)
         const impressions = Math.round(reach * (1.25 + 0.5 * d * 0.1))
         const clicks = Math.round(reach * 0.019 * quality * jitter)
-        const messages = Math.round(clicks * 0.22 * (pl === 'messenger_inbox' ? 2.4 : 1))
-        const orders = Math.max(0, Math.round((clicks * 0.145 * p.cvr * quality) / costDrift))
+        const messages = arrondiFractionnaire(clicks * 0.22 * (pl === 'messenger_inbox' ? 2.4 : 1),
+          c.ext_id, 'm', String(ad.id), pl, day)
+        // 6 % des clics finissent en commande COD — après la correction de la
+        // portée, l'ancien 14,5 % donnait dix fois trop de commandes.
+        const orders = Math.max(0, arrondiFractionnaire((clicks * 0.06 * p.cvr * quality) / costDrift,
+          c.ext_id, 'o', String(ad.id), pl, day))
         insert(
           `INSERT INTO insights(campaign,ad,placement,day,impressions,reach,clicks,messages,orders,spend_dzd)
            VALUES(?,?,?,?,?,?,?,?,?,?)`,
