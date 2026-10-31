@@ -13,7 +13,7 @@
 // Now the turn opens with a briefing: what exists, what is connected, what is
 // waiting, and which way the numbers are moving. Kept short on purpose — this
 // goes in front of every single request, so it is a status board, not a dump.
-import { all, one, unJ } from '../db.js'
+import { all, one, unJ, setting } from '../db.js'
 import { PLACEMENTS } from '../meta-sim/campaigns.js'
 
 const money = (n) => `${Number(n || 0).toLocaleString('fr-FR').replace(/[  ]/g, ' ')} DZD`
@@ -96,13 +96,38 @@ export function briefing(sessionId) {
       }
       lines.push('  Call answer_inbox to deal with them. You write the replies; you do NOT invent facts.')
     }
+    /* Un fil bloqué sur le marchand y reste tant qu'il ne répond pas — et il
+       ne répond pas, il est en train de faire autre chose. Sans mémoire de ce
+       qu'on a déjà relayé, ce bloc redonnait la même consigne à chaque tour,
+       et l'agent reposait sagement les QUATRE mêmes questions : « il me faut
+       la pointure 43 », « il me faut le frais pour Béjaïa »... tour après
+       tour, par-dessus ce que le marchand venait de demander. Insistant au
+       point d'en devenir inutile.
+       Donc on note ce qui est sorti une fois. Le briefing est construit
+       exactement une fois par tour (runTurn), donc « affiché » = « demandé ».
+       La liste est réécrite à chaque passage avec les seuls fils encore
+       bloqués : elle se purge d'elle-même quand le marchand répond enfin. */
     if (stuck.length) {
-      lines.push(`INBOX — WAITING ON THE MERCHANT, not on you (${stuck.length}):`)
-      for (const t of stuck.slice(0, 4)) {
-        lines.push(`  · #${t.id} ${t.person} — you need from them: ${t.subject ?? 'a missing fact'}`)
+      const memo = `inbox:relayed:${sessionId}`
+      const vus = new Set(setting(memo) ?? [])
+      const neufs = stuck.filter((t) => !vus.has(t.id))
+      const redites = stuck.filter((t) => vus.has(t.id))
+
+      if (neufs.length) {
+        lines.push(`INBOX — WAITING ON THE MERCHANT, not on you (${neufs.length} new):`)
+        for (const t of neufs.slice(0, 4)) {
+          lines.push(`  · #${t.id} ${t.person} — you need from them: ${t.subject ?? 'a missing fact'}`)
+        }
+        lines.push('  Ask them for exactly these, ONCE. One short question each.')
       }
-      lines.push('  Ask the merchant for exactly these. One short question each. This is the most')
-      lines.push('  useful thing you can do for them right now.')
+      if (redites.length) {
+        lines.push(`  ${redites.length} other thread(s) were ALREADY relayed and are still unanswered: ${
+          redites.slice(0, 6).map((t) => `#${t.id} ${t.person}`).join(', ')}.`)
+        lines.push('  They heard you. Do NOT ask again — not rephrased, not "just a reminder".')
+        lines.push('  Half a sentence at most, and only if it blocks what they just asked for.')
+        lines.push('  Otherwise say nothing about them and get on with their request.')
+      }
+      setting(memo, [...redites, ...neufs].map((t) => t.id))
     }
   }
 

@@ -52,12 +52,32 @@ setProvider(setting('provider'))
    readings of each voice note, the photos and every artifact — and a reload
    that loses an afternoon of work is not something anyone forgives. */
 
+/* Vingt messages, oui, mais pas une coupe n'importe où.
+   ──────────────────────────────────────────────────────────────────────────
+   `slice(-20)` tranchait à l'aveugle, et une tranche au milieu d'un appel
+   d'outil laisse un message `role:'tool'` sans son assistant parent en tête
+   de fenêtre. L'API répond alors 400 — « has no matching assistant message
+   with tool_calls » — et la session est morte pour de bon : l'historique
+   fautif est relu identique à chaque nouvelle tentative, donc le marchand ne
+   peut plus rien dire. Mesuré le 31/10/26 sur la session de la boucle
+   campagne, au premier tour après son vingtième message.
+
+   Une fenêtre est toujours un suffixe, donc le seul orphelin possible est au
+   début : on avance jusqu'au premier message qui n'est pas une réponse
+   d'outil. Appliqué à la LECTURE autant qu'à l'écriture, pour que les
+   sessions déjà abîmées repartent sans migration. */
+const recoller = (messages) => {
+  let i = 0
+  while (i < messages.length && messages[i]?.role === 'tool') i++
+  return messages.slice(i)
+}
+
 const history = (sid) =>
-  all('SELECT json FROM turns WHERE session=? ORDER BY id', sid).map((r) => unJ(r.json)).filter(Boolean)
+  recoller(all('SELECT json FROM turns WHERE session=? ORDER BY id', sid).map((r) => unJ(r.json)).filter(Boolean))
 
 function saveHistory(sid, messages) {
   run('DELETE FROM turns WHERE session=?', sid)
-  for (const m of messages.slice(-20)) run('INSERT INTO turns(session,json,at) VALUES(?,?,?)', sid, J(m), now())
+  for (const m of recoller(messages.slice(-20))) run('INSERT INTO turns(session,json,at) VALUES(?,?,?)', sid, J(m), now())
 }
 
 const remember = (sid, entry) => {

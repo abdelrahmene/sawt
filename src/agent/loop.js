@@ -4,7 +4,7 @@
 // `ask_merchant` ends the turn immediately. When the agent says a detail is
 // missing, the right thing is to stop and show the question — not to keep
 // reasoning around the hole.
-import { chatStream, visibleAnswer } from '../models/llm.js'
+import { chat, chatStream, visibleAnswer } from '../models/llm.js'
 import { TOOLS, SIMULATED, REAL } from './tools.js'
 import { systemPrompt, ONBOARDING } from './system.js'
 import { briefing } from './briefing.js'
@@ -56,6 +56,87 @@ export const marquerEngagement = (c) => {
   return ENGAGE.test(t) && !RECULE.test(t) ? { ...c, kind: 'caution' } : c
 }
 
+/* Ce que le modèle rend quand on lui demande des choix, remis en forme.
+   Mesuré : une fois sur treize, `choices` n'est pas un tableau mais la chaîne
+   JSON du tableau. Sans ce filtre, `.map` lève et le tour entier se termine
+   sur une erreur — pour un menu de boutons. */
+const normaliserChoix = (brut) => {
+  let c = brut
+  if (typeof c === 'string') { try { c = JSON.parse(c) } catch { return [] } }
+  if (c && !Array.isArray(c) && typeof c === 'object') c = Object.values(c)
+  if (!Array.isArray(c)) return []
+  return c
+    .map((x) => (typeof x === 'string' ? { label: x, send: x } : x))
+    .filter((x) => x && typeof x.label === 'string' && x.label.trim())
+    .map((x) => marquerEngagement({ ...x, send: x.send || x.label }))
+    .slice(0, 4)
+}
+
+/* Le menu de fin de tour, réclamé quand il manque.
+   ──────────────────────────────────────────────────────────────────────────
+   « Termine presque chaque tour par des choix » est la règle 6, et le modèle
+   l'a tenue tant que les tours étaient courts. Puis la boucle campagne est
+   arrivée : cinq ou six outils dans un tour, une analyse de résultats à
+   écrire — et les boutons ont disparu des derniers tours, exactement ceux où
+   le marchand a le plus besoin qu'on lui dise quoi faire ensuite.
+
+   Une règle que le modèle suit « presque toujours » n'est pas une règle, c'est
+   une tendance. On ne la réécrit donc pas plus fort : si le tour finit sans
+   menu, on en redemande un.
+
+   ⚠️ On ne peut PAS l'imposer. Mesuré le 31/10/26 sur l'API Meta :
+   `tool_choice` n'accepte que « auto » — « required » et un outil nommé
+   renvoient tous deux un 400 explicite. (Le paramètre existe quand même dans
+   llm.js : vLLM, derrière les poids ouverts, lui obéit.) Le levier portable,
+   c'est de ne mettre qu'UN outil sur la table : le modèle n'a plus d'autre
+   geste disponible. Sur six appels aboutis, six menus corrects.
+
+   Deux tentatives, pour le cas où le modèle répond mais sans menu utilisable
+   (il a écrit de la prose, ou deux fois le même bouton). Les coupures réseau,
+   elles, sont déjà reprises d'un étage plus bas, dans llm.js. Si les deux
+   tentatives échouent on rend la main sans menu plutôt que d'inventer des
+   libellés : un bouton écrit par nous risque de tomber dans la mauvaise
+   langue, et un faux choix est pire qu'un prompt vide. */
+const PROPOSE = TOOLS.find((t) => t.function?.name === 'propose_choices')
+
+const RELANCE =
+  'The turn is over and you left the merchant nothing to tap. Call propose_choices ' +
+  'now and nothing else: two to four next steps you can really carry out from here, ' +
+  'in the language the merchant has been using, phrased the way they would say it. ' +
+  'No prose, no preamble.'
+
+async function menuDeFin({ messages, artifacts, onEvent }) {
+  if (artifacts.some((a) => a.name === 'propose_choices')) return
+  const ask = [...messages, { role: 'system', content: RELANCE }]
+
+  for (let essai = 0; essai < 2; essai++) {
+    let call
+    try {
+      const msg = await chat(ask, { tools: [PROPOSE] })
+      call = msg?.tool_calls?.find((c) => c.function?.name === 'propose_choices')
+    } catch { /* réseau : on retente une fois */ }
+    if (!call) continue
+
+    let args = {}
+    try { args = JSON.parse(call.function?.arguments || '{}') } catch {}
+    const choices = normaliserChoix(args.choices)
+    if (choices.length < 2) continue
+
+    const result = { question: args.question ?? null, choices }
+    onEvent({ type: 'tool:start', name: 'propose_choices', args: result, simulated: false, real: false })
+    const artifact = { name: 'propose_choices', args: result, result, simulated: false, real: false }
+    artifacts.push(artifact)
+    onEvent({ type: 'tool:end', ...artifact })
+
+    // Le modèle a bien émis cet appel : il appartient à l'historique, pour
+    // qu'au tour suivant il sache ce qu'il a proposé. La relance, elle, n'y
+    // entre pas — ce n'est pas le marchand qui a parlé.
+    messages.push({ role: 'assistant', content: null, tool_calls: [call] })
+    messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) })
+    return
+  }
+}
+
 async function runTool(name, args, ctx, onEvent = () => {}) {
   switch (name) {
     case 'ask_merchant':
@@ -68,7 +149,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
     // et « presque » ne vaut rien quand le bouton met une campagne en ligne.
     // L'écran le détecte lui-même, et le marchand voit un point de contrôle.
     case 'propose_choices':
-      return { ...args, choices: (args.choices ?? []).map(marquerEngagement) }
+      return { ...args, choices: normaliserChoix(args.choices) }
 
     case 'marketing_angles':
       return args // the model's own proposal; nothing to compute
@@ -364,6 +445,7 @@ export async function runTurn({ history = [], input, ctx = {}, onEvent = () => {
 
     if (!calls.length) {
       messages.push({ role: 'assistant', content: text })
+      await menuDeFin({ messages, artifacts, onEvent })
       return { text, artifacts, messages: messages.slice(1) }
     }
 

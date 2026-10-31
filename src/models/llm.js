@@ -33,7 +33,38 @@ export function provider(name = currentProvider()) {
   return p
 }
 
-export async function chat(messages, { tools, provider: name = currentProvider(), temperature = 0.3 } = {}) {
+/**
+ * Une panne de connexion n'est pas une réponse.
+ *
+ * Mesuré le 31 octobre 2026, sur une liaison algérienne ordinaire : quatre
+ * appels sur treize mouraient en `UND_ERR_CONNECT_TIMEOUT` avant d'avoir
+ * atteint api.meta.ai — la poignée de main TCP, pas le modèle. Chaque fois,
+ * le tour entier du marchand partait à l'erreur, et le même appel relancé à
+ * la main passait. Une démo de trois minutes ne survit pas à ça, et un
+ * marchand à Bab Ezzouar encore moins.
+ *
+ * Donc on retente : deux fois, courtes, et seulement quand rien n'est encore
+ * arrivé. Un 400 ou un 401 ne se retente pas — ce sont des réponses, et les
+ * rejouer ne ferait que les répéter plus lentement.
+ */
+const PASSAGER = (e) =>
+  /fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|network|timeout/i.test(
+    `${e?.message ?? ''} ${e?.cause?.code ?? ''} ${e?.cause?.message ?? ''}`)
+
+const ATTENTE = [400, 1200]
+
+async function insiste(fn, encore = () => true) {
+  for (let essai = 0; essai <= ATTENTE.length; essai++) {
+    try {
+      return await fn()
+    } catch (e) {
+      if (!PASSAGER(e) || !encore() || essai === ATTENTE.length) throw e
+      await new Promise((r) => setTimeout(r, ATTENTE[essai]))
+    }
+  }
+}
+
+export async function chat(messages, { tools, toolChoice = 'auto', provider: name = currentProvider(), temperature = 0.3 } = {}) {
   const p = provider(name)
   if (!p.key()) {
     throw new Error(
@@ -42,15 +73,17 @@ export async function chat(messages, { tools, provider: name = currentProvider()
     )
   }
   const body = { model: p.model, messages, temperature }
-  if (tools?.length) { body.tools = tools; body.tool_choice = 'auto' }
+  if (tools?.length) { body.tools = tools; body.tool_choice = toolChoice }
 
-  const res = await fetch(`${p.base()}/chat/completions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${p.key()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+  const json = await insiste(async () => {
+    const res = await fetch(`${p.base()}/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${p.key()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error(`${name} ${res.status}: ${(await res.text()).slice(0, 300)}`)
+    return res.json()
   })
-  if (!res.ok) throw new Error(`${name} ${res.status}: ${(await res.text()).slice(0, 300)}`)
-  const json = await res.json()
   return json.choices?.[0]?.message ?? {}
 }
 
@@ -67,60 +100,70 @@ export async function chat(messages, { tools, provider: name = currentProvider()
  * thought when a provider exposes it, so the UI can show that it is thinking
  * without ever showing a customer what it thought.
  */
-export async function chatStream(messages, { tools, provider: name = currentProvider(), temperature = 0.3, onDelta, onReasoning } = {}) {
+export async function chatStream(messages, { tools, toolChoice = 'auto', provider: name = currentProvider(), temperature = 0.3, onDelta, onReasoning } = {}) {
   const p = provider(name)
   if (!p.key()) throw new Error(`No API key for provider "${name}".`)
 
   const body = { model: p.model, messages, temperature, stream: true }
-  if (tools?.length) { body.tools = tools; body.tool_choice = 'auto' }
+  if (tools?.length) { body.tools = tools; body.tool_choice = toolChoice }
 
-  const res = await fetch(`${p.base()}/chat/completions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${p.key()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) throw new Error(`${name} ${res.status}: ${(await res.text()).slice(0, 300)}`)
+  // Une fois qu'un jeton est parti vers l'écran, on ne retente plus : le
+  // marchand a déjà la moitié d'une phrase sous les yeux, et la rejouer lui
+  // en écrirait deux. Avant le premier jeton, en revanche, personne n'a rien
+  // vu — là, une reprise est invisible.
+  let emis = false
 
-  const reader = res.body.getReader()
-  const dec = new TextDecoder()
-  let buf = ''
-  let content = ''
-  const calls = []
+  return insiste(async () => {
+    const res = await fetch(`${p.base()}/chat/completions`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${p.key()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error(`${name} ${res.status}: ${(await res.text()).slice(0, 300)}`)
 
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buf += dec.decode(value, { stream: true })
-    const lines = buf.split('\n')
-    buf = lines.pop() ?? ''
-    for (const line of lines) {
-      const t = line.trim()
-      if (!t.startsWith('data:')) continue
-      const payload = t.slice(5).trim()
-      if (payload === '[DONE]') continue
-      let json
-      try { json = JSON.parse(payload) } catch { continue }
-      const d = json.choices?.[0]?.delta
-      if (!d) continue
+    const reader = res.body.getReader()
+    const dec = new TextDecoder()
+    let buf = ''
+    let content = ''
+    const calls = []
 
-      if (d.reasoning_content) onReasoning?.(d.reasoning_content)
-      if (typeof d.content === 'string' && d.content) {
-        content += d.content
-        onDelta?.(d.content)
-      }
-      // Tool calls arrive in fragments keyed by index; the arguments are a
-      // JSON string assembled across many deltas.
-      for (const tc of d.tool_calls ?? []) {
-        const i = tc.index ?? 0
-        calls[i] ??= { id: tc.id, type: 'function', function: { name: '', arguments: '' } }
-        if (tc.id) calls[i].id = tc.id
-        if (tc.function?.name) calls[i].function.name += tc.function.name
-        if (tc.function?.arguments) calls[i].function.arguments += tc.function.arguments
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += dec.decode(value, { stream: true })
+      const lines = buf.split('\n')
+      buf = lines.pop() ?? ''
+      for (const line of lines) {
+        const t = line.trim()
+        if (!t.startsWith('data:')) continue
+        const payload = t.slice(5).trim()
+        if (payload === '[DONE]') continue
+        let json
+        try { json = JSON.parse(payload) } catch { continue }
+        const d = json.choices?.[0]?.delta
+        if (!d) continue
+
+        if (d.reasoning_content) { emis = true; onReasoning?.(d.reasoning_content) }
+        if (typeof d.content === 'string' && d.content) {
+          emis = true
+          content += d.content
+          onDelta?.(d.content)
+        }
+        // Tool calls arrive in fragments keyed by index; the arguments are a
+        // JSON string assembled across many deltas.
+        for (const tc of d.tool_calls ?? []) {
+          emis = true
+          const i = tc.index ?? 0
+          calls[i] ??= { id: tc.id, type: 'function', function: { name: '', arguments: '' } }
+          if (tc.id) calls[i].id = tc.id
+          if (tc.function?.name) calls[i].function.name += tc.function.name
+          if (tc.function?.arguments) calls[i].function.arguments += tc.function.arguments
+        }
       }
     }
-  }
 
-  return { role: 'assistant', content, tool_calls: calls.filter(Boolean).length ? calls.filter(Boolean) : undefined }
+    return { role: 'assistant', content, tool_calls: calls.filter(Boolean).length ? calls.filter(Boolean) : undefined }
+  }, () => !emis)
 }
 
 // Muse Spark Open always reasons, and shipping its chain of thought to a
