@@ -99,7 +99,12 @@ const initialsOf = (s) => String(s).split(/\s+/).map((w) => w[0]).join('').toUpp
 
 /* ── step 2: the permissions ─────────────────────────────────────────────── */
 function permissions(root, c) {
-  const scopes = c.scopes ?? []
+  // `c.scopes` on a connection is the list of permissions ALREADY granted —
+  // which, on the screen that asks for them, is empty. The catalogue of what
+  // can be asked for is a different field, and reading the wrong one rendered
+  // a consent dialog with nothing to consent to.
+  const scopes = c.scope_catalog?.length ? c.scope_catalog : []
+  if (!scopes.length) return disconnected(root, c)
   if (!chosen.size) chosen = new Set(scopes.map((s) => s.name))
 
   const groups = [...new Set(scopes.map((s) => s.group))]
