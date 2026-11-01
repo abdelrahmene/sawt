@@ -19,6 +19,7 @@
 // Le seul import de ce fichier, et il ne coûte rien quand le marchand n'a
 // pas de pixel : pixelSnippet rend une chaîne vide.
 import { pixelSnippet } from './pixel.js'
+import { WILAYAS_AR, WILAYAS_FR } from '../dz/wilayas.js'
 
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
@@ -48,7 +49,9 @@ const ICON = {
 const icon = (name, size = 20) =>
   `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name] ?? ICON.check}</svg>`
 
-const WILAYAS = ['أدرار','الشلف','الأغواط','أم البواقي','باتنة','بجاية','بسكرة','بشار','البليدة','البويرة','تمنراست','تبسة','تلمسان','تيارت','تيزي وزو','الجزائر','الجلفة','جيجل','سطيف','سعيدة','سكيكدة','سيدي بلعباس','عنابة','قالمة','قسنطينة','المدية','مستغانم','المسيلة','معسكر','ورقلة','وهران','البيض','إليزي','برج بوعريريج','بومرداس','الطارف','تندوف','تيسمسيلت','الوادي','خنشلة','سوق أهراس','تيبازة','ميلة','عين الدفلى','النعامة','عين تموشنت','غرداية','غليزان','تيميمون','برج باجي مختار','أولاد جلال','بني عباس','عين صالح','عين قزام','تقرت','جانت','المغير','المنيعة']
+// La liste vit dans src/dz/wilayas.js, avec sa jumelle en latin et le
+// comparateur qui sait que « Oran » et « وهران » sont la même ville. Une
+// page en français ne doit pas proposer 58 noms en arabe.
 
 /* The gabarits. Four sets of tokens, not four stylesheets — the layout is the
    same page every time, which is the point of drawing it in code. What moves
@@ -390,7 +393,7 @@ ${show('faq') && c.faq.length ? `<section class="s alt rv"><div class="w">
       <input id="p" name="phone" required inputmode="tel" autocomplete="tel" pattern="[0-9 +]{9,}" placeholder="0${ar ? '6' : '6'}XX XX XX XX"></div>
     <div class="two">
       <div><label for="w">${esc(L.wilaya)}</label><select id="w" name="wilaya" required>
-        <option value="">${esc(L.pick)}</option>${WILAYAS.map((x) => `<option>${esc(x)}</option>`).join('')}
+        <option value="">${esc(L.pick)}</option>${(ar ? WILAYAS_AR : WILAYAS_FR).map((x) => `<option>${esc(x)}</option>`).join('')}
       </select></div>
       <div><label for="c">${esc(L.commune)}</label><input id="c" name="commune" required></div>
     </div>
