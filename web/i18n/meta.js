@@ -12,6 +12,44 @@
 // démonstration (« Dar Essabat », « صباط دزاير ») — le serveur les envoie tels
 // quels et le code les compare.
 export const meta = {
+  /* ── le mur de la Page ─────────────────────────────────────────────────
+     « Rien n'est publié chez Facebook » est répété ici parce que c'est
+     l'écran où l'illusion est la plus forte : on y voit des portées, des
+     mentions j'aime et de vrais commentaires en darija. C'est exactement
+     là qu'il faut le dire, pas dans une note de bas de page. */
+  'meta.sec.wall': { en: 'The Page wall', ar: 'الحيط تاع الباج', fr: 'Le mur de la Page' },
+  'meta.wall.loading': { en: 'Reading the Page…', ar: 'نقرا الباج…', fr: 'Lecture de la Page…' },
+  'meta.wall.posts': { en: 'published', ar: 'منشورات', fr: 'publications' },
+  'meta.wall.reach': { en: 'reach', ar: 'وصلت لـ', fr: 'portée' },
+  'meta.wall.likes': { en: 'likes', ar: 'جيمات', fr: "j'aime" },
+  'meta.wall.shares': { en: 'shares', ar: 'مشاركات', fr: 'partages' },
+  'meta.wall.saves': { en: 'saves', ar: 'محفوظات', fr: 'enregistrements' },
+  'meta.wall.open': { en: 'comments waiting', ar: 'كومنتير يستنى', fr: 'commentaires en attente' },
+  'meta.wall.kind.post': { en: 'Post', ar: 'بوست', fr: 'Publication' },
+  'meta.wall.kind.story': { en: 'Story', ar: 'ستوري', fr: 'Story' },
+  'meta.wall.kind.reel': { en: 'Reel', ar: 'ريل', fr: 'Reel' },
+  'meta.wall.caption': { en: 'What do you want to say?', ar: 'واش تحب تكتب؟', fr: "Qu'est-ce que tu veux écrire ?" },
+  'meta.wall.when': { en: 'When', ar: 'وقتاش', fr: 'Quand' },
+  'meta.wall.now': { en: 'Now', ar: 'دوكا', fr: 'Maintenant' },
+  'meta.wall.in': { en: 'In {n} h', ar: 'بعد {n} سوايع', fr: 'Dans {n} h' },
+  'meta.wall.publish': { en: 'Publish', ar: 'انشر', fr: 'Publier' },
+  'meta.wall.why': {
+    en: 'Nothing is published on Facebook. The Page, its reach and its comments are staged so a judge can run this without a Meta account.',
+    ar: 'والو ما يتنشر في فايسبوك. الباج والأرقام والكومنتيرات كامل ديمو، باش الجيري يقدر يجرب بلا كومبت Meta.',
+    fr: "Rien n'est publié sur Facebook. La Page, ses chiffres et ses commentaires sont une mise en scène, pour qu'un juré puisse essayer sans compte Meta.",
+  },
+  'meta.wall.scheduled': { en: 'Scheduled ({n})', ar: 'مبرمجة ({n})', fr: 'Programmées ({n})' },
+  'meta.wall.published': { en: 'Published', ar: 'اللي تنشرو', fr: 'Publiées' },
+  'meta.wall.inH': { en: 'in {n} h', ar: 'بعد {n} س', fr: 'dans {n} h' },
+  'meta.wall.hoursAgo': { en: '{n} h ago', ar: 'من {n} س', fr: 'il y a {n} h' },
+  'meta.wall.needCaption': { en: 'Write something first.', ar: 'اكتب حاجة الأول.', fr: "Écris quelque chose d'abord." },
+  'meta.wall.scheduledToast': { en: 'Scheduled.', ar: 'مبرمجة.', fr: 'Programmée.' },
+  'meta.wall.publishedToast': { en: 'Published on the Page.', ar: 'تنشرات في الباج.', fr: 'Publiée sur la Page.' },
+  'meta.wall.byAi': { en: 'agent', ar: 'الاجون', fr: 'agent' },
+  'meta.wall.needs': { en: 'It needs you:', ar: 'خصو منك:', fr: 'Il a besoin de toi :' },
+  'meta.wall.yourAnswer': { en: 'Your answer, and the agent reuses it', ar: 'جاوب انت، والاجون يعاود يستعملها', fr: "Ta réponse, et l'agent la réutilise" },
+  'meta.wall.send': { en: 'Reply', ar: 'جاوب', fr: 'Répondre' },
+
   /* ── le titre, partagé par les trois étapes ───────────────────────────── */
   'meta.title': { en: 'Meta connections', ar: 'الربط مع ميتا', fr: 'Connexions Meta' },
   'meta.intro': {

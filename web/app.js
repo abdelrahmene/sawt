@@ -25,11 +25,17 @@ const TABS = [
   { id: 'sites', key: 'tab.sites', ic: 'globe', mod: sites, badge: (c) => c.pages, calm: true },
   { id: 'campaigns', key: 'tab.campaigns', ic: 'mega', mod: campaigns, badge: (c) => c.live, calm: true },
   { id: 'inbox', key: 'tab.inbox', ic: 'inbox', mod: inbox, badge: (c) => c.inbox_open + c.inbox_stuck },
-  { id: 'meta', key: 'tab.meta', ic: 'link', mod: meta },
+  { id: 'meta', key: 'tab.meta', ic: 'link', mod: meta, badge: (c) => c.comments_open },
   { id: 'settings', key: 'tab.settings', ic: 'gear', mod: settings },
 ]
 
 export let COUNTS = {}
+/* Qui veut être prévenu quand les compteurs bougent.
+   Le rail se repeint déjà dans refresh(), mais la cloche vit à côté et
+   n'avait aucun moyen de savoir. Plutôt que de lui faire relire l'état
+   pour elle seule, on prévient. */
+const abonnes = []
+export const onCounts = (fn) => { abonnes.push(fn); return fn }
 let current = 'chat'
 
 /* ── the rail ─────────────────────────────────────────────────────────────── */
@@ -127,6 +133,7 @@ export async function refresh({ repaint = true } = {}) {
     }
 
     window.SAWT_STATE = s
+    for (const fn of abonnes) { try { fn(COUNTS) } catch (e) { console.error('[counts]', e) } }
     if (repaint) paintRail()
     return s
   } catch (e) {
@@ -192,6 +199,61 @@ function paintStatic() {
   }
   paint()
   onLang(paint)
+}
+
+/* ── la cloche ────────────────────────────────────────────────────────────
+   Une pastille rouge dit « il y a trois choses ». Elle ne dit jamais
+   lesquelles, ni quand, ni quoi faire — et une pastille sans récit, on
+   apprend à l'ignorer en deux jours. Celle-ci s'ouvre sur les événements
+   datés, et chaque ligne emmène sur la chose dont elle parle.
+
+   Les notifications ne sont PAS relues en boucle : elles arrivent avec
+   l'état, qui est déjà rafraîchi après chaque action. Une app qui
+   interroge son serveur toutes les cinq secondes pour un compteur à zéro
+   use la batterie du marchand pour rien. */
+{
+  const b = $('#bell')
+  const box = $('#notifs')
+
+  const paint = () => {
+    b.innerHTML = icon('bell', 17)
+    const n = COUNTS.notifs ?? 0
+    if (n) b.append(el('span', 'dot', n > 9 ? '9+' : String(n)))
+    b.title = t('shell.notifs')
+    b.setAttribute('aria-label', b.title)
+  }
+
+  const close = () => { box.hidden = true }
+  addEventListener('click', (e) => {
+    if (!box.hidden && !box.contains(e.target) && e.target !== b && !b.contains(e.target)) close()
+  })
+
+  b.onclick = async (e) => {
+    e.stopPropagation()
+    if (!box.hidden) return close()
+    box.hidden = false
+    box.innerHTML = `<div class="loading">${t('shell.notifs.loading')}</div>`
+    let d
+    try { d = await api('/notifications') } catch { box.innerHTML = ''; return close() }
+    box.innerHTML = d.items.length
+      ? d.items.map((n) => `<button class="nrow${n.seen ? '' : ' new'}" data-goto="${esc(n.goto ?? '')}">
+          <span class="k">${esc(n.kind)}</span>
+          <span class="tt">${esc(n.title)}</span>
+          ${n.body ? `<span class="bb">${esc(n.body)}</span>` : ''}
+        </button>`).join('')
+      : `<div class="nempty">${t('shell.notifs.empty')}</div>`
+    for (const r of box.querySelectorAll('[data-goto]')) {
+      r.onclick = () => { close(); if (r.dataset.goto) go(r.dataset.goto) }
+    }
+    // Ouvrir, c'est avoir vu. On éteint la pastille ici et pas au clic sur
+    // une ligne : sinon la pastille survit à la lecture et ment.
+    await api('/notifications/seen', { method: 'POST', body: {} }).catch(() => {})
+    await refresh()
+  }
+
+  paint()
+  onLang(paint)
+  onCounts(paint)
 }
 
 /* ── téléphone ou bureau ──────────────────────────────────────────────────

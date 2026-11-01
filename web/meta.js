@@ -181,6 +181,117 @@ function permissions(root, c) {
 }
 
 /* ── connected: the Business Manager ────────────────────────────────────── */
+/* ── le mur de la Page ────────────────────────────────────────────────────
+   Chargé APRÈS le reste de l'écran, dans son propre appel : la connexion,
+   les actifs et les permissions s'affichent tout de suite, et le mur arrive
+   derrière. Les mettre dans la même requête ferait attendre l'essentiel
+   pour du décor.
+
+   Ce qu'on montre et pourquoi : une publication programmée n'a AUCUN
+   chiffre — elle n'est pas encore sortie. Afficher une portée estimée sous
+   un post qui n'existe pas serait exactement la faute que le projet ne peut
+   pas se permettre. Elle affiche son heure, rien d'autre. */
+async function peindreMur(root) {
+  const box = $('#wall', root)
+  if (!box) return
+  let d
+  try { d = await api('/page') } catch (e) { box.innerHTML = `<div class="why bad">${esc(e.message)}</div>`; return }
+  if (!d.connected) { box.innerHTML = ''; return }
+
+  const st = d.stats
+  const prog = d.posts.filter((p) => p.status === 'scheduled')
+  const sortis = d.posts.filter((p) => p.status === 'published')
+
+  box.innerHTML = `
+    <div class="kpis" style="margin-bottom:16px">
+      <div class="kpi"><div class="l">${t('meta.wall.posts')}</div><div class="v">${num(st.posts)}</div></div>
+      <div class="kpi"><div class="l">${t('meta.wall.reach')}</div><div class="v">${num(st.reach)}</div></div>
+      <div class="kpi"><div class="l">${t('meta.wall.likes')}</div><div class="v">${num(st.likes)}</div></div>
+      <div class="kpi ${st.comments_open ? 'warn' : ''}"><div class="l">${t('meta.wall.open')}</div><div class="v">${num(st.comments_open)}</div></div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px"><div class="body">
+      <div class="seg" id="kindpick" style="margin-bottom:10px">
+        <button data-k="post" class="on">${t('meta.wall.kind.post')}</button>
+        <button data-k="story">${t('meta.wall.kind.story')}</button>
+        <button data-k="reel">${t('meta.wall.kind.reel')}</button>
+      </div>
+      <textarea class="f" id="cap" rows="2" placeholder="${esc(t('meta.wall.caption'))}"></textarea>
+      <div class="row" style="margin-top:10px">
+        <div style="max-width:170px"><label class="f">${t('meta.wall.when')}</label>
+          <select class="f" id="when">
+            <option value="0">${t('meta.wall.now')}</option>
+            <option value="3">${t('meta.wall.in', { n: 3 })}</option>
+            <option value="14">${t('meta.wall.in', { n: 14 })}</option>
+            <option value="24">${t('meta.wall.in', { n: 24 })}</option>
+          </select></div>
+        <button class="btn p" id="pub">${icon('bolt', 15)} ${t('meta.wall.publish')}</button>
+      </div>
+      <div class="why" style="margin-top:10px">${t('meta.wall.why')}</div>
+    </div></div>
+
+    ${prog.length ? `<h2 class="sec">${t('meta.wall.scheduled', { n: num(prog.length) })}</h2>
+      ${prog.map((p) => `<div class="card"><div class="body" style="display:flex;gap:12px;align-items:baseline">
+        <span class="chip mono">${esc(p.kind)}</span>
+        <div style="flex:1;min-width:0">${esc(p.caption ?? '')}</div>
+        <span class="chip">${t('meta.wall.inH', { n: num(Math.max(0, Math.round((p.scheduled_at - Date.now()) / 3600000))) })}</span>
+      </div></div>`).join('')}` : ''}
+
+    <h2 class="sec">${t('meta.wall.published')}</h2>
+    ${sortis.map((p) => mur(p)).join('')}`
+
+  for (const b of box.querySelectorAll('#kindpick button')) {
+    b.onclick = () => { for (const x of box.querySelectorAll('#kindpick button')) x.classList.toggle('on', x === b) }
+  }
+  $('#pub', box).onclick = async () => {
+    const caption = $('#cap', box).value.trim()
+    if (!caption) return toast(t('meta.wall.needCaption'), true)
+    const kind = box.querySelector('#kindpick button.on')?.dataset.k ?? 'post'
+    const h = Number($('#when', box).value) || 0
+    await api('/page/schedule', { method: 'POST', body: { kind, caption, in_hours: h } })
+    toast(h ? t('meta.wall.scheduledToast') : t('meta.wall.publishedToast'))
+    await refresh()
+    peindreMur(root)
+  }
+  for (const b of box.querySelectorAll('[data-reply]')) {
+    b.onclick = async () => {
+      const zone = b.previousElementSibling
+      const txt = zone.value.trim()
+      if (!txt) return
+      await api('/page/reply', { method: 'POST', body: { comment_id: Number(b.dataset.reply), text: txt } })
+      await refresh()
+      peindreMur(root)
+    }
+  }
+}
+
+/* Une publication et ce qu'on lui a écrit dessous.
+   Le commentaire rendu au marchand garde SA question affichée et dit ce qui
+   manque : c'est le seul endroit où il peut répondre lui-même, et le cacher
+   reviendrait à perdre le client que l'agent a refusé d'inventer. */
+const mur = (p) => `
+  <div class="card"><div class="body">
+    <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:8px">
+      <span class="chip mono">${esc(p.kind)}</span>
+      <div style="flex:1;min-width:0;font-weight:600">${esc(p.caption ?? '')}</div>
+      <span class="chip">${t('meta.wall.hoursAgo', { n: num(Math.round((Date.now() - p.published_at) / 3600000)) })}</span>
+    </div>
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+      <div class="kpi"><div class="l">${t('meta.wall.reach')}</div><div class="v">${num(p.reach)}</div></div>
+      <div class="kpi"><div class="l">${t('meta.wall.likes')}</div><div class="v">${num(p.likes)}</div></div>
+      <div class="kpi"><div class="l">${t('meta.wall.shares')}</div><div class="v">${num(p.shares)}</div></div>
+      <div class="kpi"><div class="l">${t('meta.wall.saves')}</div><div class="v">${num(p.saves)}</div></div>
+    </div>
+    ${p.comments.length ? `<div class="coms">${p.comments.map((c) => `
+      <div class="com ${esc(c.status)}">
+        <b>${esc(c.person)}</b> <span>${esc(c.text)}</span>
+        ${c.reply ? `<div class="rep">${c.by_ai ? `<span class="chip ok">${t('meta.wall.byAi')}</span> ` : ''}${esc(c.reply)}</div>` : ''}
+        ${c.status === 'escalated' ? `<div class="need">${t('meta.wall.needs')} ${esc(c.needs ?? '')}</div>
+          <textarea class="f" rows="1" placeholder="${esc(t('meta.wall.yourAnswer'))}"></textarea>
+          <button class="btn sm" data-reply="${c.id}">${t('meta.wall.send')}</button>` : ''}
+      </div>`).join('')}</div>` : ''}
+  </div></div>`
+
 function connected(root, c) {
   const biz = c.business ?? {}
   const declined = c.declined ?? []
@@ -249,8 +360,13 @@ function connected(root, c) {
         </div></div>`).join('')}
     </div>
 
+    <h2 class="sec">${t('meta.sec.wall')}</h2>
+    <div id="wall">${loading(t('meta.wall.loading'))}</div>
+
     <div id="graph-out" style="margin-top:22px"></div>
   </div>`
+
+  peindreMur(root)
 
   for (const b of root.querySelectorAll('.go-inbox')) b.onclick = () => go('inbox')
 

@@ -34,6 +34,9 @@
            le NOMBRE D'APPELS derrière, lui, est compté pour de vrai. -->
       <span class="mode credits" id="credits" data-i18n-title="shell.credits"></span>
       <span class="mode" id="mode">…</span>
+      <!-- La cloche. Une pastille dit « il y a 3 choses » et jamais
+           lesquelles — on apprend a l'ignorer. Celle-ci s'ouvre et raconte. -->
+      <button class="icon sm themer bell" id="bell" data-i18n-title="shell.notifs"></button>
       <button class="chip lang" id="lang" data-i18n-title="shell.langTitle"></button>
       <!-- La bascule téléphone / bureau vit DANS la barre du haut.
            Elle flottait avant hors de l'appareil, en haut à droite de la
@@ -106,6 +109,7 @@
          Ils sont hors flux, donc ils ne prennent aucune case de la grille. -->
     <div id="lightbox"><img alt=""><span class="hint" data-i18n="shell.lightbox"></span></div>
     <div class="toast" id="toast"></div>
+    <div id="notifs" hidden></div>
 
   </div>
 

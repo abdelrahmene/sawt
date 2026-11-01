@@ -68,6 +68,7 @@ const PATHS = {
   grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/>',
   phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.6"/><path d="M10.5 5.4h3"/><path d="M11 18.6h2"/>',
   monitor: '<rect x="2.5" y="3.5" width="19" height="13" rx="2.2"/><path d="M8.5 20.5h7"/><path d="M12 16.5v4"/>',
+  bell: '<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6.5-2 6.5h16S18 14 18 9Z"/><path d="M10.3 19a2 2 0 0 0 3.4 0"/>',
   box: '<path d="M21 8.5v7a1.5 1.5 0 0 1-.8 1.3l-7.5 4a1.5 1.5 0 0 1-1.4 0l-7.5-4A1.5 1.5 0 0 1 3 15.5v-7"/><path d="M3.4 7.7l8.1-4.3a1.5 1.5 0 0 1 1.4 0l8.1 4.3L12 12.4z"/><path d="M12 12.4V21"/>',
   tag: '<path d="M3.5 11.4V4.6A1.1 1.1 0 0 1 4.6 3.5h6.8L20.5 12.6 12.6 20.5z"/><circle cx="7.9" cy="7.9" r="1.5"/>',
 }
