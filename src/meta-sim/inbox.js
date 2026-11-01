@@ -15,6 +15,7 @@
 // the merchant — because an invented "yes, 43 is available" is a refused
 // delivery, 700 DA of return shipping, and a customer who never buys again.
 import { all, one, run, insert, now, J, unJ } from '../db.js'
+import { seedPosts, dueNow, commentsOf, replyComment, escalateComment } from './posts.js'
 import { chat, visibleAnswer } from '../models/llm.js'
 
 /* ── the seed ─────────────────────────────────────────────────────────────
@@ -110,7 +111,14 @@ const initials = (name) =>
 export const surfacesOf = (connection) =>
   (connection?.assets ?? [])
     .filter((a) => a.kind === 'page' || a.kind === 'instagram')
-    .map((a) => { seedInbox(a.id, a.kind); return a })
+    .map((a) => {
+      seedInbox(a.id, a.kind)
+      // Le mur de la Page, semé en même temps que ses messages. Les deux
+      // arrivent avec la connexion : un compte branché dont la Page est
+      // vide n'a l'air connecté à rien.
+      if (a.kind === 'page') { seedPosts(a.id, connection.session); dueNow(a.id) }
+      return a
+    })
 
 export function threads(assetId) {
   return all(
@@ -239,6 +247,57 @@ export function sendReply(threadId, draft) {
       'needs_merchant', t, draft.intent ?? null, draft.missing ?? null, threadId)
   }
   return thread(threadId)
+}
+
+/* ── les commentaires publics ──────────────────────────────────────────────
+   Même cerveau que les messages privés, et ce n'est pas de la paresse : la
+   règle à appliquer est identique — répondre à ce qu'on peut prouver depuis
+   la fiche, rendre la main pour le reste. Ce qui change est le CONTEXTE
+   qu'on donne au modèle, et il change beaucoup : sous une publication,
+   tout le monde lit. Une réponse inventée en privé gêne un client ; la
+   même sous un reel vu 41 000 fois gêne la boutique entière.
+
+   D'où la consigne supplémentaire : plus court qu'un DM, et pas de détail
+   personnel — on ne répond pas « ton colis part demain » sous un post. */
+export async function draftComment(commentId, facts = shopFacts()) {
+  const c = one('SELECT * FROM post_comments WHERE id=?', commentId)
+  if (!c) throw new Error('Commentaire introuvable.')
+  const p = one('SELECT kind, caption FROM posts WHERE id=?', c.post)
+
+  const t0 = Date.now()
+  const msg = await chat(
+    [{ role: 'system', content: SYSTEM(facts) },
+     { role: 'user', content:
+`A PUBLIC comment under the shop's ${p?.kind ?? 'post'}: "${p?.caption ?? ''}".
+Everyone who sees the post sees your answer, so keep it to ONE short sentence
+and never mention anything personal about this customer.
+
+CUSTOMER (${c.person}): ${c.text}
+
+Answer that comment.` }],
+    { temperature: 0.6 }
+  )
+  const raw = visibleAnswer(msg)
+  const m = raw.match(/\{[\s\S]*\}/)
+  if (!m) throw new Error("Le modèle n'a pas répondu en JSON.")
+  const d = JSON.parse(m[0])
+  return {
+    comment: commentId,
+    person: c.person,
+    asked: c.text,
+    reply: String(d.reply ?? '').trim(),
+    can_answer: d.can_answer !== false && !c.needs,
+    missing: String(d.missing ?? '').trim() || c.needs || null,
+    intent: d.intent ?? c.intent,
+    ms: Date.now() - t0,
+    model: 'muse-spark-1.3',
+  }
+}
+
+/** Publie la réponse, ou rend le commentaire au marchand avec la raison. */
+export function sendCommentReply(commentId, draft) {
+  if (draft.can_answer && draft.reply) return replyComment(commentId, draft.reply, { byAi: true })
+  return escalateComment(commentId, draft.missing ?? "Information que la boutique n'a pas donnée.")
 }
 
 /** The merchant answers the question the agent could not. */

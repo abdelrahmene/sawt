@@ -15,6 +15,8 @@
 // goes in front of every single request, so it is a status board, not a dump.
 import { all, one, unJ, setting } from '../db.js'
 import { PLACEMENTS } from '../meta-sim/campaigns.js'
+import * as page from '../meta-sim/posts.js'
+import * as notify from '../meta-sim/notify.js'
 
 const money = (n) => `${Number(n || 0).toLocaleString('fr-FR').replace(/[  ]/g, ' ')} DZD`
 const ago = (ms) => {
@@ -84,7 +86,9 @@ export function briefing(sessionId) {
     lines.push('  no Instagram, no ad account and no inbox. If they want ads or customer replies, call')
     lines.push('  connect_meta first — it opens the connection screen for them. Do not pretend to post.')
   } else {
-    const assets = all('SELECT kind,name,followers,external_id FROM meta_assets WHERE connection=?', conn.id)
+    // `id` fait partie de la sélection : le bloc Page en a besoin pour lire son
+    // mur, et sans lui pageStats recevait `undefined` et SQLite refusait le lien.
+    const assets = all('SELECT id,kind,name,followers,external_id FROM meta_assets WHERE connection=?', conn.id)
     const declined = unJ(conn.declined, [])
     lines.push(`META: connected as ${conn.user_name} (SIMULATED connection — no real Meta account is involved).`)
     for (const a of assets) {
@@ -93,6 +97,46 @@ export function briefing(sessionId) {
     if (declined.length) {
       lines.push(`  · permissions REFUSED by the merchant: ${declined.join(', ')} — anything needing them is unavailable, say so by name.`)
     }
+
+    /* ── la Page : son mur, ce qui est programmé, ce qu'on écrit dessous ──
+       Sans ce bloc, l'agent proposait de « publier quelque chose » sur une
+       Page dont il ne savait rien : ni ce qui venait de sortir, ni ce qui
+       marchait, ni qu'une story partait dans deux heures. Il redemandait,
+       ou pire, il doublonnait une publication de la veille.
+
+       Les commentaires comptent autant que les DM. Sous un reel vu 41 000
+       fois, la même question revient dix fois — et c'est là que se joue la
+       vente en Algérie, pas dans la messagerie. */
+    const pageAsset = assets.find((a) => a.kind === 'page')
+    if (pageAsset) {
+      const st = page.pageStats(pageAsset.id)
+      const murs = page.postsOf(pageAsset.id)
+      const sortis = murs.filter((p) => p.status === 'published')
+      const prevus = murs.filter((p) => p.status === 'scheduled')
+
+      if (sortis.length) {
+        const top = [...sortis].sort((a, b) => b.reach - a.reach)[0]
+        lines.push(`PAGE: ${sortis.length} published (${st.reach.toLocaleString('fr-FR')} reach in total), ` +
+          `${prevus.length} scheduled, ${st.comments_open} comment(s) unanswered.`)
+        lines.push(`  best so far: ${top.kind} "${String(top.caption ?? '').slice(0, 50)}" — ${top.reach.toLocaleString('fr-FR')} reach, ${top.likes} likes`)
+      }
+      for (const p of prevus.slice(0, 3)) {
+        const h = Math.round((p.scheduled_at - Date.now()) / 3_600_000)
+        lines.push(`  scheduled: ${p.kind} in ${h} h — "${String(p.caption ?? '').slice(0, 50)}"`)
+      }
+      const ouverts = page.openComments(pageAsset.id)
+      if (ouverts.length) {
+        lines.push(`COMMENTS: ${ouverts.length} waiting under the posts.`)
+        for (const c of ouverts.slice(0, 4)) {
+          lines.push(`  · #${c.id} ${c.person}: "${String(c.text).slice(0, 60)}"`)
+        }
+        lines.push('  Call answer_comments. Everyone reads these, so the rule is stricter: no invented fact, ever.')
+      }
+    }
+
+    /* ── ce qui est arrivé pendant qu'il regardait ailleurs ──────────────── */
+    const nouvelles = notify.digest(sessionId)
+    if (nouvelles.length) lines.push(`SINCE LAST TIME: ${nouvelles.join(' · ')}`)
 
     /* ── the inbox ─────────────────────────────────────────────────────── */
     const ids = assets.map((a) => a.external_id)

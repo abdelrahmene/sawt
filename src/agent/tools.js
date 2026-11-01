@@ -313,6 +313,53 @@ export const TOOLS = [
       },
     },
   },
+  /* ── la Page : ce qu'elle publie, ce qu'on lui écrit dessous ──────────
+     Les DM ne sont qu'une partie du travail. En Algérie l'essentiel de la
+     demande arrive SOUS la publication — « سومة ؟ » cent fois sous le même
+     reel — et un agent qui ne lit que les messages privés ne voit pas le
+     gros du flux. */
+  {
+    type: 'function',
+    function: {
+      name: 'read_page',
+      description:
+        "What the shop's Facebook Page actually looks like right now: its published posts, stories and reels with their reach, what is scheduled and for when, and how many comments are still waiting under each. Call it before publishing or before answering comments, so you talk about what is really there.",
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'schedule_post',
+      description:
+        "Publish on the Page now, or schedule it for later. A story is for the next 24 hours and is where sizes left and today's arrivals go; a reel is what reaches beyond the followers; a post is what stays. Write the caption yourself, in the merchant's language. NEVER promise a reach figure for something not published yet.",
+      parameters: {
+        type: 'object',
+        properties: {
+          kind: { type: 'string', enum: ['post', 'story', 'reel'], description: 'Default post.' },
+          caption: { type: 'string', description: 'The caption, in darija unless the merchant writes otherwise.' },
+          in_hours: { type: 'number', description: 'Schedule this many hours from now. Leave empty to publish immediately.' },
+          image: { type: 'string', description: 'A url already produced in this session, if the post carries one.' },
+        },
+        required: ['caption'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'answer_comments',
+      description:
+        'Answer the public comments under the posts, in darija. Same rule as the private messages, and it matters MORE here: everyone reading the post reads your answer. A comment that needs a fact you cannot prove from the product sheet — stock for a size, the fee to a given commune, where a parcel is, the return policy — is NOT answered. It comes back marked for the merchant with the one fact you need.',
+      parameters: {
+        type: 'object',
+        properties: {
+          comment_ids: { type: 'array', items: { type: 'number' }, description: 'Leave empty to take every open comment.' },
+          max: { type: 'number', description: 'Cap how many to handle in one go. Default 6.' },
+        },
+      },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -405,6 +452,12 @@ export const SIMULATED = new Set([
   'configure_campaign', 'launch_campaign', 'campaign_results', 'adjust_campaign',
   'simulate_days', 'connect_meta', 'read_inbox',
   'browse_catalog', 'import_product',
+  // La Page et son mur : aucune publication n'est créée chez Facebook, et
+  // les chiffres de portée sont à l'échelle d'une vraie Page sans en être
+  // une. `answer_comments` reste dehors, comme `answer_inbox` : le fil est
+  // mis en scène, mais la darija écrite est un vrai appel de modèle et le
+  // refus de répondre est une vraie décision.
+  'read_page', 'schedule_post',
 ])
 
 // Tools that produce something the merchant can actually open.

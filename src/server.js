@@ -29,6 +29,8 @@ import * as opts from './creative/landing-options.js'
 import { buildLandingPage } from './creative/landing.js'
 import * as catalog from './catalog.js'
 import * as credits from './credits.js'
+import * as page from './meta-sim/posts.js'
+import * as notify from './meta-sim/notify.js'
 
 const sh = promisify(execFile)
 const PORT = Number(process.env.PORT || 7070)
@@ -165,10 +167,24 @@ function counts(sid) {
   const stuck = assetIds.length
     ? one(`SELECT COUNT(*) n FROM threads WHERE status='needs_merchant' AND asset IN (${assetIds.map(() => '?').join(',')})`, ...assetIds)?.n ?? 0
     : 0
+  // Les commentaires publics comptent à part des messages privés : ce ne
+  // sont pas les mêmes gens, pas le même risque, et surtout pas la même
+  // pastille. Les mélanger cacherait que neuf personnes attendent sous un
+  // reel pendant que la messagerie est vide.
+  const comments = assetIds.length
+    ? one(`SELECT COUNT(*) n FROM post_comments c JOIN posts p ON p.id=c.post
+           WHERE c.status='open' AND p.asset IN (${assetIds.map(() => '?').join(',')})`, ...assetIds)?.n ?? 0
+    : 0
+  const scheduled = assetIds.length
+    ? one(`SELECT COUNT(*) n FROM posts WHERE status='scheduled' AND asset IN (${assetIds.map(() => '?').join(',')})`, ...assetIds)?.n ?? 0
+    : 0
   return {
     connected: !!c,
     inbox_open: open,
     inbox_stuck: stuck,
+    comments_open: comments,
+    scheduled,
+    notifs: notify.unseen(sid),
     pages: one('SELECT COUNT(*) n FROM pages WHERE session=?', sid)?.n ?? 0,
     sites: one('SELECT COUNT(*) n FROM sites WHERE session=?', sid)?.n ?? 0,
     campaigns: one('SELECT COUNT(*) n FROM campaigns WHERE session=?', sid)?.n ?? 0,
@@ -439,6 +455,56 @@ const server = createServer(async (req, res) => {
     if (reading && p === '/api/meta/graph') return json(res, 200, meta.graphEcho(sid) ?? { error: 'non connecté' })
 
     /* ── the inbox ──────────────────────────────────────────────────────── */
+    /* ── la Page : son mur et ses commentaires ─────────────────────────── */
+    if (reading && p === '/api/page') {
+      const a = surfaces(sid).find((x) => x.kind === 'page')
+      if (!a) return json(res, 200, { connected: false })
+      const posts = page.postsOf(a.id)
+      return json(res, 200, {
+        connected: true,
+        page: { id: a.id, name: a.name, handle: a.handle, followers: a.followers },
+        stats: page.pageStats(a.id),
+        posts: posts.map((x) => ({ ...x, comments: page.commentsOf(x.id) })),
+      })
+    }
+
+    if (req.method === 'POST' && p === '/api/page/schedule') {
+      const b = await jsonBody(req)
+      const a = surfaces(sid).find((x) => x.kind === 'page')
+      if (!a) return json(res, 400, { error: 'Aucune Page connectée.' })
+      const h = Number(b.in_hours)
+      const r = page.schedulePost(a.id, {
+        kind: b.kind, caption: b.caption, media: b.image ?? null,
+        when: Number.isFinite(h) && h > 0 ? Date.now() + h * 3_600_000 : null,
+        sessionId: sid,
+      })
+      notify.push(sid, {
+        kind: 'post', ref: r.id, goto: 'meta',
+        title: r.status === 'scheduled' ? `${r.kind} programmé` : `${r.kind} publié sur la Page`,
+        body: String(b.caption ?? '').slice(0, 120),
+      })
+      touch(sid)
+      return json(res, 200, { ...r, counts: counts(sid) })
+    }
+
+    // La réponse écrite À LA MAIN par le marchand : `by_ai` reste à 0, donc
+    // l'écran ne pourra jamais présenter sa phrase comme venant du modèle.
+    if (req.method === 'POST' && p === '/api/page/reply') {
+      const b = await jsonBody(req)
+      const id = Number(b.comment_id)
+      if (!id || !String(b.text ?? '').trim()) return json(res, 400, { error: 'Commentaire ou texte manquant.' })
+      return json(res, 200, { comment: page.replyComment(id, b.text, { byAi: false }), counts: counts(sid) })
+    }
+
+    /* ── les notifications ─────────────────────────────────────────────── */
+    if (reading && p === '/api/notifications') {
+      return json(res, 200, { items: notify.feed(sid), unseen: notify.unseen(sid) })
+    }
+    if (req.method === 'POST' && p === '/api/notifications/seen') {
+      const b = await jsonBody(req).catch(() => ({}))
+      return json(res, 200, { unseen: notify.markSeen(sid, b?.id ? Number(b.id) : null) })
+    }
+
     if (reading && p === '/api/inbox') {
       const asset = Number(url.searchParams.get('asset')) || null
       const list = surfaces(sid)

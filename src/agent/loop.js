@@ -13,7 +13,10 @@ import { generate, edit, save, headlinePrompt, GARDE_MARQUE, risqueMarque } from
 import { isolate } from '../models/segment.js'
 import * as camp from '../meta-sim/campaigns.js'
 import { connection } from '../meta-sim/connect.js'
-import { threads, thread, draftReply, sendReply, shopFacts, surfacesOf } from '../meta-sim/inbox.js'
+import { threads, thread, draftReply, sendReply, shopFacts, surfacesOf,
+  draftComment, sendCommentReply } from '../meta-sim/inbox.js'
+import * as page from '../meta-sim/posts.js'
+import * as notify from '../meta-sim/notify.js'
 import { addDomain } from '../sites.js'
 import * as catalog from '../catalog.js'
 import { charge } from '../credits.js'
@@ -208,6 +211,10 @@ function consomme(name, r) {
       return [{ kind: 'segment', n: iso }, { kind: 'image', n: r.photos?.length ?? 0 }]
     case 'answer_inbox':
       return [{ kind: 'text', n: r.answered?.length ?? 1 }]
+    case 'answer_comments':
+      // Un appel par commentaire traité, réponse publiée OU refus motivé :
+      // décider qu'on ne peut pas répondre coûte le même appel que répondre.
+      return [{ kind: 'text', n: (r.answered?.length ?? 0) + (r.escalated?.length ?? 0) }]
     default:
       return []
   }
@@ -466,6 +473,91 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         status: c.status,
         because: args.because,
         note: 'Flux de connexion SIMULÉ : aucune vraie app Meta, aucun vrai compte, aucun jeton utilisable.',
+      }
+    }
+
+    /* ── la Page ─────────────────────────────────────────────────────── */
+    case 'read_page': {
+      const c = connection(ctx.sessionId)
+      if (c.status !== 'connected') return { error: "Meta n'est pas connecté — il n'y a pas de Page.", needs: 'connect_meta' }
+      const pages = surfacesOf(c).filter((a) => a.kind === 'page')
+      if (!pages.length) return { error: "Aucune Page dans les actifs accordés." }
+      const a = pages[0]
+      const posts = page.postsOf(a.id)
+      return {
+        page: a.name, followers: a.followers,
+        stats: page.pageStats(a.id),
+        published: posts.filter((p) => p.status === 'published').slice(0, 8).map((p) => ({
+          id: p.id, kind: p.kind, caption: p.caption, reach: p.reach, likes: p.likes,
+          shares: p.shares, saves: p.saves, comments: p.n_comments, comments_open: p.n_open,
+          hours_ago: Math.round((Date.now() - p.published_at) / 3_600_000),
+        })),
+        scheduled: posts.filter((p) => p.status === 'scheduled').map((p) => ({
+          id: p.id, kind: p.kind, caption: p.caption,
+          in_hours: Math.round((p.scheduled_at - Date.now()) / 3_600_000),
+        })),
+        note: "Page SIMULÉE : rien n'est publié chez Facebook. Les portées sont à l'échelle d'une vraie Page de cette taille, ce ne sont pas des mesures.",
+      }
+    }
+
+    case 'schedule_post': {
+      const c = connection(ctx.sessionId)
+      if (c.status !== 'connected') return { error: "Meta n'est pas connecté.", needs: 'connect_meta' }
+      const a = surfacesOf(c).find((x) => x.kind === 'page')
+      if (!a) return { error: "Aucune Page dans les actifs accordés." }
+      const h = Number(args.in_hours)
+      const r = page.schedulePost(a.id, {
+        kind: args.kind, caption: args.caption,
+        media: isUrl(args.image) ? args.image : null,
+        when: Number.isFinite(h) && h > 0 ? Date.now() + h * 3_600_000 : null,
+        sessionId: ctx.sessionId,
+      })
+      notify.push(ctx.sessionId, {
+        kind: 'post', ref: r.id, goto: 'meta',
+        title: r.status === 'scheduled'
+          ? `${r.kind} programmé dans ${Math.round(h)} h`
+          : `${r.kind} publié sur la Page`,
+        body: String(args.caption ?? '').slice(0, 120),
+      })
+      return { ...r, page: a.name, caption: args.caption,
+        note: "Programmation SIMULÉE : aucune publication n'est créée chez Facebook." }
+    }
+
+    case 'answer_comments': {
+      const c = connection(ctx.sessionId)
+      if (c.status !== 'connected') return { error: "Meta n'est pas connecté.", needs: 'connect_meta' }
+      const a = surfacesOf(c).find((x) => x.kind === 'page')
+      if (!a) return { error: "Aucune Page dans les actifs accordés." }
+
+      let ids = (args.comment_ids ?? []).map(Number).filter(Boolean)
+      if (!ids.length) ids = page.openComments(a.id).map((x) => x.id)
+      ids = ids.slice(0, Math.max(1, Math.min(8, Number(args.max) || 6)))
+
+      const facts = shopFacts({ shop: ctx.shop, product: ctx.products?.[0]?.name, price_dzd: ctx.products?.[0]?.price })
+      const answered = [], escalated = []
+      // En série et pas en parallèle : huit appels d'un coup font tomber la
+      // liaison vers api.meta.ai, qui lâche déjà une fois sur trois seule.
+      for (const id of ids) {
+        try {
+          const d = await draftComment(id, facts)
+          sendCommentReply(id, d)
+          ;(d.can_answer && d.reply ? answered : escalated).push({
+            id, person: d.person, asked: d.asked,
+            reply: d.can_answer ? d.reply : null, needs: d.can_answer ? null : d.missing,
+          })
+        } catch (e) { escalated.push({ id, needs: e.message }) }
+      }
+      if (escalated.length) {
+        notify.push(ctx.sessionId, {
+          kind: 'comment', goto: 'meta',
+          title: `${escalated.length} commentaire(s) attendent une réponse de toi`,
+          body: escalated.map((x) => x.needs).filter(Boolean)[0] ?? null,
+        })
+      }
+      return {
+        answered, escalated,
+        count: { answered: answered.length, escalated: escalated.length },
+        say: "Les réponses publiées sont visibles de tout le monde. Celles que je n'ai pas écrites, je ne pouvais pas les prouver.",
       }
     }
 
