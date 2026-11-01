@@ -125,4 +125,16 @@ export const studio = {
     ar: 'وجّد الإعدادات على اليمين، ومن بعد دير الصفحة. تبان هنا، وراهي فيشي حقيقي تقدر تحلّه، تبعثه ولا تحطّه في الويب.',
     fr: 'Règle les paramètres à gauche, puis génère. La page apparaîtra ici, et ce sera un vrai fichier que tu peux ouvrir, envoyer ou héberger.',
   },
+
+  /* ── le pixel Meta ─────────────────────────────────────────────────── */
+  'studio.pixel': { en: 'Meta pixel', ar: 'بيكسل ميتا', fr: 'Pixel Meta' },
+  'studio.pixel.hint': { en: 'optional', ar: 'اختياري', fr: 'facultatif' },
+  'studio.pixel.ph': { en: 'e.g. 928272129502946', ar: 'مثلا 928272129502946', fr: 'ex. 928272129502946' },
+  // On dit pourquoi Purchase n'est pas envoyé à la commande : c'est la
+  // décision la moins évidente de toute la page, et elle est juste.
+  'studio.pixel.help': {
+    en: 'Leave it empty and the page loads no Facebook script at all. With an id, the page sends PageView, ViewContent, InitiateCheckout when the buyer first touches the form, and Lead when they submit — not Purchase: in cash on delivery an order placed is not an order paid, so Purchase belongs to the delivery.',
+    ar: 'خلّيها خاوية والصفحة ما تحمّل حتى سكريبت تاع فايسبوك. كي تحط الرقم، الصفحة تبعث PageView وViewContent وInitiateCheckout كي يمسّ الزبون الاستمارة أول مرة، وLead كي يبعث — ماشي Purchase: في الدفع عند الاستلام، طلبية مبعوثة ماشي طلبية مخلّصة، وPurchase بلاصتو في التوصيل.',
+    fr: "Laisse vide et la page ne charge aucun script Facebook. Avec un identifiant, elle envoie PageView, ViewContent, InitiateCheckout au premier contact avec le formulaire, et Lead à l'envoi — pas Purchase : en paiement à la livraison, une commande passée n'est pas une commande payée, le Purchase appartient à la livraison.",
+  },
 }

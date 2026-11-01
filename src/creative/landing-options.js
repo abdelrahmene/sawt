@@ -19,97 +19,140 @@
 // account banned. Hiding the choice would be dishonest in the other direction,
 // so the switch is visible, off, and explains itself.
 
+/* Les libellés sont trilingues, comme le reste de l'interface.
+   Ils étaient les derniers à échapper à la couche de langue : le Studio les
+   reçoit du serveur, donc un écran par ailleurs anglais affichait « Langue
+   de la page » et « Visuels de section ». Le serveur envoie les trois, le
+   client prend la sienne — c'est le plus simple, et ça évite de rendre le
+   serveur conscient d'une préférence d'affichage. */
+const T = (en, ar, fr) => ({ en, ar, fr })
+
 export const OPTIONS = {
   language: {
-    label: 'Langue de la page', default: 'ar',
+    label: T('Page language', 'لغة الصفحة', 'Langue de la page'), default: 'ar',
     choices: [
-      { v: 'ar', label: 'Darija (lettres arabes)', help: "Comme un vendeur écrit à un client. Les marques restent en latin." },
-      { v: 'fr', label: 'Français', help: 'Pour une clientèle francophone.' },
+      { v: 'ar', label: T('Darija (Arabic letters)', 'الدارجة', 'Darija (lettres arabes)'),
+        help: T('The way a shopkeeper writes to a customer. Brand names stay in Latin script.', 'كيما يكتب التاجر للزبون. أسماء الماركات تبقى باللاتيني.', "Comme un vendeur écrit à un client. Les marques restent en latin.") },
+      { v: 'fr', label: T('French', 'فرنسية', 'Français'),
+        help: T('For a French-speaking customer base.', 'للزبائن لي يهدرو الفرنسية.', 'Pour une clientèle francophone.') },
     ],
   },
   scenario: {
-    label: 'Scénario des visuels', default: 'lifestyle',
+    label: T('Visual style', 'ستيل التصاور', 'Scénario des visuels'), default: 'lifestyle',
     choices: [
-      { v: 'lifestyle', label: 'Lifestyle', help: "Le produit en situation. La bannière est une scène générée." },
-      { v: 'studio', label: 'Studio', help: "Fond neutre, le produit au centre. La bannière est TA photo, pas une scène." },
+      { v: 'lifestyle', label: T('Lifestyle', 'في الحياة', 'Lifestyle'),
+        help: T('The product in a real setting. The banner is a generated scene.', 'المنتج في بلاصة حقيقية. البانير تصويرة مولّدة.', "Le produit en situation. La bannière est une scène générée.") },
+      { v: 'studio', label: T('Studio', 'ستوديو', 'Studio'),
+        help: T('Neutral background, product centred. The banner is YOUR photo, not a scene.', 'خلفية نقية، المنتج في الوسط. البانير هي تصويرتك نتاع، ماشي تصويرة مولّدة.', "Fond neutre, le produit au centre. La bannière est TA photo, pas une scène.") },
     ],
   },
   theme: {
-    label: 'Ambiance', default: 'light',
+    label: T('Mood', 'الجو', 'Ambiance'), default: 'light',
     choices: [
-      { v: 'light', label: 'Clair', help: 'Fond blanc. Le défaut, et le plus lisible sur un téléphone au soleil.' },
-      { v: 'dark', label: 'Sombre', help: 'Fond noir. Donne un air plus cher aux produits sombres.' },
+      { v: 'light', label: T('Light', 'فاتح', 'Clair'),
+        help: T('White background. The default, and the most readable on a phone in the sun.', 'خلفية بيضة. هي الأصل، وأحسن وحدة تتقرا في الشمس.', 'Fond blanc. Le défaut, et le plus lisible sur un téléphone au soleil.') },
+      { v: 'dark', label: T('Dark', 'غامق', 'Sombre'),
+        help: T('Black background. Makes dark products look more expensive.', 'خلفية كحلة. تخلي المنتجات الغامقة تبان أغلى.', 'Fond noir. Donne un air plus cher aux produits sombres.') },
     ],
   },
   template: {
-    label: 'Gabarit', default: 'editorial',
+    label: T('Template', 'القالب', 'Gabarit'), default: 'editorial',
     choices: [
-      { v: 'editorial', label: 'Éditorial', help: 'Beaucoup d\'air, titres mesurés, lignes fines. Sobre.' },
-      { v: 'bold', label: 'Audacieux', help: 'Titres énormes, blocs pleins, angles marqués.' },
-      { v: 'soft', label: 'Doux', help: 'Coins très arrondis, ombres légères, teintes pâles.' },
-      { v: 'vivid', label: 'Vif', help: 'Dégradés, couleur saturée, contrastes forts.' },
+      { v: 'editorial', label: T('Editorial', 'كلاسيك', 'Éditorial'),
+        help: T('Plenty of air, measured headings, fine rules. Sober.', 'بزاف فراغ، عناوين مقيسة، خطوط رقيقة. هادي.', 'Beaucoup d\'air, titres mesurés, lignes fines. Sobre.') },
+      { v: 'bold', label: T('Bold', 'قوي', 'Audacieux'),
+        help: T('Huge headings, solid blocks, sharp angles.', 'عناوين كبار، بلوكات ممتلية، زوايا حادة.', 'Titres énormes, blocs pleins, angles marqués.') },
+      { v: 'soft', label: T('Soft', 'ناعم', 'Doux'),
+        help: T('Very rounded corners, light shadows, pale tints.', 'زوايا مدوّرة، ظلال خفيفة، ألوان باهتة.', 'Coins très arrondis, ombres légères, teintes pâles.') },
+      { v: 'vivid', label: T('Vivid', 'حيّ', 'Vif'),
+        help: T('Gradients, saturated colour, strong contrast.', 'تدرجات، لون قوي، تباين كبير.', 'Dégradés, couleur saturée, contrastes forts.') },
     ],
   },
   tone: {
-    label: 'Ton du texte', default: 'auto',
+    label: T('Tone of voice', 'نبرة الكلام', 'Ton du texte'), default: 'auto',
     choices: [
-      { v: 'auto', label: 'Automatique', help: 'Le modèle choisit d\'après la photo et le prix.' },
-      { v: 'premium', label: 'Premium', help: 'Peu de mots, pas de superlatifs, on laisse la photo parler.' },
-      { v: 'jeune', label: 'Jeune', help: 'Direct, tutoiement, phrases courtes.' },
-      { v: 'confiance', label: 'Confiance', help: 'On insiste sur le paiement à la livraison et le droit de refuser.' },
-      { v: 'promo', label: 'Promo', help: 'On met le prix en avant. Sans inventer de remise.' },
+      { v: 'auto', label: T('Automatic', 'أوتوماتيك', 'Automatique'),
+        help: T('The model decides from the photo and the price.', 'الموديل يختار حسب التصويرة والسومة.', 'Le modèle choisit d\'après la photo et le prix.') },
+      { v: 'premium', label: T('Premium', 'راقي', 'Premium'),
+        help: T('Few words, no superlatives, let the photograph sell.', 'كلام قليل، بلا مبالغة، خلي التصويرة تبيع.', 'Peu de mots, pas de superlatifs, on laisse la photo parler.') },
+      { v: 'jeune', label: T('Young', 'شباب', 'Jeune'),
+        help: T('Direct, informal, short sentences.', 'مباشر، بلا رسميات، جمل قصار.', 'Direct, tutoiement, phrases courtes.') },
+      { v: 'confiance', label: T('Reassuring', 'ثقة', 'Confiance'),
+        help: T('Leads on cash on delivery and the right to refuse at the door.', 'يركّز على الدفع عند الاستلام وحقك ترفض في الباب.', 'On insiste sur le paiement à la livraison et le droit de refuser.') },
+      { v: 'promo', label: T('Price-led', 'بروومو', 'Promo'),
+        help: T('Puts the price up front. Without inventing a discount.', 'يحط السومة قدّام. بلا ما يخترع تخفيض.', 'On met le prix en avant. Sans inventer de remise.') },
     ],
   },
   audience: {
-    label: 'À qui ça parle', default: 'auto',
+    label: T('Who it speaks to', 'لمن يهدر', 'À qui ça parle'), default: 'auto',
     choices: [
-      { v: 'auto', label: 'Automatique' }, { v: 'femmes', label: 'Femmes' },
-      { v: 'hommes', label: 'Hommes' }, { v: 'mixte', label: 'Mixte' },
-      { v: 'sport', label: 'Sport' }, { v: 'enfants', label: 'Enfants / parents' },
+      { v: 'auto', label: T('Automatic', 'أوتوماتيك', 'Automatique') },
+      { v: 'femmes', label: T('Women', 'النساء', 'Femmes') },
+      { v: 'hommes', label: T('Men', 'الرجال', 'Hommes') },
+      { v: 'mixte', label: T('Mixed', 'الزوج', 'Mixte') },
+      { v: 'sport', label: T('Sport', 'سبور', 'Sport') },
+      { v: 'enfants', label: T('Kids / parents', 'الصغار والوالدين', 'Enfants / parents') },
     ],
   },
   length: {
-    label: 'Longueur', default: 'moyen',
+    label: T('Length', 'الطول', 'Longueur'), default: 'moyen',
     choices: [
-      { v: 'court', label: 'Court', help: 'On scrolle une fois. Pour un achat évident.' },
-      { v: 'moyen', label: 'Moyen', help: 'Le défaut.' },
-      { v: 'detaille', label: 'Détaillé', help: 'Pour un produit cher, qui se justifie.' },
+      { v: 'court', label: T('Short', 'قصير', 'Court'),
+        help: T('One scroll. For an obvious purchase.', 'سكرول وحدة. للشراء الواضح.', 'On scrolle une fois. Pour un achat évident.') },
+      { v: 'moyen', label: T('Medium', 'متوسط', 'Moyen'), help: T('The default.', 'هو الأصل.', 'Le défaut.') },
+      { v: 'detaille', label: T('Detailed', 'مفصّل', 'Détaillé'),
+        help: T('For an expensive product that has to justify itself.', 'لمنتج غالي، لازم يبرر سومته.', 'Pour un produit cher, qui se justifie.') },
     ],
   },
   colorMode: {
-    label: 'Couleurs', default: 'auto',
+    label: T('Colours', 'الألوان', 'Couleurs'), default: 'auto',
     choices: [
-      { v: 'auto', label: 'Depuis la photo', help: 'Le modèle regarde le produit et en tire la couleur dominante.' },
-      { v: 'impose', label: 'Couleur imposée', help: 'Ta couleur de marque, sur toute la page.' },
+      { v: 'auto', label: T('From the photo', 'من التصويرة', 'Depuis la photo'),
+        help: T('The model looks at the product and takes its dominant colour.', 'الموديل يشوف المنتج وياخذ اللون الغالب.', 'Le modèle regarde le produit et en tire la couleur dominante.') },
+      { v: 'impose', label: T('Set a colour', 'لون محدّد', 'Couleur imposée'),
+        help: T('Your brand colour, across the whole page.', 'لون الماركة تاعك، على الصفحة كاملة.', 'Ta couleur de marque, sur toute la page.') },
     ],
   },
   scenes: {
-    label: 'Visuels de section', default: 4, cost: true,
+    label: T('Section visuals', 'تصاور الأقسام', 'Visuels de section'), default: 4, cost: true,
     choices: [
-      { v: 0, label: 'Aucun', help: 'Seulement tes photos. Gratuit et immédiat.' },
-      { v: 2, label: '2 visuels', help: 'Le problème et la solution. 2 appels muse-image.' },
-      { v: 4, label: '4 visuels', help: 'Bannière, problème, solution, gros plan. 4 appels muse-image.' },
+      { v: 0, label: T('None', 'والو', 'Aucun'),
+        help: T('Your photos only. Free and instant.', 'غير تصاورك. بلاش وفي الحين.', 'Seulement tes photos. Gratuit et immédiat.') },
+      { v: 2, label: T('2 visuals', 'زوج تصاور', '2 visuels'),
+        help: T('The problem and the solution. 2 muse-image calls.', 'المشكل والحل. زوج طلبات muse-image.', 'Le problème et la solution. 2 appels muse-image.') },
+      { v: 4, label: T('4 visuals', '4 تصاور', '4 visuels'),
+        help: T('Banner, problem, solution, close-up. 4 muse-image calls.', 'البانير، المشكل، الحل، وقريب. 4 طلبات muse-image.', 'Bannière, problème, solution, gros plan. 4 appels muse-image.') },
     ],
   },
 }
 
 /** The sections the merchant can switch off. `problem` is not one of them. */
 export const SECTIONS = [
-  { k: 'problem', label: 'Problème → solution', on: true, locked: true,
-    why: "C'est la vente. Un acheteur en paiement à la livraison décide d'ouvrir sa porte à un livreur ; ce qui le décide, c'est de reconnaître sa propre galère avant qu'on lui propose quoi que ce soit." },
-  { k: 'benefits', label: 'Bénéfices', on: true },
-  { k: 'features', label: 'Détails visibles', on: true, why: 'Uniquement ce que le modèle voit sur la photo.' },
-  { k: 'gallery', label: 'Galerie photos', on: true },
-  { k: 'steps', label: 'Comment commander', on: true },
-  { k: 'why', label: 'Pourquoi nous', on: true },
-  { k: 'faq', label: 'FAQ', on: true },
+  { k: 'problem', label: T('Problem → solution', 'المشكل ← الحل', 'Problème → solution'), on: true, locked: true,
+    why: T(
+      'This is the sale. A cash-on-delivery buyer is deciding whether to open their door to a courier, and what decides them is recognising their own frustration before anything is offered to them.',
+      'هذي هي البيعة. لي يشري بالدفع عند الاستلام راه يقرّر واش يحلّ الباب للليفرور، ولي يقرّرو هو بلي يلقى مشكلتو مكتوبة قبل ما تعرض عليه حتى حاجة.',
+      "C'est la vente. Un acheteur en paiement à la livraison décide d'ouvrir sa porte à un livreur ; ce qui le décide, c'est de reconnaître sa propre galère avant qu'on lui propose quoi que ce soit.") },
+  { k: 'benefits', label: T('Benefits', 'الفوايد', 'Bénéfices'), on: true },
+  { k: 'features', label: T('Visible details', 'تفاصيل تبان', 'Détails visibles'), on: true,
+    why: T('Only what the model can see in the photo.', 'غير لي يشوفو الموديل في التصويرة.', 'Uniquement ce que le modèle voit sur la photo.') },
+  { k: 'gallery', label: T('Photo gallery', 'معرض التصاور', 'Galerie photos'), on: true },
+  { k: 'steps', label: T('How to order', 'كيفاش تطلب', 'Comment commander'), on: true },
+  { k: 'why', label: T('Why buy from us', 'علاش من عندنا', 'Pourquoi nous'), on: true },
+  { k: 'faq', label: T('FAQ', 'أسئلة', 'FAQ'), on: true },
 ]
 
 export const REFUSED = [
-  { k: 'testimonials', label: 'Témoignages clients',
-    why: "On n'a jamais rencontré un client de cette boutique. Générer des prénoms algériens et des cinq étoiles, c'est fabriquer une preuve — et une page qui porte une fausse preuve fait bannir un compte publicitaire." },
-  { k: 'urgency', label: 'Urgence, compte à rebours, « plus que 3 »',
-    why: "Le compteur repart à zéro au rechargement. Meta appelle ça une pratique trompeuse, et le client qui s'en aperçoit ne revient pas." },
+  { k: 'testimonials', label: T('Customer testimonials', 'شهادات الزبائن', 'Témoignages clients'),
+    why: T(
+      'We have never met a customer of this shop. Generating Algerian first names and five-star reviews is manufacturing proof — and a page carrying fabricated proof gets an ad account banned.',
+      'ما تلاقينا حتى مرة مع زبون تاع هاد الحانوت. تخترع أسماء جزائرية وخمس نجوم، راك تصنع دليل كذوب — والصفحة لي فيها دليل مزوّر تدّي الكومبت الإشهاري.',
+      "On n'a jamais rencontré un client de cette boutique. Générer des prénoms algériens et des cinq étoiles, c'est fabriquer une preuve — et une page qui porte une fausse preuve fait bannir un compte publicitaire.") },
+  { k: 'urgency', label: T('Urgency, countdown, "only 3 left"', 'استعجال، عدّاد، « ما بقاو غير 3 »', 'Urgence, compte à rebours, « plus que 3 »'),
+    why: T(
+      'The counter resets on reload. Meta calls that a deceptive practice, and the customer who notices does not come back.',
+      'العدّاد يرجع من اللول كي تعاود تحمّل الصفحة. ميتا تسمّيها ممارسة خادعة، والزبون لي ينتبه ما يرجعش.',
+      "Le compteur repart à zéro au rechargement. Meta appelle ça une pratique trompeuse, et le client qui s'en aperçoit ne revient pas.") },
 ]
 
 /* ── how each option changes the brief ───────────────────────────────────── */
@@ -173,6 +216,11 @@ export function normaliseOptions(raw = {}) {
   }
   o.color = HEX.test(String(raw.color ?? '')) ? raw.color : '#0d7a5f'
   o.prompt = typeof raw.prompt === 'string' ? raw.prompt.slice(0, 1200) : ''
+  // L'identifiant du pixel du marchand. Validé ici, une fois : la valeur part
+  // dans une balise <script> de la page publique, donc tout ce qui n'est pas
+  // une suite de chiffres est jeté plutôt qu'échappé. Vide = pas de pixel du
+  // tout, et pas un script Facebook qui ralentit le téléphone pour rien.
+  o.pixelId = /^\d{8,20}$/.test(String(raw.pixelId ?? '').trim()) ? String(raw.pixelId).trim() : ''
   o.sections = {}
   for (const s of SECTIONS) o.sections[s.k] = s.locked ? true : raw.sections?.[s.k] !== false
   // Photos the merchant picked, in their order. The first is the main one.
@@ -183,11 +231,15 @@ export function normaliseOptions(raw = {}) {
 /** What this configuration will cost, before anything is clicked. */
 export function estimate(o) {
   const images = slotsFor(o).length
+  const s = images ? 30 + images * 11 : 25
   return {
     calls: { copy: 1, images },
     label: images
-      ? `1 appel texte + ${images} image${images > 1 ? 's' : ''} · environ ${30 + images * 11} s`
-      : '1 appel texte · environ 25 s',
+      ? T(`1 text call + ${images} image${images > 1 ? 's' : ''} · about ${s} s`,
+          `طلب نص + ${images} ${images > 1 ? 'تصاور' : 'تصويرة'} · تقريبا ${s} ثانية`,
+          `1 appel texte + ${images} image${images > 1 ? 's' : ''} · environ ${s} s`)
+      : T('1 text call · about 25 s', 'طلب نص واحد · تقريبا 25 ثانية', '1 appel texte · environ 25 s'),
     images,
+    seconds: s,
   }
 }

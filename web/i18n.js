@@ -58,6 +58,18 @@ export function t(key, vars) {
   return s
 }
 
+/**
+ * Une chaîne déjà traduite, venue d'ailleurs.
+ *
+ * Le serveur envoie certains libellés sous la forme `{en, ar, fr}` — ceux du
+ * Studio, qui décrivent des réglages définis côté serveur et n'ont donc pas
+ * de clé dans ce dictionnaire. On prend la langue du moment, et une chaîne
+ * simple passe telle quelle : les appelants n'ont pas à savoir laquelle des
+ * deux formes ils tiennent.
+ */
+export const pick = (v) =>
+  v && typeof v === 'object' && !Array.isArray(v) ? (v[current] ?? v.en ?? v.fr ?? '') : (v ?? '')
+
 /** Les nombres suivent la langue, les chiffres restent occidentaux même en arabe. */
 export function num(n) {
   const loc = current === 'fr' ? 'fr-FR' : current === 'ar' ? 'ar-DZ-u-nu-latn' : 'en-US'

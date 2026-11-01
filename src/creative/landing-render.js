@@ -16,6 +16,10 @@
 // must open on a 4G phone in Oran, and from a file:// path when a judge
 // downloads it.
 
+// Le seul import de ce fichier, et il ne coûte rien quand le marchand n'a
+// pas de pixel : pixelSnippet rend une chaîne vide.
+import { pixelSnippet } from './pixel.js'
+
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
@@ -132,6 +136,7 @@ export function renderLanding(c, { images = [], scenes = {}, shop, pageId, opts 
 <meta property="og:title" content="${esc(c.hero.headline)}">
 <meta property="og:description" content="${esc(c.hero.sub || '')}">
 ${shot ? `<meta property="og:image" content="${esc(shot)}">` : ''}
+${pixelSnippet({ pixelId: opts.pixelId, product: c.product, price: c.price_dzd, pageId })}
 <style>
 :root{
   --p:${t.primary}; --a:${t.accent}; --d:${t.dark}; --l:${dark ? '#17191c' : t.light};

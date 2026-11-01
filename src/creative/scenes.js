@@ -12,14 +12,42 @@
 // image endpoint is the slowest and least reliable thing in this project, and
 // a landing page that only renders when all four succeed is a landing page
 // that does not render.
-import { mkdirSync, existsSync } from 'node:fs'
+import { mkdirSync, existsSync, rmSync, statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { ROOT } from '../config.js'
 import { generate, edit, save, GARDE_MARQUE } from '../models/image.js'
 import { isolate } from '../models/segment.js'
 
 const OUT = join(ROOT, 'out')
+const sh = promisify(execFile)
+
+/**
+ * Le PNG devient un WebP, et la page passe de 1,3 Mo à moins de 400 Ko.
+ *
+ * muse-image rend du PNG 1024 px : ~350 Ko par scène, quatre scènes par page,
+ * plus la photo du marchand. C'est une page qu'on ne charge pas en 4G à Oran
+ * — et la seule chose qui compte pour une page de vente, c'est qu'elle
+ * s'ouvre avant que l'acheteur reparte.
+ *
+ * ffmpeg était déjà là pour les vocaux, donc aucune dépendance en plus. S'il
+ * manque ou s'il échoue, on garde le PNG : une page lourde vaut mieux qu'une
+ * page sans images.
+ */
+async function alleger(png) {
+  const webp = png.replace(/\.png$/, '.webp')
+  try {
+    await sh('ffmpeg', ['-y', '-loglevel', 'error', '-i', png, '-quality', '82', webp])
+    if (statSync(webp).size < statSync(png).size) {
+      rmSync(png, { force: true })
+      return webp
+    }
+    rmSync(webp, { force: true })
+  } catch { /* ffmpeg absent ou en échec : on garde le PNG */ }
+  return png
+}
 
 // The scenes a page can carry, in the order they appear.
 export const SLOTS = ['hero', 'problem', 'solution', 'benefits']
@@ -114,12 +142,17 @@ export async function renderScenes(scenes = {}, {
     .update(JSON.stringify([scenes, visual?.couleur ?? '', visual?.fidelity ?? '', photo ?? '']))
     .digest('hex').slice(0, 6)
 
-  const nom = (slot) => `scene-${slug}-${scenario}-${sig}-${slot}.png`
+  const base = (slot) => `scene-${slug}-${scenario}-${sig}-${slot}`
+  // Le WebP d'abord : c'est ce qu'on écrit désormais, le PNG n'est gardé que
+  // lorsque ffmpeg a échoué, et les pages d'avant en ont encore.
+  const dejaLa = (slot) =>
+    ['.webp', '.png'].map((ext) => base(slot) + ext).find((f) => existsSync(join(OUT, f)))
 
   const images = {}
   const wanted = []
   for (const slot of all) {
-    if (!force && existsSync(join(OUT, nom(slot)))) images[slot] = `/out/${nom(slot)}`
+    const f = force ? null : dejaLa(slot)
+    if (f) images[slot] = `/out/${f}`
     else wanted.push(slot)
   }
   const reused = all.length - wanted.length
@@ -141,9 +174,11 @@ export async function renderScenes(scenes = {}, {
       ? await edit(source, fidele(visual, scenes[slot].trim(), suffix[slot]))
       : await generate(`${scenes[slot].trim()} ${suffix[slot]} ${BANDE} ${GUARD}`, { size: '1024x1024' })
     if (!b64) throw new Error('aucune image renvoyée')
-    save(b64, join(OUT, nom(slot)))
+    const png = join(OUT, base(slot) + '.png')
+    save(b64, png)
+    const fichier = await alleger(png)
     onProgress({ step: ++done, total: wanted.length, label: slot, phase: 'scene' })
-    return [slot, `/out/${nom(slot)}`]
+    return [slot, `/out/${fichier.split(/[\\/]/).pop()}`]
   }))
 
   const failed = []

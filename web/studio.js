@@ -18,7 +18,7 @@ import { refresh } from './app.js'
 // `money` était importé d'ui.js sans servir une seule fois ici — retiré. Les
 // nombres passent par le `num()` de la couche i18n : le séparateur de milliers
 // suit la langue au lieu d'être cloué au français.
-import { t, num } from './i18n.js'
+import { t, num, pick } from './i18n.js'
 
 let D = null          // the catalogue + current options, from the server
 let O = {}            // what is selected right now
@@ -130,8 +130,8 @@ function paintPanel() {
       ${D.sections.map((s) => `
         <div class="tog ${O.sections[s.k] ? 'on' : ''} ${s.locked ? 'lock' : ''}" data-k="${esc(s.k)}">
           <span class="sw"></span>
-          <div><div class="n">${s.locked ? t('studio.sections.locked', { label: esc(s.label) }) : esc(s.label)}</div>
-            ${s.why ? `<div class="w">${esc(s.why)}</div>` : ''}</div>
+          <div><div class="n">${s.locked ? t('studio.sections.locked', { label: esc(pick(s.label)) }) : esc(pick(s.label))}</div>
+            ${pick(s.why) ? `<div class="w">${esc(pick(s.why))}</div>` : ''}</div>
         </div>`).join('')}
     </div>
 
@@ -139,7 +139,7 @@ function paintPanel() {
     <div class="toggles">
       ${D.refused.map((s) => `
         <div class="tog no"><span class="sw"></span>
-          <div><div class="n">${esc(s.label)}</div><div class="w">${esc(s.why)}</div></div>
+          <div><div class="n">${esc(pick(s.label))}</div><div class="w">${esc(pick(s.why))}</div></div>
         </div>`).join('')}
     </div>
 
@@ -148,6 +148,16 @@ function paintPanel() {
       <textarea class="f" id="f-notes" rows="3"
         placeholder="${esc(t('studio.notes.ph'))}">${esc(form.notes)}</textarea>
       <div class="help">${t('studio.notes.help')}</div>
+    </div>
+
+    <!-- Le pixel du marchand. Vide = aucun script Facebook sur la page : une
+         page qui charge un pixel « pour la forme » ralentit le téléphone du
+         client et ne mesure rien. -->
+    <div class="fset" style="margin-top:18px">
+      <div class="lbl">${t('studio.pixel')} <span class="hint">${t('studio.pixel.hint')}</span></div>
+      <input class="f mono" id="f-pixel" inputmode="numeric" autocomplete="off"
+        placeholder="${esc(t('studio.pixel.ph'))}" value="${esc(O.pixelId ?? '')}">
+      <div class="help">${t('studio.pixel.help')}</div>
     </div>
 
     <div id="cost" class="help cost" style="margin:16px 0 10px"></div>
@@ -171,6 +181,20 @@ function paintPanel() {
   }
   bind('#f-product', 'product'); bind('#f-price', 'price_dzd')
   bind('#f-angle', 'angle'); bind('#f-notes', 'notes')
+
+  // Le pixel va dans les RÉGLAGES, pas dans le formulaire du produit : il
+  // appartient à la boutique et vaut pour toutes ses pages. Le serveur
+  // revalide de toute façon — ici on se contente de ne garder que des
+  // chiffres pendant la frappe.
+  {
+    const n = $('#f-pixel')
+    if (n) n.oninput = () => {
+      const v = n.value.replace(/\D/g, '').slice(0, 20)
+      if (v !== n.value) n.value = v
+      O.pixelId = v
+      save()
+    }
+  }
 
   for (const b of sl.querySelectorAll('#phpick button')) {
     b.onclick = () => {
@@ -199,14 +223,14 @@ function paintKnobs() {
   box.textContent = ''
   for (const [k, spec] of Object.entries(D.catalogue)) {
     const f = el('div', 'fset')
-    f.innerHTML = `<div class="lbl">${esc(spec.label)}</div>
+    f.innerHTML = `<div class="lbl">${esc(pick(spec.label))}</div>
       <div class="seg">${spec.choices.map((c) =>
-        `<button data-v="${esc(String(c.v))}" class="${c.v === O[k] ? 'on' : ''}">${esc(c.label)}</button>`).join('')}</div>
+        `<button data-v="${esc(String(c.v))}" class="${c.v === O[k] ? 'on' : ''}">${esc(pick(c.label))}</button>`).join('')}</div>
       <div class="help"></div>`
     const help = f.querySelector('.help')
     const refreshHelp = () => {
       const c = spec.choices.find((x) => x.v === O[k])
-      help.textContent = c?.help ?? ''
+      help.textContent = pick(c?.help)
       help.classList.toggle('cost', !!spec.cost)
     }
     for (const b of f.querySelectorAll('button')) {

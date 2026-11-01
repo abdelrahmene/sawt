@@ -176,14 +176,14 @@ d'une description.
    produire le tableau du README. C'est le chemin critique et seul Abdelrahmene
    peut les enregistrer — sa voix ou celle d'une personne consentante,
    **jamais** l'audio d'un vrai client.
-2. **Aucun pixel Meta sur les pages générées**, alors que 25 % de la note
-   porte sur l'usage des outils Meta. Le plus gros point ouvert.
-3. Les libellés du Studio viennent encore du serveur en français
-   (`src/creative/landing-options.js`) : ils échappent à la couche de langue.
-4. Les scènes pèsent ~350 Ko de PNG pièce. Des dérivés WebP, comme pour le
-   catalogue, et la page passe de 1,3 Mo à moins de 400 Ko.
-5. L'hébergement public sur **Modal**, jamais sur le VPS de production.
-6. La vidéo de 3 minutes, puis le dépôt.
+2. L'hébergement public sur **Modal**, jamais sur le VPS de production.
+3. La vidéo de 3 minutes, puis le dépôt.
+
+⚠️ **« Use of Meta AI Tooling » (25 %) désigne les MODÈLES**, pas la plateforme
+publicitaire : `muse-spark`, `muse-image`, `sam-3.1`, `muse-voice-transcribe`.
+Un dossier chargé d'appels Marketing API peut même être mal trié au premier
+tour. Le pixel de `src/creative/pixel.js` est là pour le produit — une page
+COD que la campagne ne peut pas mesurer est incomplète — pas pour la note.
 
 ⚠️ **Aucune marque dans la démonstration.** Les premières pages d'essai
 portaient sur un polo Casablanca, une Prada et une Adidas — toutes des
