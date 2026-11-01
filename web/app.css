@@ -199,16 +199,12 @@ body{
   :root[data-shell=phone] #device::before{display:none}
   :root[data-shell=phone] #appbar{padding-top:max(10px,env(safe-area-inset-top))}
   :root[data-shell=phone] #rail{padding-bottom:max(6px,env(safe-area-inset-bottom))}
-  #stagebar{display:none}
 }
 
-/* ── la barre hors de l'appareil ─────────────────────────────────────── */
-#stagebar{
-  position:fixed;top:16px;inset-inline-end:16px;z-index:70;display:flex;gap:8px;
-}
-#stagebar .icon{background:var(--panel);border:1px solid var(--line);color:var(--dim)}
-#stagebar .icon:hover{color:var(--ink);border-color:var(--line-2)}
-:root[data-shell=desk] #stagebar{top:12px}
+/* La barre flottante hors de l'appareil a disparu : elle portait la bascule
+   téléphone/bureau en haut à droite de la FENÊTRE, dessinée en blanc sur un
+   fond blanc. Le bouton marchait et restait introuvable. Il est maintenant
+   dans la barre du haut, à côté du thème, avec la même apparence. */
 
 /* ══ la barre du haut ══════════════════════════════════════════════════ */
 #appbar{
@@ -325,12 +321,19 @@ main{min-width:0;min-height:0;overflow:hidden;position:relative}
 .view.on{display:grid}
 .view.scroll{display:none;overflow-y:auto}
 .view.scroll.on{display:block}
-.view.scroll::-webkit-scrollbar,#log::-webkit-scrollbar,#canvas::-webkit-scrollbar,
-.tlist::-webkit-scrollbar,.tbody::-webkit-scrollbar{width:10px}
-.view.scroll::-webkit-scrollbar-thumb,#log::-webkit-scrollbar-thumb,#canvas::-webkit-scrollbar-thumb,
-.tlist::-webkit-scrollbar-thumb,.tbody::-webkit-scrollbar-thumb{
+/* Un seul style d'ascenseur, pour TOUT ce qui défile.
+   La liste nommait cinq éléments et oubliait les autres — le panneau du
+   Studio, par exemple, tombait donc sur l'ascenseur par défaut de Windows,
+   large et avec ses deux flèches. À côté d'un ascenseur fin, ça ressemblait
+   à un bug. `*` évite d'avoir à tenir une liste à jour. */
+*{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{
   background:var(--line-2);border-radius:9px;border:3px solid transparent;background-clip:padding-box;
 }
+::-webkit-scrollbar-thumb:hover{background:var(--dim);background-clip:padding-box}
+::-webkit-scrollbar-corner{background:transparent}
 
 .page{max-width:1150px;margin:0 auto;padding:40px 36px 72px}
 .page > header{display:flex;align-items:flex-start;gap:16px;margin-bottom:24px;flex-wrap:wrap}
@@ -843,14 +846,24 @@ body.listening #photo{opacity:.25}
    un écran de bureau une dizaine. La même grille, sans règle de bascule. */
 .vitrine{margin:0 0 22px;padding:14px;background:var(--sunk);
   border:1px solid var(--line);border-radius:var(--r-l)}
+/* Le titre prend sa ligne, les commandes la suivante. Sur 412 px, titre +
+   bascule + bouton sur une seule ligne débordaient, et « Replier » se
+   retrouvait seul en bas, orphelin. */
 .vt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-.vt .sec{flex:1 1 auto;margin:0;white-space:nowrap}
+.vt .sec{flex:1 0 100%;margin:0 0 2px;white-space:nowrap}
 .vt .sec::after{display:none}
+.vt .seg{flex:1 1 auto}
+.vt .btn{flex:0 0 auto;margin-inline-start:auto}
 .seg.sm{padding:2px}
 .seg.sm button{padding:5px 10px;font-size:11.5px}
 input.f.sm{padding:8px 11px;font-size:13px}
+/* PAS de `max-height` + `overflow` ici. La grille vivait dans sa propre
+   boîte à défilement, à l'intérieur du panneau qui défile déjà, lui-même
+   dans une vue qui défile : trois ascenseurs imbriqués sur 412 px de large,
+   avec les flèches de Windows en prime. On laisse la grille couler dans le
+   panneau — un seul ascenseur, celui qu'on attend. */
 .prodpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;
-  max-height:270px;overflow-y:auto;margin-top:9px;padding-inline-end:2px}
+  margin-top:9px}
 .prodpick button{display:flex;flex-direction:column;gap:3px;padding:0 0 7px;cursor:pointer;
   background:var(--panel);border:1.5px solid var(--line);border-radius:12px;overflow:hidden;
   text-align:start;transition:.14s;color:inherit;font:inherit}
@@ -863,7 +876,7 @@ input.f.sm{padding:8px 11px;font-size:13px}
 /* La marge est la seule chose que le dropshippeur regarde vraiment. En vert
    quand le produit est déjà à lui, en gris quand ce n'est qu'un conseil. */
 .prodpick .mg{font-size:9.5px;font-weight:600;color:var(--faint);padding:0 7px;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  line-height:1.3}
 .prodpick .mg.own{color:var(--ink-ok)}
 
 .fset{margin-bottom:18px}

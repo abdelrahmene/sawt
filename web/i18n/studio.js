@@ -27,8 +27,10 @@ export const studio = {
     ar: '{n} من {total} منتج. اختار واحد وراه يعمّر وحدو: الاسم، الثمن، والتصاور.',
     fr: '{n} produits sur {total}. Choisis-en un : le nom, le prix et les photos se remplissent seuls.',
   },
-  'studio.showcase.mine': { en: 'in your shop · +{m} DA', ar: 'في حانوتك · +{m} دج', fr: 'dans ta boutique · +{m} DA' },
-  'studio.showcase.offer': { en: 'supplier · +{m} DA', ar: 'فورنيسور · +{m} دج', fr: 'fournisseur · +{m} DA' },
+  // Court, parce que la carte fait 96 px de large. Le « DA » est déjà sur la
+  // ligne du prix juste au-dessus ; le répéter volait la place au chiffre.
+  'studio.showcase.mine': { en: 'yours +{m}', ar: 'تاعك +{m}', fr: 'à toi +{m}' },
+  'studio.showcase.offer': { en: 'supplier +{m}', ar: 'فورنيسور +{m}', fr: 'fourn. +{m}' },
 
   /* ── le lot ───────────────────────────────────────────────────────────── */
   'studio.build.many': { en: 'Build {n} landing pages', ar: 'إبني {n} صفحات', fr: 'Construire {n} pages' },

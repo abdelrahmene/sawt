@@ -48,6 +48,8 @@ export const shell = {
   'shell.lightbox': { en: 'click to close · Esc', ar: 'كليكي باش تسكر · Esc', fr: 'clique pour fermer · Échap' },
   'shell.toLight': { en: 'Switch to light', ar: 'دير الضوء', fr: 'Passer en clair' },
   'shell.toDark': { en: 'Switch to dark', ar: 'دير الظلام', fr: 'Passer en sombre' },
+  'shell.toDesk': { en: 'Desktop layout', ar: 'عرض أورديناتور', fr: 'Affichage bureau' },
+  'shell.toPhone': { en: 'Phone layout', ar: 'عرض تيليفون', fr: 'Affichage téléphone' },
   'shell.brain': { en: "The agent's brain", ar: 'العقل تاع الوكيل', fr: "Le cerveau de l'agent" },
   'shell.brainSwap': { en: 'click to switch', ar: 'كليكي باش تبدل', fr: 'clique pour basculer' },
   'shell.brainNow': { en: 'Brain: {model}', ar: 'العقل: {model}', fr: 'Cerveau : {model}' },

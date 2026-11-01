@@ -30,6 +30,11 @@
       <span class="mode brain" id="brain" data-i18n-title="shell.brain"></span>
       <span class="mode" id="mode">…</span>
       <button class="chip lang" id="lang" data-i18n-title="shell.langTitle"></button>
+      <!-- La bascule téléphone / bureau vit DANS la barre du haut.
+           Elle flottait avant hors de l'appareil, en haut à droite de la
+           fenêtre, dessinée en blanc sur fond blanc : elle existait, elle
+           marchait, et personne ne la voyait. -->
+      <button class="icon sm themer" id="shelltog"></button>
       <button class="icon sm themer" id="theme"></button>
       <button class="icon sm" id="reset" data-i18n-title="shell.newChat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
@@ -97,12 +102,6 @@
     <div id="lightbox"><img alt=""><span class="hint" data-i18n="shell.lightbox"></span></div>
     <div class="toast" id="toast"></div>
 
-  </div>
-
-  <!-- Hors de l'appareil : de quoi repasser en pleine largeur quand on a
-       besoin d'un tableau dense. Invisible sur un vrai téléphone. -->
-  <div id="stagebar">
-    <button class="icon sm" id="shelltog" title="Phone or desktop"></button>
   </div>
 
 </div>

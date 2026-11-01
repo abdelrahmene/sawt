@@ -188,8 +188,11 @@ function paintStatic() {
   const b = $('#shelltog')
   const paint = () => {
     const phone = document.documentElement.dataset.shell !== 'desk'
-    b.innerHTML = icon(phone ? 'globe' : 'phone', 17)
-    b.title = phone ? 'Desktop view' : 'Phone view'
+    // L'icône montre où l'on VA, pas où l'on est — même règle que le thème :
+    // un bouton dit ce qu'il fait. En coque téléphone il affiche un écran de
+    // bureau, et inversement.
+    b.innerHTML = icon(phone ? 'monitor' : 'phone', 17)
+    b.title = t(phone ? 'shell.toDesk' : 'shell.toPhone')
     b.setAttribute('aria-label', b.title)
   }
   b.onclick = () => {
@@ -200,6 +203,7 @@ function paintStatic() {
     syncPane()
   }
   paint()
+  onLang(paint)
 }
 
 /* ── les deux volets de l'agent, sur téléphone ────────────────────────────
