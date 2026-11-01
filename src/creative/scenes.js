@@ -25,12 +25,17 @@ const OUT = join(ROOT, 'out')
 const sh = promisify(execFile)
 
 /**
- * Le PNG devient un WebP, et la page passe de 1,3 Mo à moins de 400 Ko.
+ * Le PNG devient un WebP.
  *
  * muse-image rend du PNG 1024 px : ~350 Ko par scène, quatre scènes par page,
  * plus la photo du marchand. C'est une page qu'on ne charge pas en 4G à Oran
  * — et la seule chose qui compte pour une page de vente, c'est qu'elle
  * s'ouvre avant que l'acheteur reparte.
+ *
+ * Mesuré sur la MÊME page, avant et après : 1 394 Ko → 657 Ko. Le gain
+ * dépend de la scène, et beaucoup : un fond de studio tombe de 85 % (une
+ * page entière à 192 Ko), une photo de parc ou de bord de mer d'environ la
+ * moitié. Ne pas annoncer le meilleur chiffre comme s'il était le chiffre.
  *
  * ffmpeg était déjà là pour les vocaux, donc aucune dépendance en plus. S'il
  * manque ou s'il échoue, on garde le PNG : une page lourde vaut mieux qu'une
