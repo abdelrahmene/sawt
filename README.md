@@ -88,7 +88,7 @@ npm run bench     # regenerates the table below from the clips in bench/clips/
 | `muse-spark-1.3` | the agent loop, tool calls, the landing copy, the darija replies |
 | `muse-spark-1.3` (vision) | reading the product photo — what it is, what the photo gets wrong, what looks counterfeit |
 | `muse-voice-transcribe-1.0` | merchant and customer voice notes, **two readings of every clip** |
-| `muse-image-1.0` | ad creatives, and one generated visual per landing-page section |
+| `muse-image-1.0` | ad creatives, the four landing-page scenes, and the catalog photography — all **edits of the real product photo**, never generated from a description |
 | **`sam-3.1`** | finding the product inside a cluttered photo, so the creative shows **their** product |
 | `muse-spark-open` (Baseten) | the open-weights path — no Meta account needed |
 
@@ -103,6 +103,15 @@ idea of that article. Close enough to look right, and not their product.
 Now `sam-3.1` locates the product, `ffmpeg` crops to the box, and `muse-image` *edits*
 that crop. Measured on a real photo: the shoe went from **33% of the frame** to filling
 it, and the resulting ad is the same shoe — same patent leather, same canvas toe.
+
+The landing page's four section images run through that same path. They used to be
+text-to-image, which is how a white polo with a green collar came back as a plain dark
+one. Two rules make the difference, and both are in the prompt rather than in hope:
+the fidelity clause goes **first**, and the product's colour and material are confined
+to two dedicated fields and **banned from every scene description** — an image model
+follows those words more than it follows the attached photo. When a scene fails, the
+section falls back to the real photograph, so the page is always complete and always
+truthful.
 
 `sam-3.1` is not on `/chat/completions`; the API says so and points at `/v1/responses`.
 It answers with tokens, not JSON: `<|box;x1=…|>` and a `<|mask;…|>` whose encoding is

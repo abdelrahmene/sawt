@@ -320,6 +320,21 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 `)
 
+/* Les colonnes ajoutées après coup.
+   `CREATE TABLE IF NOT EXISTS` ne touche pas une table qui existe déjà, donc
+   une base créée par une version précédente n'aurait jamais la colonne. On
+   tente l'ALTER et on avale l'erreur « duplicate column » : c'est la
+   migration la plus simple qui soit correcte, et elle n'a pas besoin d'une
+   table de versions pour une colonne. */
+for (const sql of [
+  // La taille commandée. Elle manquait, alors que la règle numéro un de
+  // l'agent dit qu'une pointure absente est une question : le formulaire la
+  // laissait pourtant vide, et le marchand découvrait au téléphone.
+  'ALTER TABLE orders ADD COLUMN variant TEXT',
+]) {
+  try { db.exec(sql) } catch { /* déjà là */ }
+}
+
 /* ── helpers ──────────────────────────────────────────────────────────────
    Thin on purpose. Every caller writes its own SQL, because the moment you
    wrap SQLite in an ORM you lose the thing you came for. */

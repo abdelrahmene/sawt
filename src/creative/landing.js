@@ -53,7 +53,7 @@ export function slugify(name) {
  * for exactly that purpose and which nothing used to read.
  */
 export async function buildLandingPage({
-  product, price_dzd, angle, language, images = [], shop, notes,
+  product, price_dzd, angle, language, images = [], shop, notes, variants = [],
   sessionId = null, siteId = null, freshScenes = false, options = {}, onProgress = () => {},
 }) {
   // The merchant's settings, filled in with the defaults. Nothing downstream
@@ -117,7 +117,7 @@ export async function buildLandingPage({
     J(content.theme), J(content), now()
   )
 
-  const html = renderLanding(content, { images, scenes, shop, pageId, opts: o })
+  const html = renderLanding(content, { images, scenes, shop, pageId, opts: o, variants })
   mkdirSync(OUT_DIR, { recursive: true })
   writeFileSync(join(OUT_DIR, file), html, 'utf8')
 
@@ -163,7 +163,8 @@ export async function buildSite({ shop_name, tagline, products, language = 'ar',
     try {
       const lp = await buildLandingPage({
         product: p.name, price_dzd: p.price_dzd, angle: p.angle, language,
-        images: p.image ? [p.image] : [],
+        images: p.images?.length ? p.images : p.image ? [p.image] : [],
+        variants: p.variants ?? [],
         // The studio's settings apply to every page of the shop, minus the
         // photo pick — that one is per product, and reusing it would put the
         // casquette's photo on the sandal's page.

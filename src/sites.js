@@ -159,14 +159,28 @@ export function removeDomain(id) {
 
 /* ── orders from the generated pages ──────────────────────────────────── */
 
+/**
+ * Une commande arrive d'une page publique. Donc rien de ce qu'elle dit sur
+ * l'argent n'est cru.
+ *
+ * Le prix et le nom du produit étaient repris du formulaire, alors que la
+ * page est en base et connaît les deux. N'importe qui pouvait poster
+ * `price=1` et le marchand lisait 1 DA dans ses commandes. Quand la page est
+ * identifiée, le serveur prend SON prix ; le champ du formulaire ne sert plus
+ * que de repli pour une page qu'on ne retrouve pas.
+ */
 export function recordOrder(data) {
   const pageId = Number(data.page) || null
-  const p = pageId ? one('SELECT id,product FROM pages WHERE id=?', pageId) : null
+  const p = pageId ? one('SELECT id,product,price_dzd FROM pages WHERE id=?', pageId) : null
+  const prix = p?.price_dzd ?? (Number(data.price) || null)
   const id = insert(
-    `INSERT INTO orders(page,product,name,phone,wilaya,commune,qty,price,source,at)
-     VALUES(?,?,?,?,?,?,?,?,?,?)`,
-    p?.id ?? null, data.product ?? p?.product ?? null, data.name ?? null, data.phone ?? null,
-    data.wilaya ?? null, data.commune ?? null, Number(data.qty) || 1, Number(data.price) || null,
+    `INSERT INTO orders(page,product,name,phone,wilaya,commune,qty,price,variant,source,at)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
+    p?.id ?? null, p?.product ?? data.product ?? null, data.name ?? null, data.phone ?? null,
+    data.wilaya ?? null, data.commune ?? null, Number(data.qty) || 1, prix,
+    // La taille telle que le client l'a choisie. Bornée, parce qu'un champ
+    // de formulaire public n'a aucune raison de contenir un roman.
+    String(data.variant ?? '').trim().slice(0, 40) || null,
     'landing', now()
   )
   return one('SELECT * FROM orders WHERE id=?', id)

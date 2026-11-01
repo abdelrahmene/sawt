@@ -38,6 +38,41 @@ const MAX_STEPS = 9
 // le marchand n'a pourtant rien à envoyer, c'est tout l'intérêt.
 const isUrl = (s) => typeof s === 'string' && (s.startsWith('/out/') || s.startsWith('/fixtures/') || s.startsWith('http'))
 
+/**
+ * Le produit de la boutique dont le modèle est en train de parler.
+ *
+ * Il écrit le nom comme il le dit — « running shoes », « Men's running
+ * shoes, mesh », « la gourde » — donc on compare sur les mots, jamais sur
+ * l'égalité. Sans ce rapprochement, un site à deux produits piochait les
+ * photos PAR POSITION : une chance sur deux que la page de la gourde
+ * montre les chaussures, ce qui est pire qu'une page sans image.
+ */
+function produitBoutique(ctx, nom) {
+  const produits = ctx.products ?? []
+  if (!produits.length) return null
+  const cible = String(nom ?? '').toLowerCase()
+  const mots = cible.split(/[^a-z0-9؀-ۿ]+/).filter((w) => w.length > 2)
+  return produits.find((p) =>
+    (p.aliases ?? [p.name]).some((alias) => {
+      const n = String(alias ?? '').toLowerCase()
+      if (!n) return false
+      return mots.some((w) => n.includes(w)) ||
+        n.split(/[^a-z0-9؀-ۿ]+/).some((w) => w.length > 2 && cible.includes(w))
+    })
+  ) ?? (produits.length === 1 ? produits[0] : null)
+}
+
+/**
+ * Les tailles d'un produit, prises là où elles existent vraiment.
+ *
+ * Une seule variante « unique » ne vaut pas un sélecteur : un choix à une
+ * option est une case à cocher obligatoire déguisée.
+ */
+function variantesPour(ctx, nom) {
+  const v = produitBoutique(ctx, nom)?.sizes ?? []
+  return v.length < 2 ? [] : v
+}
+
 function assetsFor(ctx, explicit) {
   // The model answers this field with what the schema asked for — ids like
   // "0" or "photo_1" — so a non-empty list is not a usable list. Honouring it
@@ -192,6 +227,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         id: r.product_id, name: r.name?.en ?? r.product_id, price: r.selling,
         variants: r.variants?.filter((v) => v.stock > 0).map((v) => v.size) ?? [],
         images: r.images ?? [], image: r.images?.[0] ?? null,
+        sizes: r.variants ?? [],
       })
       return { ...r, next: 'Tu peux maintenant lui construire une page et une campagne, sans lui demander de photo : le catalogue en fournit.' }
     }
@@ -200,7 +236,17 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
     // It reports each page as it lands so the screen never goes quiet.
     case 'build_site': {
       const pool = assetsFor(ctx)
-      const products = (args.products ?? []).map((p, i) => ({ ...p, image: p.image || pool[i] || pool[0] || null }))
+      const products = (args.products ?? []).map((p, i) => {
+        // Le produit de la boutique AVANT la position dans le tableau : ses
+        // photos et ses tailles sont les siennes, pas celles de son voisin.
+        const mien = produitBoutique(ctx, p.name)
+        return {
+          ...p,
+          images: mien?.images?.length ? mien.images : p.image ? [p.image] : (pool[i] ? [pool[i]] : []),
+          image: p.image || mien?.image || pool[i] || pool[0] || null,
+          variants: (mien?.sizes ?? []).length > 1 ? mien.sizes : [],
+        }
+      })
       return buildSite({
         ...args, products, sessionId: ctx.sessionId,
         options: { ...(setting(`landing:${ctx.sessionId}`) ?? {}), photos: [] },
@@ -338,6 +384,11 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
     case 'build_landing_page':
       return buildLandingPage({
         ...args, images: assetsFor(ctx, args.images), shop: ctx.shop,
+        // Les tailles du produit, prises là où elles existent vraiment —
+        // la fiche du catalogue — plutôt que redemandées au modèle, qui les
+        // inventerait. Un formulaire sans taille, c'est un appel de
+        // confirmation en plus et une livraison refusée à la porte.
+        variants: variantesPour(ctx, args.product),
         sessionId: ctx.sessionId,
         options: { ...(setting(`landing:${ctx.sessionId}`) ?? {}), photos: [] },
         onProgress: (p) => onEvent({ type: 'progress', tool: 'build_landing_page', ...p }),

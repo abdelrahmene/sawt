@@ -173,11 +173,21 @@ export function shopProducts(sessionId) {
       return {
         id: im.product,
         name: p.name.en || p.name.fr || im.product,
+        // Tous les noms de ce produit : l'agent répond dans la langue du
+        // marchand, donc il peut l'appeler « the flask », « la gourde » ou
+        // « ڨورد ». Sans les alias, le rapprochement échoue dès que la
+        // conversation n'est pas en anglais — et la page repart avec la
+        // photo du voisin.
+        aliases: [im.product, p.name.en, p.name.fr, p.name.ar].filter(Boolean),
         price: im.selling,
         cost: p.supplier_cost,
         margin: im.selling - p.supplier_cost,
         supplier: p.supplier,
+        // Deux formes, parce que deux lecteurs : le prompt système les
+        // affiche en ligne (des chaînes), le formulaire de commande a besoin
+        // du stock pour afficher une taille épuisée sans la cacher.
         variants: p.variants.filter((v) => v.stock > 0).map((v) => v.size),
+        sizes: p.variants,
         image: p.image,
         images: p.images,
         record: p.record,

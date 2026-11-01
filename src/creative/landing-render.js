@@ -59,7 +59,7 @@ const TEMPLATES = {
 
 const clamp = (s) => `clamp(${s.split(',').join(',')})`
 
-export function renderLanding(c, { images = [], scenes = {}, shop, pageId, opts = {} } = {}) {
+export function renderLanding(c, { images = [], scenes = {}, shop, pageId, opts = {}, variants = [] } = {}) {
   const ar = c.language !== 'fr'
   const t = c.theme
   const tpl = TEMPLATES[opts.template] ?? TEMPLATES.editorial
@@ -68,10 +68,12 @@ export function renderLanding(c, { images = [], scenes = {}, shop, pageId, opts 
   const L = ar
     ? { order: 'اطلب الآن', name: 'الاسم الكامل', phone: 'رقم الهاتف', wilaya: 'الولاية', commune: 'البلدية',
         qty: 'الكمية', pick: 'اختر الولاية', send: 'أكّد الطلب', cod: 'الدفع عند الاستلام',
+        size: 'القياس', pickSize: 'اختر القياس', soldOut: 'ما كاينش',
         faq: 'أسئلة متكررة', how: 'كيفاش تطلب', why: 'علاش تشري من عندنا', gallery: 'تصاور المنتج',
         total: 'المجموع', free: 'بلا دفع مقدّم', wil: '58 ولاية', call: 'نعيطولك باش نأكّدو' }
     : { order: 'Commander', name: 'Nom complet', phone: 'Téléphone', wilaya: 'Wilaya', commune: 'Commune',
         qty: 'Quantité', pick: 'Choisir la wilaya', send: 'Confirmer la commande', cod: 'Paiement à la livraison',
+        size: 'Taille', pickSize: 'Choisir la taille', soldOut: 'épuisé',
         faq: 'Questions fréquentes', how: 'Comment commander', why: 'Pourquoi nous', gallery: 'Photos du produit',
         total: 'Total', free: 'Rien à payer d\'avance', wil: '58 wilayas', call: 'On vous appelle pour confirmer' }
 
@@ -387,6 +389,24 @@ ${show('faq') && c.faq.length ? `<section class="s alt rv"><div class="w">
       </select></div>
       <div><label for="c">${esc(L.commune)}</label><input id="c" name="commune" required></div>
     </div>
+    ${/* La taille, demandée AVANT la commande et pas au téléphone.
+          La règle numéro un de l'agent dit qu'une pointure manquante est une
+          question — et le formulaire, lui, n'en posait aucune. Résultat : un
+          appel de confirmation en plus pour chaque commande, et une livraison
+          refusée à la porte quand la taille n'était pas la bonne. Les
+          variantes en rupture restent VISIBLES mais désactivées : savoir que
+          le 45 existe et qu'il est épuisé vaut mieux que de croire qu'il
+          n'existe pas. */ ''}
+    ${variants.length ? `<div><label for="v">${esc(L.size)}</label>
+      <select id="v" name="variant" required>
+        <option value="">${esc(L.pickSize)}</option>
+        ${variants.map((v) => {
+          const size = typeof v === 'string' ? v : v.size
+          const stock = typeof v === 'string' ? null : v.stock
+          const out = stock != null && stock <= 0
+          return `<option value="${esc(size)}"${out ? ' disabled' : ''}>${esc(size)}${out ? ` — ${esc(L.soldOut)}` : ''}</option>`
+        }).join('')}
+      </select></div>` : ''}
     <div><label for="q">${esc(L.qty)}</label>
       <div class="qty">
         <button type="button" data-step="-1" aria-label="-">−</button>

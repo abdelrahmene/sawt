@@ -217,8 +217,20 @@ export function advance(id, days = 1) {
 export function results(id, { group = 'ad_placement' } = {}) {
   const c = get(id)
   if (!c) throw new Error(`Campagne ${id} introuvable.`)
-  if (c.status !== 'ACTIVE') {
-    return { simulated: true, campaign_id: id, status: c.status, note: 'À l\'arrêt — rien à lire.' }
+
+  // Ce qui décide, c'est s'il Y A des données — pas si la campagne tourne
+  // encore. Avant, mettre en pause renvoyait « à l'arrêt, rien à lire » et
+  // l'écran annonçait qu'il n'y avait rien, alors que sept jours et
+  // quatorze mille dinars étaient en base. C'est exactement au moment où on
+  // coupe une campagne qu'on veut savoir ce qu'elle a coûté.
+  const jours = one('SELECT COUNT(DISTINCT day) n FROM insights WHERE campaign=?', id)?.n ?? 0
+  if (!jours) {
+    return {
+      simulated: true, campaign_id: id, status: c.status, days: 0,
+      note: c.status === 'ACTIVE'
+        ? 'Elle vient de partir — aucune journée de données pour l\'instant.'
+        : 'Jamais lancée, donc rien à lire.',
+    }
   }
 
   const totals = one(

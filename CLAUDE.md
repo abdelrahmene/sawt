@@ -53,14 +53,38 @@ src/db.js              SQLite. Le schéma est commenté ligne à ligne, lis-le d
 src/agent/
   loop.js              le tour d'agent : modèle → outils → modèle
   tools.js             ce que l'agent a le droit de faire
-  system.js            qui il est, et les 11 règles qu'il ne contourne pas
+  system.js            qui il est, et les 12 règles qu'il ne contourne pas
   briefing.js          l'état du compte, injecté à chaque tour (voir plus bas)
+src/catalog.js         le catalogue fournisseur et l'entrée d'un produit en boutique
 src/models/            llm · vision · voice · image · segment (sam-3.1)
 src/meta-sim/          le côté Facebook, mis en scène : connect · inbox · campaigns
 src/creative/          landing-content (texte) · scenes (visuels) · landing-render (mise en page)
 src/sites.js           sites, pages, domaines (vraie résolution DNS)
-web/                   l'interface : app · chat · studio · sites · campaigns · inbox · meta · settings
+fixtures/catalog.json  10 produits fournisseur + fixtures/catalog/*.webp, leurs photos
+web/                   l'interface : app · chat · catalog · studio · sites · campaigns · inbox · meta · settings
+web/i18n.js            la couche de langue ; un dictionnaire par écran dans web/i18n/
 ```
+
+## Les trois langues
+
+**L'anglais est la langue par défaut de l'interface** — la soumission se juge
+en anglais. Le marchand bascule en darija ou en français avec le bouton
+`EN/AR/FR` de la barre du haut ; en darija le document passe en RTL et toute
+la feuille de style suit, parce qu'elle est écrite en propriétés logiques.
+
+Une chaîne visible par le marchand ne s'écrit JAMAIS en dur : elle va dans
+`web/i18n/<écran>.js`, clé d'abord, `{en, ar, fr}` à l'intérieur. Deux chaînes
+vivent dans des `content:` CSS que JavaScript ne peut pas atteindre —
+`i18n.js` les injecte en variables personnalisées, ne pas les réécrire en dur.
+Les commentaires du code, eux, restent en français.
+
+## La coque téléphone
+
+`data-shell="phone"` est le défaut, y compris sur un écran de bureau : le
+marchand tient son commerce dans une main, et une application qu'on ne teste
+qu'en 1440 px révèle ses défauts le jour de la démonstration. Le bouton en
+haut à droite repasse en pleine largeur pour les tableaux denses.
+**Tester à 390 px d'abord.**
 
 **`briefing.js` est le fichier qui a rendu l'agent intelligent.** Avant lui,
 chaque tour repartait de zéro : il redemandait le nom de la boutique, proposait
@@ -119,11 +143,32 @@ Elles ne sont pas décoratives : chacune vient d'un vrai problème.
   en jetons (`<|box;…|>`), pas en JSON. On lit la boîte, on ignore le masque,
   et c'est écrit dans le code.
 
+## Ce que Meta ne propose PAS — vérifié, pas supposé
+
+`GET /v1/models` ne liste que **neuf** modèles : `muse-spark` 1.1 à 1.3,
+`muse-image-1.0`, `muse-voice-transcribe-1.0`, `muse-wonder-1.0`, `sam-3.1`.
+
+- **Il n'existe aucun « Muse Code ».** Cinq variantes d'identifiant essayées
+  le 01/11/2026, `404 model_not_found` sur toutes. Le site et les pages sont
+  écrits par `muse-spark-1.3`. **Ne rien prétendre d'autre dans le README** :
+  une affirmation que le dépôt ne soutient pas coûte des points.
+- **`tool_choice` n'accepte que `"auto"`.** `"required"` et un outil nommé
+  renvoient un 400 explicite. On ne peut donc pas forcer un appel d'outil ;
+  le seul levier est de ne mettre qu'UN outil dans `tools`.
+- La liaison vers `api.meta.ai` depuis Alger lâche souvent (4 appels sur 13
+  en `UND_ERR_CONNECT_TIMEOUT`). `llm.js` reprend deux fois, jamais après le
+  premier jeton. **Ne pas enregistrer la vidéo sur un appel en direct.**
+
 ## Où ça en est
 
-**Fait** : la base, les six écrans, le flux de connexion Meta mis en scène, la
-boîte de réception avec les refus, le studio de landing, les campagnes avec
-leurs KPI, le chemin poids ouverts (mesuré, basculable), sam-3.1, `restyle_photo`.
+**Fait** : la base, les écrans, le flux Meta mis en scène, la boîte de
+réception avec les refus, le studio, les campagnes et leurs KPI, le chemin
+poids ouverts (mesuré, basculable), sam-3.1, `restyle_photo`, la boucle
+campagne → résultats → décision déroulée en entier, les trois langues, la
+coque téléphone, le **catalogue fournisseur** (browse → import → page →
+campagne, vérifié de bout en bout), et la **fidélité des images** : les
+scènes d'une landing partent de la photo du produit via `/images/edits`, plus
+d'une description.
 
 **Reste à faire, par ordre d'importance :**
 
@@ -131,9 +176,20 @@ leurs KPI, le chemin poids ouverts (mesuré, basculable), sam-3.1, `restyle_phot
    produire le tableau du README. C'est le chemin critique et seul Abdelrahmene
    peut les enregistrer — sa voix ou celle d'une personne consentante,
    **jamais** l'audio d'un vrai client.
-2. La boucle **campagne → résultats → décision** déroulée une fois en entier.
-3. L'hébergement public sur **Modal**, jamais sur le VPS de production.
-4. La vidéo de 3 minutes, puis le dépôt.
+2. **Aucun pixel Meta sur les pages générées**, alors que 25 % de la note
+   porte sur l'usage des outils Meta. Le plus gros point ouvert.
+3. Les libellés du Studio viennent encore du serveur en français
+   (`src/creative/landing-options.js`) : ils échappent à la couche de langue.
+4. Les scènes pèsent ~350 Ko de PNG pièce. Des dérivés WebP, comme pour le
+   catalogue, et la page passe de 1,3 Mo à moins de 400 Ko.
+5. L'hébergement public sur **Modal**, jamais sur le VPS de production.
+6. La vidéo de 3 minutes, puis le dépôt.
+
+⚠️ **Aucune marque dans la démonstration.** Les premières pages d'essai
+portaient sur un polo Casablanca, une Prada et une Adidas — toutes des
+répliques, et le règlement a une clause « trademark ». Le catalogue embarqué
+est sans marque par construction ; garder cette règle pour tout ce qui passe
+à l'écran.
 
 ## Comment travailler ici
 
