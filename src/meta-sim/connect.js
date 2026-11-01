@@ -103,6 +103,15 @@ const SEED = {
 export function connection(sessionId) {
   const c = one('SELECT * FROM meta_connections WHERE session=? ORDER BY id DESC LIMIT 1', sessionId)
   if (!c) return { status: 'disconnected', simulated: true }
+  /* Le semis est ICI, et pas seulement dans grant().
+     Semer au moment d'accorder les permissions ne rattrape que les
+     connexions FUTURES : une session déjà branchée hier restait sans
+     campagnes, et l'écran Ads affichait « aucune campagne » devant un
+     compte publicitaire visiblement connecté. Même piège que la boîte de
+     réception, corrigé de la même façon : une seule porte, idempotente,
+     sur le chemin que tout le monde emprunte.
+     Un COUNT par appel, et rien d'autre tant qu'il n'est pas à zéro. */
+  if (c.status === 'connected') seedCampaigns(sessionId)
   return {
     ...c,
     scopes: unJ(c.scopes, []),
@@ -181,8 +190,6 @@ export function grant(sessionId, granted = []) {
      Semé ICI, au moment de la connexion, et pas à la lecture d'un écran :
      les campagnes doivent exister pour l'agent avant que qui que ce soit
      ait ouvert l'onglet Ads. */
-  seedCampaigns(sessionId)
-
   return connection(sessionId)
 }
 
