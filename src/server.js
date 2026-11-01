@@ -27,6 +27,7 @@ import * as camp from './meta-sim/campaigns.js'
 import * as sites from './sites.js'
 import * as opts from './creative/landing-options.js'
 import { buildLandingPage } from './creative/landing.js'
+import * as catalog from './catalog.js'
 
 const sh = promisify(execFile)
 const PORT = Number(process.env.PORT || 7070)
@@ -41,6 +42,12 @@ const MIME = {
 
 const imported = importLegacyJson()
 if (imported) console.log(`  ${imported} session(s) reprise(s) depuis l'ancien out/sessions.json`)
+
+// Le catalogue fournisseur, semé au premier démarrage depuis la fixture
+// versionnée. Un juré qui clone le dépôt a des produits, des photos, des
+// coûts et des marges sans clé et sans réseau.
+const seeded = catalog.seed()
+if (seeded) console.log(`  catalogue : ${seeded} produits fournisseur semés`)
 
 // Le cerveau choisi la dernière fois survit au redémarrage : un juré qui bascule
 // sur les poids ouverts, puis relance le serveur, doit y rester.
@@ -159,6 +166,7 @@ function counts(sid) {
     campaigns: one('SELECT COUNT(*) n FROM campaigns WHERE session=?', sid)?.n ?? 0,
     live: one("SELECT COUNT(*) n FROM campaigns WHERE session=? AND status='ACTIVE'", sid)?.n ?? 0,
     orders: one('SELECT COUNT(*) n FROM orders WHERE page IN (SELECT id FROM pages WHERE session=?)', sid)?.n ?? 0,
+    imported: one('SELECT COUNT(*) n FROM imports WHERE session=?', sid)?.n ?? 0,
   }
 }
 
@@ -190,8 +198,42 @@ const server = createServer(async (req, res) => {
     if (reading && (p === '/' || p === '/index.html')) return serveStatic(res, join(ROOT, 'web', 'index.html'), req.method)
     if (reading && p.startsWith('/web/')) return serveStatic(res, join(ROOT, 'web', ...p.split('/').slice(2)), req.method)
     if (reading && p.startsWith('/out/')) return serveStatic(res, join(ROOT, decodeURIComponent(p).replace(/^\//, '')), req.method)
+    // Les photos du catalogue sont versionnées, pas générées à l'exécution :
+    // elles vivent dans fixtures/, pas dans out/.
+    if (reading && p.startsWith('/fixtures/catalog/')) {
+      return serveStatic(res, join(ROOT, 'fixtures', 'catalog', basename(decodeURIComponent(p))), req.method)
+    }
 
     if (p.startsWith('/api/')) session(sid)
+
+    /* ── le catalogue fournisseur ───────────────────────────────────────── */
+    if (reading && p === '/api/catalog') {
+      return json(res, 200, {
+        products: catalog.list({
+          category: url.searchParams.get('category') ?? undefined,
+          q: url.searchParams.get('q') ?? undefined,
+          max_cost: url.searchParams.get('max_cost') ?? undefined,
+          min_margin: url.searchParams.get('min_margin') ?? undefined,
+        }),
+        categories: catalog.categories(),
+        imports: catalog.importsOf(sid),
+      })
+    }
+    if (reading && seg[1] === 'catalog' && seg[2]) {
+      const d = catalog.detail(decodeURIComponent(seg[2]))
+      return d ? json(res, 200, d) : json(res, 404, { error: 'introuvable' })
+    }
+    if (req.method === 'POST' && p === '/api/catalog/import') {
+      const b = await jsonBody(req)
+      const r = catalog.importProduct(sid, String(b.product_id ?? ''), { selling: b.selling })
+      touch(sid)
+      return json(res, r.error ? 400 : 200, { ...r, counts: counts(sid) })
+    }
+    if (req.method === 'POST' && p === '/api/catalog/remove') {
+      const b = await jsonBody(req)
+      const r = catalog.removeImport(sid, String(b.product_id ?? ''))
+      return json(res, 200, { ...r, counts: counts(sid) })
+    }
 
     /* ── a product photo ────────────────────────────────────────────────── */
     // Described on arrival, not later: the agent has to know what it is
@@ -281,7 +323,11 @@ const server = createServer(async (req, res) => {
           history: history(sid),
           input,
           ctx: {
-            sessionId: sid, shop: s?.shop ?? shop ?? null, products: [], photos, creatives, productName,
+            // Ce que le marchand vend VRAIMENT. Le créneau existait dans le
+            // prompt système depuis le début et recevait un tableau vide :
+            // l'agent ne pouvait littéralement pas savoir ce qu'il vendait.
+            sessionId: sid, shop: s?.shop ?? shop ?? null,
+            products: catalog.shopProducts(sid), photos, creatives, productName,
             productGuess: photos.at(-1)?.described?.product ?? null,
           },
           onEvent: (e) => {

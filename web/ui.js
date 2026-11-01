@@ -19,18 +19,21 @@ export const isArabic = (s) => /[؀-ۿ]/.test(s || '')
 // A price inside a right-to-left paragraph gets reordered by the bidi
 // algorithm: "4 500 DA" renders as "DA 500 4". The isolate is the fix, and it
 // belongs everywhere a number meets Arabic — not only on the landing page.
-export const num = (n) => Number(n || 0).toLocaleString('fr-FR').replace(/[  ]/g, ' ')
-export const money = (n) => (n == null ? '—' : `<bdi dir="ltr">${num(n)} DA</bdi>`)
+// Le séparateur de milliers suit la langue choisie, il n'est plus cloué au
+// français : un juré anglophone lit « 14,046 » et un marchand « 14 046 ».
+export { num } from './i18n.js'
+import { num as nLoc, t } from './i18n.js'
+export const money = (n) => (n == null ? '—' : `<bdi dir="ltr">${nLoc(n)} DA</bdi>`)
 export const pct = (n) => (n == null ? '—' : `${n > 0 ? '+' : ''}${n}%`)
 
 export function ago(ms) {
   if (!ms) return ''
   const m = Math.round((Date.now() - ms) / 60000)
-  if (m < 1) return "à l'instant"
-  if (m < 60) return `${m} min`
+  if (m < 1) return t('ui.now')
+  if (m < 60) return t('ui.min', { n: m })
   const h = Math.round(m / 60)
-  if (h < 24) return `${h} h`
-  return `${Math.round(h / 24)} j`
+  if (h < 24) return t('ui.hour', { n: h })
+  return t('ui.day', { n: Math.round(h / 24) })
 }
 
 export const initials = (s) =>
@@ -62,6 +65,10 @@ const PATHS = {
   eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
   sun: '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.3M12 19.1v2.3M4.3 4.3l1.7 1.7M18 18l1.7 1.7M2.6 12h2.3M19.1 12h2.3M4.3 19.7L6 18M18 6l1.7-1.7"/>',
   moon: '<path d="M20 14.2A8.4 8.4 0 0 1 9.8 4 8.4 8.4 0 1 0 20 14.2z"/>',
+  grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/>',
+  phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.6"/><path d="M10.5 5.4h3"/><path d="M11 18.6h2"/>',
+  box: '<path d="M21 8.5v7a1.5 1.5 0 0 1-.8 1.3l-7.5 4a1.5 1.5 0 0 1-1.4 0l-7.5-4A1.5 1.5 0 0 1 3 15.5v-7"/><path d="M3.4 7.7l8.1-4.3a1.5 1.5 0 0 1 1.4 0l8.1 4.3L12 12.4z"/><path d="M12 12.4V21"/>',
+  tag: '<path d="M3.5 11.4V4.6A1.1 1.1 0 0 1 4.6 3.5h6.8L20.5 12.6 12.6 20.5z"/><circle cx="7.9" cy="7.9" r="1.5"/>',
 }
 
 export const icon = (name, size = 18) =>
@@ -119,11 +126,11 @@ addEventListener('keydown', (e) => { if (e.key === 'Escape') $('#lightbox')?.cla
  *  screenshot, and these pages are meant to be used. */
 export function frame(url, tall = false) {
   const wrap = el('div', `frame${tall ? ' tall' : ''}`)
-  wrap.title = 'ouvrir la page'
+  wrap.title = t('ui.openPage')
   const f = el('iframe')
   f.src = url
   f.loading = 'lazy'
-  const a = Object.assign(el('a', 'open', `ouvrir ${icon('ext', 13)}`), { href: url, target: '_blank', rel: 'noopener' })
+  const a = Object.assign(el('a', 'open', `${esc(t('ui.open'))} ${icon('ext', 13)}`), { href: url, target: '_blank', rel: 'noopener' })
   wrap.onclick = () => window.open(url, '_blank', 'noopener')
   wrap.append(f, a)
   return wrap
@@ -135,15 +142,15 @@ export function thumb(src, caption) {
   img.onclick = () => zoom(src, caption)
   const cap = el('figcaption')
   cap.append(el('span', null, esc(caption ?? '')))
-  cap.append(Object.assign(el('a', null, 'ouvrir ↗'), { href: src, target: '_blank', rel: 'noopener' }))
+  cap.append(Object.assign(el('a', null, `${esc(t('ui.open'))} ↗`), { href: src, target: '_blank', rel: 'noopener' }))
   f.append(img, cap)
   return f
 }
 
 export const simbar = (html) => `<div class="simbar">${icon('alert', 17)}<div>${html}</div></div>`
 
-export const loading = (what = 'chargement') =>
-  `<div class="loading"><span class="spin"></span>${esc(what)}…</div>`
+export const loading = (what) =>
+  `<div class="loading"><span class="spin"></span>${esc(what ?? t('ui.loading'))}…</div>`
 
 export const emptyState = (title, text, action = '') =>
   `<div class="empty"><div class="big">◌</div><h3>${esc(title)}</h3><p>${text}</p>${action}</div>`
@@ -155,7 +162,7 @@ export const emptyState = (title, text, action = '') =>
  *  puisse jamais passer pour une mesure. */
 export const prov = (by, kind = 'real') =>
   `<div class="prov"><span class="by">${esc(by)}</span>` +
-  `<span class="k ${kind === 'sim' ? 'sim' : 'real'}">${kind === 'sim' ? 'simulé' : 'réel'}</span></div>`
+  `<span class="k ${kind === 'sim' ? 'sim' : 'real'}">${esc(t(kind === 'sim' ? 'ui.simulated' : 'ui.real'))}</span></div>`
 
 export const kpi = (label, value, detail = '', dir = '') =>
   `<div class="kpi"><div class="l">${esc(label)}</div><div class="v">${value}</div>${

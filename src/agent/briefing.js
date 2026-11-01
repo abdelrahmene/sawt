@@ -27,6 +27,22 @@ const ago = (ms) => {
 export function briefing(sessionId) {
   const lines = []
 
+  /* ── a-t-il seulement quelque chose à vendre ? ─────────────────────────
+     La question qui vient avant toutes les autres, et que l'agent ne posait
+     jamais : il supposait que le marchand avait de la marchandise et une
+     photo. La plupart n'ont ni l'une ni l'autre — ils cherchent un produit
+     à vendre, ce qui est un métier à part entière ici. */
+  const owned = all('SELECT product,selling FROM imports WHERE session=?', sessionId)
+  const hasPhoto = one('SELECT 1 x FROM photos WHERE session=? LIMIT 1', sessionId)
+  if (!owned.length && !hasPhoto) {
+    lines.push('THE MERCHANT HAS NOTHING TO SELL YET — no product imported, no photo sent.')
+    lines.push('  Do not ask for a photo. Offer the two paths as tappable choices (rule 11):')
+    lines.push('  their own product, or a product from the supplier catalog. browse_catalog lists it.')
+  } else if (owned.length) {
+    lines.push(`FROM THE CATALOG, ALREADY IN THEIR SHOP — ${owned.length}. These have their own photos:`)
+    lines.push('  never ask the merchant to send you a picture of one of these.')
+  }
+
   /* ── what has been built ─────────────────────────────────────────────── */
   const sites = all('SELECT id,shop,home_url FROM sites WHERE session=? ORDER BY id DESC LIMIT 3', sessionId)
   const pages = all(

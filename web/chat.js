@@ -6,9 +6,16 @@
 // readings of every voice note side by side, and buttons instead of a blank
 // prompt.
 import {
-  $, el, esc, isArabic, icon, money, num, api, toast, zoom, frame, thumb, prov, SESSION, forgetSession,
+  $, el, esc, isArabic, icon, api, toast, zoom, frame, thumb, prov, SESSION, forgetSession,
 } from './ui.js'
+import { t, num, money as dinars } from './i18n.js'
 import { go, refresh } from './app.js'
+
+// Les nombres et les montants viennent d'i18n.js : ceux d'ui.js sont figés en
+// fr-FR. Le `<bdi>` reste obligatoire — un prix dans un paragraphe arabe se
+// fait réordonner par l'algorithme bidi (« 4 500 DZD » devient « DZD 500 4 »),
+// et le tiret cadratin reste la réponse quand il n'y a pas de montant.
+const money = (n) => (n == null ? '—' : `<bdi dir="ltr">${dinars(n)}</bdi>`)
 
 const log = $('#log'), canvas = $('#canvas')
 
@@ -89,7 +96,7 @@ function showHeard({ transcript, transcript_auto, understood }) {
   const lostByPinned = [...a].filter((w) => !p.has(w))
 
   const n = el('div', 'heard')
-  n.append(el('b', null, 'ce que le modèle a entendu'))
+  n.append(el('b', null, t('chat.heard.title')))
   const row = (tag, cls, txt) => {
     const r = el('div', 'row')
     r.append(el('span', `tag ${cls}`, tag), el('span', 'txt', esc(txt ?? '—')))
@@ -100,14 +107,17 @@ function showHeard({ transcript, transcript_auto, understood }) {
 
   if (lostByAuto.length || lostByPinned.length) {
     const gaps = []
-    if (lostByPinned.length) gaps.push(`« ar » a perdu : ${lostByPinned.join(', ')}`)
-    if (lostByAuto.length) gaps.push(`« auto » a perdu : ${lostByAuto.join(', ')}`)
+    if (lostByPinned.length) gaps.push(t('chat.heard.lostByPinned', { words: lostByPinned.join(', ') }))
+    if (lostByAuto.length) gaps.push(t('chat.heard.lostByAuto', { words: lostByAuto.join(', ') }))
     n.append(el('div', 'gap', '⚠ ' + esc(gaps.join('  ·  '))))
   }
   if (understood) {
+    // `size`, `quantity` et `wilaya` sont les noms des champs manquants : ce
+    // sont des clés que le code relit, elles s'affichent telles quelles.
     const miss = ['size', 'quantity', 'wilaya'].filter((k) => understood[k] == null)
-    n.append(el('div', 'gap', `intent = ${esc(understood.intent)}` +
-      (miss.length ? `  ·  manquant : ${miss.join(', ')}` : '  ·  rien ne manque')))
+    n.append(el('div', 'gap', miss.length
+      ? t('chat.heard.intentMissing', { intent: esc(understood.intent), missing: miss.join(', ') })
+      : t('chat.heard.intentFull', { intent: esc(understood.intent) })))
   }
   log.append(n); bottom(log)
 }
@@ -148,7 +158,7 @@ function showChoices({ question, choices }) {
 function showCheckpoint(question, list, spend) {
   const n = el('div', 'ckpt')
   const h = el('div', 'h',
-    '<span class="beat"></span><span class="t">point de contrôle</span><span class="sim">simulé</span>')
+    `<span class="beat"></span><span class="t">${t('chat.ckpt.title')}</span><span class="sim">${t('chat.badge.sim')}</span>`)
   const b = el('div', 'b')
   if (question) {
     const q = el('div', 'q', esc(question))
@@ -167,13 +177,11 @@ function showCheckpoint(question, list, spend) {
   // Une porte de sortie, toujours. Un point de contrôle dont les trois
   // boutons avancent n'est pas un point de contrôle.
   if (!list.some((c) => /annul|pas maintenant|plus tard|ne pas|non merci|arrêt/i.test(c.label))) {
-    const out = el('button', 'out', 'Pas maintenant')
-    out.onclick = () => { n.classList.add('spent'); send('pas maintenant, ne lance rien') }
+    const out = el('button', 'out', t('chat.ckpt.notNow'))
+    out.onclick = () => { n.classList.add('spent'); send(t('chat.ckpt.notNowSend')) }
     acts.append(out)
   }
-  b.append(acts, el('div', 'foot',
-    "Rien n'est engagé avant ton clic. Et dans ce prototype le côté Facebook " +
-    'est simulé : aucune dépense ne part sur Meta.'))
+  b.append(acts, el('div', 'foot', t('chat.ckpt.foot')))
   n.append(h, b)
   log.append(n); bottom(log)
 }
@@ -190,7 +198,7 @@ const INLINE = {
   generate_creatives: (r) => (r.creatives ?? []).map((c) => ({ url: c.url, label: c.angle })),
   build_landing_page: (r) => (r.url ? [{ page: r.url, label: r.product }] : []),
   build_site: (r) => [
-    ...(r.home ? [{ page: r.home, label: 'accueil' }] : []),
+    ...(r.home ? [{ page: r.home, label: t('chat.label.home') }] : []),
     ...(r.pages ?? []).map((p) => ({ page: p.url, label: p.product })),
   ],
   build_storefront: (r) => (r.url ? [{ page: r.url, label: r.shop_name }] : []),
@@ -214,7 +222,7 @@ function inline(name, result) {
   const n = el('div', 'inline-out')
   for (const it of items.slice(0, 6)) {
     if (it.page) {
-      const a = Object.assign(el('a', 'page', `${icon('ext', 13)}<span>${esc(it.label ?? 'page')}</span>`),
+      const a = Object.assign(el('a', 'page', `${icon('ext', 13)}<span>${esc(it.label ?? t('chat.label.page'))}</span>`),
         { href: it.page, target: '_blank', rel: 'noopener' })
       n.append(a)
     } else {
@@ -230,7 +238,7 @@ function inline(name, result) {
   if (by) {
     const replay = (window.SAWT_STATE?.mode ?? '') === 'replay'
     const w = el('div')
-    w.innerHTML = prov(replay ? `rejeu — aucun appel modèle (${by} en mode live)` : by, 'real')
+    w.innerHTML = prov(replay ? t('chat.prov.replay', { by }) : by, 'real')
     log.append(w.firstElementChild)
   }
   bottom(log)
@@ -240,8 +248,8 @@ function inline(name, result) {
 function card(title, { real, sim, note } = {}) {
   const c = el('div', 'card')
   const h = el('h3', null, esc(title))
-  if (real) h.append(el('span', 'sim real', 'réel'))
-  else if (sim) h.append(el('span', 'sim', 'simulé'))
+  if (real) h.append(el('span', 'sim real', t('chat.badge.real')))
+  else if (sim) h.append(el('span', 'sim', t('chat.badge.sim')))
   else if (note) h.append(el('span', 'chip', esc(note)))
   const b = el('div', 'body')
   c.append(h, b)
@@ -255,7 +263,7 @@ function photoGrid() {
   clearEmpty()
   const existing = canvas.querySelector('.card.photos .thumbs')
   if (existing) return existing
-  const body = card('Photos produit', { real: true })
+  const body = card(t('chat.card.photos'), { real: true })
   body.parentElement.classList.add('photos')
   const g = el('div', 'thumbs')
   body.append(g)
@@ -268,12 +276,12 @@ function photoGrid() {
 function renderArtifact(a) {
   try { return renderArtifactInner(a) } catch (e) {
     console.error('[artifact]', a?.name, e)
-    const b = card(a?.name ?? 'artefact', {})
+    const b = card(a?.name ?? t('chat.label.artifact'), {})
     b.append(el('div', 'why warn',
-      `Cet élément vient d'une version précédente et ne s'affiche plus tel quel.<br>
+      `${t('chat.artifact.stale')}<br>
        <span style="color:var(--dim)">${esc(e.message)}</span>`))
     if (a?.result?.url) {
-      b.append(Object.assign(el('a', null, 'ouvrir quand même ↗'),
+      b.append(Object.assign(el('a', null, t('chat.artifact.openAnyway')),
         { href: a.result.url, target: '_blank', rel: 'noopener' }))
     }
   }
@@ -284,7 +292,7 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
     const b = card(name, {})
     b.append(el('div', 'why bad', esc(result.error)))
     if (result.needs === 'connect_meta') {
-      const btn = el('button', 'btn p', `${icon('link', 15)} Connecter Facebook`)
+      const btn = el('button', 'btn p', `${icon('link', 15)} ${t('chat.meta.connectBtn')}`)
       btn.onclick = () => go('meta')
       b.append(el('div', null, '').appendChild(btn).parentElement)
     }
@@ -292,7 +300,7 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
   }
 
   if (name === 'marketing_angles') {
-    const b = card('Angles marketing')
+    const b = card(t('chat.card.angles'))
     for (const a of result.angles ?? []) {
       b.append(el('div', 'why', `<b>${esc(a.name)}</b><br>${esc(a.claim)}<br><span style="color:var(--dim)">${esc(a.visual)}</span>`))
     }
@@ -300,10 +308,10 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
   }
 
   if (name === 'restyle_photo') {
-    const b = card(`Photo refaite — ${result.product ?? ''}`, { real: true })
+    const b = card(t('chat.card.restyle', { product: result.product ?? '' }), { real: true })
     const g = el('div', 'thumbs')
-    if (result.source_photo) g.append(thumb(result.source_photo, 'ta photo'))
-    if (result.isolated?.url) g.append(thumb(result.isolated.url, `détouré · sam-3.1`))
+    if (result.source_photo) g.append(thumb(result.source_photo, t('chat.restyle.yourPhoto')))
+    if (result.isolated?.url) g.append(thumb(result.isolated.url, t('chat.restyle.cutout')))
     for (const p of result.photos ?? []) g.append(thumb(p.url, p.look))
     b.append(g)
     if (result.note) b.append(el('div', 'why', esc(result.note)))
@@ -311,42 +319,46 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
     // publicitaire du marchand qui est en jeu.
     if (result.brand_risk) {
       b.append(el('div', 'why warn',
-        `<b>Marque visible sur la photo.</b><br>${esc(result.brand_risk.seen)}<br>` +
-        `<span style="color:var(--dim)">Le rendu ne la rend pas plus lisible que sur ton original — mais une pub Meta avec un logo sans autorisation ferme le compte.</span>`))
+        `<b>${t('chat.restyle.brandTitle')}</b><br>${esc(result.brand_risk.seen)}<br>` +
+        `<span style="color:var(--dim)">${t('chat.restyle.brandNote')}</span>`))
     }
     return
   }
 
   if (name === 'generate_creatives') {
-    const b = card('Créatives', { real: true })
+    const b = card(t('chat.card.creatives'), { real: true })
     const g = el('div', 'thumbs')
     for (const c of result.creatives ?? []) g.append(thumb(c.url, c.angle))
     b.append(g)
-    if (result.subject) b.append(el('div', 'why', `d'après ce qu'il a vu : <b>${esc(result.subject)}</b>`))
+    if (result.subject) b.append(el('div', 'why', t('chat.creatives.subject', { subject: `<b>${esc(result.subject)}</b>` })))
     // Le détourage est la partie que le marchand ne devine pas tout seul :
     // on lui dit quelle part de SA photo était du décor.
     const iso = result.isolated
     if (iso?.url) {
       const d = el('div', 'why')
-      d.innerHTML = `<b>sam-3.1</b> a détouré le produit avant de dessiner — ${esc(iso.gain ?? '')}.<br>` +
-        `<span style="color:var(--dim)">${esc(iso.from)}</span>`
+      d.innerHTML = t('chat.creatives.iso', { model: '<b>sam-3.1</b>', gain: esc(iso.gain ?? '') }) +
+        `<br><span style="color:var(--dim)">${esc(iso.from)}</span>`
       const im = Object.assign(new Image(), { src: iso.url, className: 'inline-img', loading: 'lazy' })
-      im.onclick = () => zoom(iso.url, 'produit détouré')
+      im.onclick = () => zoom(iso.url, t('chat.creatives.isoAlt'))
       d.append(im)
       b.append(d)
     } else if (iso?.failed) {
-      b.append(el('div', 'why warn', `<b>sam-3.1</b> n'a pas pu détourer : ${esc(iso.failed)}.<br>${esc(iso.from)}`))
+      b.append(el('div', 'why warn',
+        t('chat.creatives.isoFailed', { model: '<b>sam-3.1</b>', why: esc(iso.failed) }) + `<br>${esc(iso.from)}`))
     }
-    if (result.headline_ar) b.append(el('div', 'why', `titre incrusté : <b dir="rtl">${esc(result.headline_ar)}</b>`))
+    if (result.headline_ar) {
+      b.append(el('div', 'why', t('chat.creatives.headline', { text: `<b dir="rtl">${esc(result.headline_ar)}</b>` })))
+    }
     return
   }
 
   if (name === 'build_site') {
-    const b = card(`Site — ${result.shop_name}`, { real: true })
+    const b = card(t('chat.card.site', { shop: result.shop_name }), { real: true })
     if (result.home) b.append(frame(result.home))
     const list = el('div', 'plist')
     if (result.home) {
-      list.append(Object.assign(el('a', null, `<span>accueil</span><span class="px">${result.count} produits</span>`),
+      list.append(Object.assign(el('a', null,
+        `<span>${t('chat.label.home')}</span><span class="px">${t('chat.site.count', { n: num(result.count) })}</span>`),
         { href: result.home, target: '_blank' }))
     }
     for (const p of result.pages ?? []) {
@@ -355,53 +367,62 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
         { href: p.url, target: '_blank' }))
     }
     b.append(el('div', 'why', result.host
-      ? `En ligne sur <b>${esc(result.host)}</b> — chaque page est un vrai fichier. Clique pour l'ouvrir.`
-      : "Chaque page est un vrai fichier. Clique pour l'ouvrir."), list)
-    for (const f of result.failed ?? []) b.append(el('div', 'why bad', `${esc(f.product)} : ${esc(f.error)}`))
-    const btn = el('button', 'btn sm', `${icon('globe', 14)} gérer le domaine`)
+      ? t('chat.site.onlineAt', { host: `<b>${esc(result.host)}</b>` })
+      : t('chat.site.realFiles')), list)
+    for (const f of result.failed ?? []) {
+      b.append(el('div', 'why bad', t('chat.site.failed', { product: esc(f.product), error: esc(f.error) })))
+    }
+    const btn = el('button', 'btn sm', `${icon('globe', 14)} ${t('chat.site.manageDomain')}`)
     btn.onclick = () => go('sites')
     b.append(el('div', null).appendChild(btn).parentElement)
     return
   }
 
   if (name === 'build_landing_page' || name === 'build_storefront') {
-    const b = card(name === 'build_storefront' ? `Vitrine — ${result.shop_name}` : `Landing — ${result.product}`, { real: true })
+    const b = card(name === 'build_storefront'
+      ? t('chat.card.storefront', { shop: result.shop_name })
+      : t('chat.card.landing', { product: result.product }), { real: true })
     b.append(frame(result.url, true))
-    const bits = [`${Math.round(result.bytes / 1024)} Ko`]
-    if (result.scenes?.length) bits.push(`${result.scenes.length} visuel(s) de section générés par muse-image`)
+    const bits = [t('chat.landing.kb', { n: num(Math.round(result.bytes / 1024)) })]
+    if (result.scenes?.length) bits.push(t('chat.landing.scenes', { n: num(result.scenes.length) }))
     if (result.sections) {
       const s = result.sections
-      bits.push(`${s.benefits} bénéfices · ${s.features} détails · ${s.steps} étapes · ${s.faq} FAQ`)
+      bits.push(t('chat.landing.sections', { benefits: s.benefits, features: s.features, steps: s.steps, faq: s.faq }))
     }
-    b.append(el('div', 'why', `Texte écrit par muse-spark, visuels par muse-image, mise en page par le code.<br>${esc(bits.join(' · '))}`))
+    b.append(el('div', 'why', `${t('chat.landing.made')}<br>${esc(bits.join(' · '))}`))
     for (const f of result.scenes_failed ?? []) {
-      b.append(el('div', 'why warn', `visuel « ${esc(f.slot)} » non généré : ${esc(f.error)} — la section reste sans image.`))
+      b.append(el('div', 'why warn', t('chat.landing.sceneFailed', { slot: esc(f.slot), error: esc(f.error) })))
     }
     return
   }
 
   if (name === 'connect_meta') {
-    const b = card('Connexion Facebook', { sim: true })
+    const b = card(t('chat.card.connectMeta'), { sim: true })
     b.append(el('div', 'why warn', esc(result.because ?? '') + '<br><b>' + esc(result.note) + '</b>'))
-    const btn = el('button', 'btn fb', `${icon('link', 15)} ${result.already ? 'déjà connecté — voir' : 'Continuer avec Facebook'}`)
+    const btn = el('button', 'btn fb',
+      `${icon('link', 15)} ${result.already ? t('chat.meta.already') : t('chat.meta.continueFb')}`)
     btn.onclick = () => go('meta')
     b.append(btn)
     return
   }
 
   if (name === 'read_inbox') {
-    const b = card(`Boîte de réception — ${result.count} en attente`, { sim: true })
-    if (!result.threads?.length) { b.append(el('div', 'why', 'Personne n\'attend.')); return }
-    const t = el('table', null, '<tr><th>client</th><th>canal</th><th>a demandé</th><th class="num">il y a</th></tr>')
+    const b = card(t('chat.card.inbox', { n: num(result.count) }), { sim: true })
+    if (!result.threads?.length) { b.append(el('div', 'why', t('chat.inbox.nobody'))); return }
+    // `tbl` et plus `t` : `t()` est la fonction de traduction, et une variable
+    // du même nom la masquait dans tout ce bloc.
+    const tbl = el('table', null,
+      `<tr><th>${t('chat.inbox.th.person')}</th><th>${t('chat.inbox.th.channel')}</th>` +
+      `<th>${t('chat.inbox.th.asked')}</th><th class="num">${t('chat.inbox.th.ago')}</th></tr>`)
     for (const x of result.threads) {
       const tr = el('tr', x.status === 'needs_merchant' ? 'worst' : '')
       tr.innerHTML = `<td>${esc(x.person)}</td><td>${esc(x.channel)}</td>` +
         `<td dir="rtl" style="font-family:var(--arabic)">${esc(String(x.asked ?? '').slice(0, 70))}</td>` +
-        `<td class="num">${x.minutes_ago} min</td>`
-      t.append(tr)
+        `<td class="num">${t('chat.minutes', { n: num(x.minutes_ago) })}</td>`
+      tbl.append(tr)
     }
-    b.append(t)
-    const btn = el('button', 'btn sm', `${icon('inbox', 14)} ouvrir la boîte`)
+    b.append(tbl)
+    const btn = el('button', 'btn sm', `${icon('inbox', 14)} ${t('chat.inbox.open')}`)
     btn.onclick = () => go('inbox')
     b.append(el('div', null).appendChild(btn).parentElement)
     return
@@ -409,7 +430,7 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
 
   // The refusals are the point, so they get the loudest treatment on screen.
   if (name === 'answer_inbox') {
-    const b = card(`Réponses clients — ${result.summary ?? ''}`, { note: 'réponse réelle · page simulée' })
+    const b = card(t('chat.card.answers', { summary: result.summary ?? '' }), { note: t('chat.answers.note') })
     for (const a of result.answered ?? []) {
       const d = el('div', 'why')
       d.innerHTML = `<b>${esc(a.person)}</b> · ${esc(a.channel)}<br>` +
@@ -420,29 +441,33 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
     }
     for (const e of result.escalated ?? []) {
       const d = el('div', 'why warn')
-      d.innerHTML = `<b>${esc(e.person ?? '#' + e.id)}</b> — <b>pas répondu, et c'est voulu</b><br>` +
+      d.innerHTML = `<b>${esc(e.person ?? '#' + e.id)}</b> — <b>${t('chat.answers.onPurpose')}</b><br>` +
         (e.asked ? `<span dir="rtl" style="font-family:var(--arabic);color:#6e4104">${esc(e.asked)}</span><br>` : '') +
-        (e.need_from_merchant ? `il lui faut de toi : <b>${esc(e.need_from_merchant)}</b>` : esc(e.error ?? ''))
+        (e.need_from_merchant
+          ? t('chat.answers.needsYou', { need: `<b>${esc(e.need_from_merchant)}</b>` })
+          : esc(e.error ?? ''))
       b.append(d)
     }
     if (result.note) b.append(el('div', 'why', esc(result.note)))
-    const btn = el('button', 'btn sm', `${icon('inbox', 14)} voir les conversations`)
+    const btn = el('button', 'btn sm', `${icon('inbox', 14)} ${t('chat.answers.openThreads')}`)
     btn.onclick = () => go('inbox')
     b.append(el('div', null).appendChild(btn).parentElement)
     return
   }
 
   if (name === 'configure_campaign') {
-    const b = card(`Campagne — ${result.name}`, { sim: true })
+    const b = card(t('chat.card.campaign', { name: result.name }), { sim: true })
     const dl = el('dl', 'kv')
     const put = (k, v) => dl.append(el('dt', null, k), el('dd', null, v))
     put('id', `#${result.id} · ${esc(result.ext_id ?? '')}`)
-    put('objectif', esc(result.objective))
-    put('budget / jour', money(result.daily_budget_dzd))
-    put('ciblage', `${esc(result.geo.join(', '))} · ${result.age_min}-${result.age_max} ans · ${esc(result.genders)}`)
-    put('placements', esc(result.placements.join(', ')))
-    put('créatives', String(result.ads?.length ?? 0))
-    put('statut', esc(result.status))
+    put(t('chat.campaign.objective'), esc(result.objective))
+    put(t('chat.campaign.dailyBudget'), money(result.daily_budget_dzd))
+    put(t('chat.campaign.targeting'), t('chat.campaign.targetingValue', {
+      geo: esc(result.geo.join(', ')), min: result.age_min, max: result.age_max, genders: esc(result.genders),
+    }))
+    put(t('chat.campaign.placements'), esc(result.placements.join(', ')))
+    put(t('chat.campaign.creatives'), String(result.ads?.length ?? 0))
+    put(t('chat.campaign.status'), esc(result.status))
     b.append(dl)
     // Two shapes have existed: the old single {endpoint, body} and the
     // current {campaign, adset}. A conversation saved before the change must
@@ -451,42 +476,46 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
     const ap = result.api_payload ?? {}
     const parts = ap.campaign ? [ap.campaign, ap.adset].filter(Boolean) : ap.endpoint ? [ap] : []
     if (parts.length) {
-      b.append(el('div', 'why', 'La requête exacte que recevrait la Marketing API :'))
+      b.append(el('div', 'why', t('chat.campaign.exactRequest')))
       b.append(el('pre', null, esc(parts.map((x) => `${x.endpoint}\n${JSON.stringify(x.body, null, 2)}`).join('\n\n'))))
     }
-    const btn = el('button', 'btn sm', `${icon('chart', 14)} voir dans Pubs`)
+    const btn = el('button', 'btn sm', `${icon('chart', 14)} ${t('chat.campaign.seeInAds')}`)
     btn.onclick = () => go('campaigns')
     b.append(el('div', null).appendChild(btn).parentElement)
     return
   }
 
   if (name === 'launch_campaign') {
-    const b = card('Lancement', { sim: true })
+    const b = card(t('chat.card.launch'), { sim: true })
+    // `ACTIVE` est le statut que lit le simulateur : il reste tel quel.
     b.append(el('div', result.refused ? 'why warn' : 'why', result.refused
-      ? `<b>refusé</b> — ${esc(result.reason)}`
-      : `<b>ACTIVE</b> · aucune dépense réelle, rien n'est parti chez Meta.`))
+      ? `<b>${t('chat.launch.refused')}</b> — ${esc(result.reason)}`
+      : `<b>ACTIVE</b> · ${t('chat.launch.noSpend')}`))
     return
   }
 
   if (name === 'simulate_days' || name === 'campaign_results') {
-    const b = card(`Résultats — ${result.days ?? 0} jour(s)`, { sim: true })
-    if (!result.rows?.length) { b.append(el('div', 'why', esc(result.note ?? 'rien à lire'))); return }
-    const t = result.totals
+    const b = card(t('chat.card.results', { n: result.days ?? 0 }), { sim: true })
+    if (!result.rows?.length) { b.append(el('div', 'why', esc(result.note ?? t('chat.results.nothing')))); return }
+    // `tot` et plus `t` : voir plus haut, `t()` traduit.
+    const tot = result.totals
     const k = el('div', 'kpis')
     k.innerHTML =
-      `<div class="kpi"><div class="l">dépensé</div><div class="v">${money(t.spend_dzd)}</div></div>` +
-      `<div class="kpi"><div class="l">commandes</div><div class="v">${t.orders}</div></div>` +
-      `<div class="kpi"><div class="l">coût / commande</div><div class="v">${money(t.cost_per_order_dzd)}</div></div>` +
-      `<div class="kpi"><div class="l">clics</div><div class="v">${num(t.clicks)}</div></div>`
+      `<div class="kpi"><div class="l">${t('chat.kpi.spent')}</div><div class="v">${money(tot.spend_dzd)}</div></div>` +
+      `<div class="kpi"><div class="l">${t('chat.kpi.orders')}</div><div class="v">${num(tot.orders)}</div></div>` +
+      `<div class="kpi"><div class="l">${t('chat.kpi.costPerOrder')}</div><div class="v">${money(tot.cost_per_order_dzd)}</div></div>` +
+      `<div class="kpi"><div class="l">${t('chat.kpi.clicks')}</div><div class="v">${num(tot.clicks)}</div></div>`
     b.append(k)
 
     const tbl = el('table', null,
-      '<tr><th>créative</th><th>placement</th><th class="num">dépense</th><th class="num">clics</th><th class="num">cmd</th><th class="num">coût/cmd</th></tr>')
+      `<tr><th>${t('chat.results.th.creative')}</th><th>${t('chat.results.th.placement')}</th>` +
+      `<th class="num">${t('chat.results.th.spend')}</th><th class="num">${t('chat.results.th.clicks')}</th>` +
+      `<th class="num">${t('chat.results.th.orders')}</th><th class="num">${t('chat.results.th.cpo')}</th></tr>`)
     result.rows.forEach((r, i) => {
       const tr = el('tr', (i === 0 ? 'best ' : i === result.rows.length - 1 ? 'worst ' : '') + (r.status === 'PAUSED' ? 'off' : ''))
       tr.innerHTML = `<td>${esc(r.angle ?? r.ad_ext)}</td><td>${esc(r.placement_label)}</td>` +
         `<td class="num">${money(r.spend_dzd)}</td><td class="num">${num(r.clicks)}</td>` +
-        `<td class="num">${r.orders}</td><td class="num">${money(r.cost_per_order_dzd)}</td>`
+        `<td class="num">${num(r.orders)}</td><td class="num">${money(r.cost_per_order_dzd)}</td>`
       tbl.append(tr)
     })
     b.append(el('div', 'why', `<b>${esc(result.note)}</b>`), tbl)
@@ -494,29 +523,30 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
   }
 
   if (name === 'adjust_campaign') {
-    const b = card('Décision', { sim: true })
+    const b = card(t('chat.card.decision'), { sim: true })
     b.append(el('div', 'why', `<b>${esc(result.applied.action)}</b>${result.applied.target ? ' → ' + esc(result.applied.target) : ''}<br>${esc(result.applied.because)}`))
     return
   }
 
   if (name === 'add_domain') {
-    const b = card(`Domaine — ${result.host}`, { real: true })
-    b.append(el('div', 'why', `statut : <b>${esc(result.status)}</b> — ${esc(result.state_label ?? '')}`))
+    const b = card(t('chat.card.domain', { host: result.host }), { real: true })
+    b.append(el('div', 'why',
+      t('chat.domain.status', { status: `<b>${esc(result.status)}</b>`, label: esc(result.state_label ?? '') })))
     if (result.records?.length) {
       const d = el('div', 'dns')
       for (const r of result.records) {
         d.innerHTML += `<div class="rec"><span class="ty">${esc(r.type)}</span><span>${esc(r.name)}</span><span>${esc(r.value)}</span></div>`
       }
-      b.append(el('div', 'why', 'À ajouter chez ton registrar. La vérification ensuite est une vraie requête DNS.'), d)
+      b.append(el('div', 'why', t('chat.domain.addAtRegistrar')), d)
     }
-    const btn = el('button', 'btn sm', `${icon('globe', 14)} gérer les domaines`)
+    const btn = el('button', 'btn sm', `${icon('globe', 14)} ${t('chat.domain.manage')}`)
     btn.onclick = () => go('sites')
     b.append(el('div', null).appendChild(btn).parentElement)
     return
   }
 
   if (name === 'show_meta_setup') {
-    const b = card('Connecter ta propre app Meta')
+    const b = card(t('chat.card.metaSetup'))
     b.append(el('pre', null, esc(result.guide)))
     return
   }
@@ -529,26 +559,35 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
 /* ── live step chips ─────────────────────────────────────────────────────
    A site takes minutes. Without a clock the screen reads as frozen, and the
    first thing anyone does with a frozen screen is reload it. */
+// Les deux tables gardent des CLÉS et non des phrases : elles sont construites
+// une seule fois à l'import, et une phrase figée là resterait dans la langue du
+// chargement même après un changement de langue. La traduction se fait au
+// moment où le chip s'affiche.
 const LABEL = {
-  build_site: 'construit le site', build_landing_page: 'écrit la page',
-  generate_creatives: 'dessine les visuels', marketing_angles: 'cherche les angles',
-  configure_campaign: 'prépare la campagne', launch_campaign: 'lance la campagne',
-  campaign_results: 'lit les résultats', adjust_campaign: 'décide',
-  simulate_days: 'avance les jours', read_inbox: 'lit la boîte',
-  answer_inbox: 'répond aux clients', connect_meta: 'ouvre la connexion',
-  add_domain: 'attache le domaine', show_meta_setup: 'prépare la marche à suivre',
+  build_site: 'chat.step.site', build_landing_page: 'chat.step.landing',
+  generate_creatives: 'chat.step.creatives', marketing_angles: 'chat.step.angles',
+  configure_campaign: 'chat.step.campaign', launch_campaign: 'chat.step.launch',
+  campaign_results: 'chat.step.results', adjust_campaign: 'chat.step.decide',
+  simulate_days: 'chat.step.days', read_inbox: 'chat.step.inbox',
+  answer_inbox: 'chat.step.answer', connect_meta: 'chat.step.connect',
+  add_domain: 'chat.step.domain', show_meta_setup: 'chat.step.metaSetup',
   propose_choices: '', ask_merchant: '',
 }
-const PHASE = { copy: 'texte', scenes: 'visuels', scene: 'visuel', page: 'page', home: 'accueil' }
+const PHASE = {
+  copy: 'chat.phase.copy', scenes: 'chat.phase.scenes', scene: 'chat.phase.scene',
+  page: 'chat.phase.page', home: 'chat.phase.home',
+}
 
 function newStep(label) {
   const n = el('div', 'step')
   const txt = el('span', null, label)
   const sub = el('span', 'sub')
-  const t = el('span', 't', '0s')
-  n.append(el('span', 'spin'), txt, sub, t)
+  // L'horloge s'appelait `t`, et `t` est maintenant la fonction de traduction :
+  // la garder masquerait le traducteur dans toute cette fonction.
+  const horloge = el('span', 't', '0s')
+  n.append(el('span', 'spin'), txt, sub, horloge)
   const t0 = Date.now()
-  const tick = setInterval(() => { t.textContent = Math.round((Date.now() - t0) / 1000) + 's' }, 1000)
+  const tick = setInterval(() => { horloge.textContent = Math.round((Date.now() - t0) / 1000) + 's' }, 1000)
   log.append(n); bottom(log)
   return {
     node: n,
@@ -567,7 +606,7 @@ export async function send(input) {
   document.body.classList.add('busy')
   say('me', input)
 
-  let step = newStep('réfléchit')
+  let step = newStep(t('chat.step.thinking'))
   const bubbles = new Map()
   let openedMeta = false
 
@@ -608,19 +647,21 @@ export async function send(input) {
         }
         if (e.type === 'tool:start') {
           const l = LABEL[e.name]
-          if (l) { step.label(l); step.sub('') }
+          if (l) { step.label(t(l)); step.sub('') }
           continue
         }
         if (e.type === 'progress') {
-          const ph = PHASE[e.phase] ?? e.phase ?? ''
+          // Une phase que la table ne connaît pas s'affiche telle qu'elle vient
+          // du serveur, comme avant.
+          const ph = PHASE[e.phase] ? t(PHASE[e.phase]) : e.phase ?? ''
           step.sub([e.step && e.total ? `${e.step}/${e.total}` : '', ph, e.label ?? ''].filter(Boolean).join(' '))
           continue
         }
         if (e.type === 'tool:end') {
-          if (e.name === 'ask_merchant') { step.drop(); say('bot', e.result.question, 'ask'); step = newStep('réfléchit') }
+          if (e.name === 'ask_merchant') { step.drop(); say('bot', e.result.question, 'ask'); step = newStep(t('chat.step.thinking')) }
           else if (e.name === 'propose_choices') showChoices(e.result)
           else {
-            step.done(); inline(e.name, e.result); renderArtifact(e); step = newStep('réfléchit')
+            step.done(); inline(e.name, e.result); renderArtifact(e); step = newStep(t('chat.step.thinking'))
             // A tool can ask the SCREEN to move. Consent is the obvious case:
             // the agent cannot click through a permission dialog on the
             // merchant's behalf, which is the entire point of consent.
@@ -640,10 +681,10 @@ export async function send(input) {
     // le style « il lui manque quelque chose » laissait croire qu'il
     // attendait une réponse, alors que c'est le serveur qui est tombé.
     const n = el('div', 'msg offline')
-    n.innerHTML = `<b>Connexion au serveur perdue.</b> Ce n'est pas l'agent : rien n'a été perdu, ` +
-      `la conversation est en base. Relance <code>npm start</code> puis réessaie.` +
+    n.innerHTML = `<b>${t('chat.offline.title')}</b> ` +
+      t('chat.offline.body', { cmd: '<code>npm start</code>' }) +
       `<br><span style="opacity:.7">${esc(err.message)}</span>`
-    const b = el('button', 'btn sm', 'réessayer')
+    const b = el('button', 'btn sm', t('chat.retry'))
     b.onclick = () => { n.remove(); send(input) }
     n.append(document.createElement('br'), b)
     log.append(n); bottom(log)
@@ -729,7 +770,7 @@ async function startRec() {
       stream.getTracks().forEach((t) => t.stop())
       const blob = new Blob(chunks, { type: 'audio/webm' })
       if (blob.size < 1200) return
-      const step = newStep('écoute')
+      const step = newStep(t('chat.step.listening'))
       document.body.classList.add('busy')
       let r
       try {
@@ -742,7 +783,7 @@ async function startRec() {
       send(r.transcript)
     }
     rec.start(); mic.classList.add('on')
-  } catch (e) { arreterOnde(); say('bot', '⚠ micro indisponible : ' + e.message) }
+  } catch (e) { arreterOnde(); say('bot', '⚠ ' + t('chat.mic.unavailable', { error: e.message })) }
 }
 const stopRec = () => { if (rec?.state === 'recording') rec.stop(); else arreterOnde(); rec = null; mic.classList.remove('on') }
 
@@ -755,7 +796,7 @@ $('#photo').onclick = () => $('#file').click()
 $('#file').onchange = async (e) => {
   for (const f of e.target.files) {
     const ext = (f.name.split('.').pop() || 'jpg').toLowerCase()
-    const step = newStep('regarde la photo')
+    const step = newStep(t('chat.step.photo'))
     document.body.classList.add('busy')
     let r
     try {
@@ -771,8 +812,10 @@ $('#file').onchange = async (e) => {
     // What it saw, said out loud. A merchant who watches the agent describe
     // their own shirt stops wondering whether it is really looking.
     if (d.product) {
-      const lines = [`Je vois : ${d.product}.`, d.details].filter(Boolean)
-      if (d.photo_quality && d.photo_quality !== 'bonne') lines.push(`Photo : ${d.photo_quality}`)
+      const lines = [t('chat.photo.see', { product: d.product }), d.details].filter(Boolean)
+      // « bonne » est la valeur que rend le modèle de vision quand rien ne
+      // cloche : c'est une valeur comparée, elle ne se traduit pas.
+      if (d.photo_quality && d.photo_quality !== 'bonne') lines.push(t('chat.photo.quality', { quality: d.photo_quality }))
       say('bot', lines.join('\n'))
       if (d.caution) say('bot', `⚠ ${d.caution}`, 'ask')
     }
@@ -796,7 +839,7 @@ ta.addEventListener('keydown', (e) => {
 })
 
 $('#reset').onclick = async () => {
-  if (!confirm('Effacer cette conversation et repartir de zéro ?')) return
+  if (!confirm(t('chat.reset.confirm'))) return
   await api('/reset', { method: 'POST' }).catch(() => {})
   forgetSession()
   location.reload()

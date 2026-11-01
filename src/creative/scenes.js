@@ -13,9 +13,11 @@
 // a landing page that only renders when all four succeed is a landing page
 // that does not render.
 import { mkdirSync, existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { ROOT } from '../config.js'
-import { generate, save } from '../models/image.js'
+import { generate, edit, save, GARDE_MARQUE } from '../models/image.js'
+import { isolate } from '../models/segment.js'
 
 const OUT = join(ROOT, 'out')
 
@@ -42,6 +44,44 @@ const SUFFIX = {
 
 const GUARD = 'Absolutely no text, no letters, no numbers, no logos, no watermark anywhere in the image. No people looking at the camera.'
 
+/* La bande du haut, réservée.
+   Le titre de la page est du VRAI texte HTML posé sur la photo. Si le produit
+   occupe toute la hauteur, le titre lui passe dessus et on ne voit plus ni
+   l'un ni l'autre. On demande donc au modèle de laisser le tiers supérieur
+   calme et dégagé — c'est ce qui fait qu'une page a l'air dessinée plutôt que
+   générée. */
+const BANDE = 'Compose with the top third of the frame calm and visually empty — ' +
+  'plain background, no subject, evenly lit — so a headline can sit there afterwards. ' +
+  'Place the product in the lower two thirds.'
+
+/**
+ * La consigne de fidélité, EN PREMIER dans le prompt.
+ *
+ * C'était le défaut central de cette page : `generate(prompt)` ne reçoit
+ * aucune image, donc chaque illustration de section était un produit INVENTÉ
+ * à partir d'une description. Un polo blanc à col vert ressortait en polo
+ * foncé, et le marchand avait raison de dire que ce n'était pas le sien.
+ *
+ * Le chemin image-vers-image existait pourtant déjà dans le projet, pour
+ * restyle_photo : sam-3.1 détoure le produit, muse-image réédite CE
+ * produit-là. Il n'était simplement pas branché ici.
+ *
+ * L'ordre compte : ce qu'on met en tête pèse le plus. La fidélité d'abord,
+ * la scène ensuite, le style en dernier.
+ */
+const fidele = (visual, scene, suffix) => [
+  'This is the product. Keep it exactly as it is in the image:',
+  visual?.fidelity || 'same shape, same cut, same materials, same proportions, every visible detail identical.',
+  visual?.couleur ? `Its colour and finish are: ${visual.couleur}. Do not change them.` : '',
+  'Do not redesign it, do not swap it for a similar product, do not add or remove parts.',
+  'Re-photograph THIS object in a new setting:',
+  scene,
+  suffix,
+  BANDE,
+  GARDE_MARQUE,
+  GUARD,
+].filter(Boolean).join(' ')
+
 /**
  * Generate what we can and report what we could not.
  *
@@ -51,7 +91,8 @@ const GUARD = 'Absolutely no text, no letters, no numbers, no logos, no watermar
  * page.
  */
 export async function renderScenes(scenes = {}, {
-  slug = 'page', force = false, scenario = 'lifestyle', only = null, onProgress = () => {},
+  slug = 'page', force = false, scenario = 'lifestyle', only = null,
+  photo = null, visual = null, onProgress = () => {},
 } = {}) {
   mkdirSync(OUT, { recursive: true })
 
@@ -65,25 +106,44 @@ export async function renderScenes(scenes = {}, {
   // credits spent re-drawing the same sandal are credits not spent on the
   // thing being judged. The scenario is in the filename because a studio shot
   // and a lifestyle shot of the same slot are not interchangeable.
+  // L'empreinte entre dans le nom du fichier. Avant, le cache ne connaissait
+  // que le slug et le scénario : on changeait l'angle, le ton, la photo
+  // source — et la page resservait les images de la version d'avant, sans
+  // rien dire. Un cache qui ne sait pas ce qu'il met en cache est un bug.
+  const sig = createHash('sha1')
+    .update(JSON.stringify([scenes, visual?.couleur ?? '', visual?.fidelity ?? '', photo ?? '']))
+    .digest('hex').slice(0, 6)
+
+  const nom = (slot) => `scene-${slug}-${scenario}-${sig}-${slot}.png`
+
   const images = {}
   const wanted = []
   for (const slot of all) {
-    const file = `scene-${slug}-${scenario}-${slot}.png`
-    if (!force && existsSync(join(OUT, file))) images[slot] = `/out/${file}`
+    if (!force && existsSync(join(OUT, nom(slot)))) images[slot] = `/out/${nom(slot)}`
     else wanted.push(slot)
   }
   const reused = all.length - wanted.length
-  if (!wanted.length) return { images, failed: [], asked: 0, reused }
+  if (!wanted.length) return { images, failed: [], asked: 0, reused, from: photo ? 'photo' : 'texte' }
+
+  // Le détourage une seule fois pour les quatre scènes : sam-3.1 coûte un
+  // appel, et le recadrage sur le produit vaut pour toutes.
+  let source = photo
+  let cut = null
+  if (photo) {
+    onProgress({ phase: 'isolate', label: 'sam-3.1' })
+    cut = await isolate(photo, visual?.couleur ? `the product (${visual.couleur})` : 'the product').catch(() => null)
+    if (cut?.ok) source = cut.path
+  }
 
   let done = 0
   const settled = await Promise.allSettled(wanted.map(async (slot) => {
-    const prompt = `${scenes[slot].trim()} ${suffix[slot]} ${GUARD}`
-    const b64 = await generate(prompt, { size: '1024x1024' })
+    const b64 = source
+      ? await edit(source, fidele(visual, scenes[slot].trim(), suffix[slot]))
+      : await generate(`${scenes[slot].trim()} ${suffix[slot]} ${BANDE} ${GUARD}`, { size: '1024x1024' })
     if (!b64) throw new Error('aucune image renvoyée')
-    const file = `scene-${slug}-${scenario}-${slot}.png`
-    save(b64, join(OUT, file))
+    save(b64, join(OUT, nom(slot)))
     onProgress({ step: ++done, total: wanted.length, label: slot, phase: 'scene' })
-    return [slot, `/out/${file}`]
+    return [slot, `/out/${nom(slot)}`]
   }))
 
   const failed = []
@@ -92,5 +152,11 @@ export async function renderScenes(scenes = {}, {
     else failed.push({ slot: wanted[i], error: r.reason?.message?.slice(0, 160) ?? 'échec' })
   })
 
-  return { images, failed, asked: wanted.length, reused }
+  return {
+    images, failed, asked: wanted.length, reused,
+    // D'où viennent les images, dit explicitement : c'est la différence entre
+    // « voici ton produit » et « voici un produit qui lui ressemble ».
+    from: source ? 'photo' : 'texte',
+    isolated: cut?.ok ? { model: 'sam-3.1', coverage: cut.found?.coverage } : cut ? { failed: cut.why } : null,
+  }
 }

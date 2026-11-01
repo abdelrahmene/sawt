@@ -27,7 +27,12 @@ const SCHEMA = `{
   "faq": [{ "q": "question a buyer really asks", "a": "reassuring, concrete answer" }],
   "delivery": "one honest sentence about cash on delivery and the delay",
   "guarantee": "one sentence that is TRUE of this shop, or an empty string",
-  "scenes": { "hero": "english scene", "problem": "english scene", "solution": "english scene", "benefits": "english scene" }
+  "scenes": { "hero": "english scene", "problem": "english scene", "solution": "english scene", "benefits": "english scene" },
+  "visual": {
+    "couleur": "english: the exact colour AND finish of the product in photo 0",
+    "fidelity": "english: the list of visible things an image model must keep identical",
+    "accent": "#hex"
+  }
 }`
 
 const RULES_AR = `LANGUAGE — ABSOLUTE: every VALUE in the JSON is written in Algerian darija,
@@ -73,8 +78,31 @@ an image generator, specific to THIS product — summer sandals belong at a
 sunlit poolside, a winter coat on a snowy street. hero is aspirational and
 bright; problem is the concrete frustration BEFORE owning it, darker; solution
 is warm with the product as the hero; benefits is a dramatic close-up of a real
-detail. Keep the product identical, leave empty space for a headline, and put
-NO text or letters in the scene.
+detail. Leave empty space at the top for a headline, and put NO text or letters
+in the scene.
+
+FIDELITY — THE RULE THE WHOLE PAGE DEPENDS ON.
+These scenes are not illustrations: they are rendered FROM the merchant's own
+photo, and the merchant checks that the pictures show the thing they actually
+sell. A page whose hero shows a different product is worse than a page with no
+picture at all, because it promises goods that will not arrive.
+  · NEVER describe the product's colour or its material inside a scene. Not
+    once. An image model follows those words more than it follows the photo,
+    so "white polo" in a scene is how a white polo with a green collar comes
+    back as a plain white one. Put the colour in visual.couleur and nowhere
+    else; write the scenes about the PLACE, the LIGHT and the FRAMING only.
+  · Never add "silky", "satin", "glossy", "shiny", "luxurious", "velvet",
+    "leather" unless that finish is unmistakable in the photo.
+  · Photo 0 is the authority. If two photos disagree about the cut, the
+    panels, the closure, the length or the details, photo 0 wins.
+  · visual.couleur: the exact colour of the product in photo 0 WITH its real
+    finish — "matte black", "off-white with a dark green collar and placket",
+    "dark chocolate brown, matte crinkled fabric". Nothing else.
+  · visual.fidelity: a precise English list of what must stay identical —
+    shape, cut, materials, stitching, sole, closures, matte versus glossy as
+    it really is, the real scale of any pattern or topstitching, length and
+    proportions, and every distinctive construction detail you can see.
+  · visual.accent: the most distinctive accent colour of the product, as hex.
 
 Counts: 3-4 highlights, 3-4 benefits, 2-3 features, EXACTLY 3 steps,
 2-3 whyChoose, 3-4 faq. problem and solution are mandatory — they are the sale.
@@ -156,6 +184,14 @@ function normalise(d, { product, price_dzd, language }) {
     scenes: {
       hero: str(d.scenes?.hero), problem: str(d.scenes?.problem),
       solution: str(d.scenes?.solution), benefits: str(d.scenes?.benefits),
+    },
+    // Ce bloc ne s'affiche nulle part : il part dans le prompt des images.
+    // C'est lui qui empêche la dérive — le modèle d'image suit les mots plus
+    // que la photo, donc la couleur et la matière ne vivent qu'ici.
+    visual: {
+      couleur: str(d.visual?.couleur),
+      fidelity: str(d.visual?.fidelity),
+      accent: colour(d.visual?.accent, null),
     },
   }
 }

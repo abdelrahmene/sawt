@@ -15,6 +15,7 @@ import * as camp from '../meta-sim/campaigns.js'
 import { connection } from '../meta-sim/connect.js'
 import { threads, thread, draftReply, sendReply, shopFacts } from '../meta-sim/inbox.js'
 import { addDomain } from '../sites.js'
+import * as catalog from '../catalog.js'
 import { setting } from '../db.js'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
@@ -153,6 +154,38 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
 
     case 'marketing_angles':
       return args // the model's own proposal; nothing to compute
+
+    /* ── le dropshipping ─────────────────────────────────────────────────── */
+    case 'browse_catalog': {
+      const products = catalog.list(args)
+      return {
+        count: products.length,
+        products: products.map((p) => ({
+          id: p.id, name: p.name.en, category: p.category, supplier: p.supplier,
+          supplier_cost: p.supplier_cost, recommended_price: p.min_selling,
+          margin_per_order: p.margin, margin_pct: p.margin_pct,
+          sizes: p.variants.map((v) => `${v.size} (${v.stock})`).join(', '),
+          in_stock: p.stock,
+        })),
+        note: 'Catalogue de démonstration, modelé sur un vrai catalogue algérien : ' +
+          'les champs, les prix et les marges sont réalistes, mais aucun fournisseur n\'expédiera. ' +
+          'Le calcul de marge, lui, est le vrai : prix de vente moins coût fournisseur.',
+        say: 'La marge est par commande LIVRÉE, pas par commande passée — en paiement à la livraison, une partie revient.',
+      }
+    }
+
+    case 'import_product': {
+      const r = catalog.importProduct(ctx.sessionId, String(args.product_id ?? ''), { selling: args.selling })
+      if (r.error) return r
+      // Le produit entre dans la boutique : le briefing du tour suivant le
+      // verra, donc l'agent saura ce que le marchand vend sans qu'on le lui
+      // redise.
+      ;(ctx.products ??= []).unshift({
+        id: r.product_id, name: r.name?.en ?? r.product_id, price: r.selling,
+        variants: r.variants?.filter((v) => v.stock > 0).map((v) => v.size) ?? [],
+      })
+      return { ...r, next: 'Tu peux maintenant lui construire une page et une campagne, sans lui demander de photo : le catalogue en fournit.' }
+    }
 
     // Minutes long: one model call per product, then one for the home page.
     // It reports each page as it lands so the screen never goes quiet.

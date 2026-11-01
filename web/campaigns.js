@@ -10,19 +10,64 @@
 // per order, so it is the column the table sorts on and the one the trend is
 // read against. A campaign whose cost per order climbed 40 % in two days is an
 // argument for a decision; a single day's figure is not.
-import { $, el, esc, icon, money, num, api, toast, loading, emptyState, simbar, kpi } from './ui.js'
+import { $, el, esc, icon, api, toast, loading, emptyState, simbar, kpi } from './ui.js'
+import { t, num, money } from './i18n.js'
 import { refresh } from './app.js'
 
 let openId = null
 
-const STATUS = { ACTIVE: { c: 'ok', t: 'en ligne' }, PAUSED: { c: 'warn', t: 'en pause' } }
+/**
+ * Un montant, dans la langue du moment.
+ *
+ * `money()` vient de la couche i18n : la locale suit la langue et l'unité est
+ * écrite « DZD ». Deux choses sont reprises de `ui.js` parce que ce ne sont pas
+ * des traductions — le tiret quand la valeur est nulle (un coût par commande
+ * sans commande n'est pas « 0 DZD », il est inconnu), et l'isolat bidi, sans
+ * lequel « 4 500 DZD » se lit « DZD 500 4 » dans un écran en darija.
+ */
+const dzd = (n) => (n == null ? '—' : `<bdi dir="ltr">${money(n)}</bdi>`)
+
+// Les deux états ne gardent ici que leur couleur et leur clé : le libellé se
+// lit au moment du rendu, sinon la langue resterait celle du chargement du
+// module. Un état inconnu s'affiche brut, comme avant.
+const STATUS = {
+  ACTIVE: { c: 'ok', k: 'campaigns.status.active' },
+  PAUSED: { c: 'warn', k: 'campaigns.status.paused' },
+}
+const status = (code) => (STATUS[code] ? { c: STATUS[code].c, t: t(STATUS[code].k) } : { c: '', t: code })
+
+// Les objectifs gardent leurs constantes Meta comme clés — elles sont
+// comparées dans le code et dans la charge utile de l'API, elles ne se
+// traduisent pas. Seul le mot affiché change de langue.
 const OBJ = {
-  OUTCOME_SALES: 'ventes', OUTCOME_LEADS: 'prospects',
-  OUTCOME_TRAFFIC: 'trafic', OUTCOME_ENGAGEMENT: 'engagement',
+  OUTCOME_SALES: 'sales', OUTCOME_LEADS: 'leads',
+  OUTCOME_TRAFFIC: 'traffic', OUTCOME_ENGAGEMENT: 'engagement',
+}
+const objective = (code) => (OBJ[code] ? t(`campaigns.objective.${OBJ[code]}`) : code)
+
+// Le serveur envoie la clé technique d'un placement (`instagram_reels`) ET son
+// libellé français. On traduit par la clé, et on retombe sur le libellé du
+// serveur quand la clé est inconnue : une étiquette française vaut mieux
+// qu'une clé de dictionnaire affichée en plein écran.
+const placement = (key, fallback) => {
+  const k = `campaigns.placement.${key}`
+  const s = t(k)
+  return s === k ? (fallback ?? key) : s
 }
 
+// Les deux notes du simulateur (`src/meta-sim/campaigns.js`) arrivent en
+// français, et l'une des deux porte la marque « SIMULÉ » — règle 2 du projet :
+// elle doit rester lisible par un juré anglophone. On les traduit par leur
+// texte exact, et une note inconnue repasse telle quelle plutôt que de
+// laisser un trou à l'écran.
+const NOTES = {
+  "SIMULÉ. Aucune publicité n'a tourné, aucun dinar n'a été dépensé, rien n'est parti chez Meta.": 'campaigns.note.simulated',
+  "À l'arrêt — rien à lire.": 'campaigns.note.stopped',
+}
+const note = (s) => (s && NOTES[s] ? t(NOTES[s]) : s)
+
 export async function mount(root) {
-  root.innerHTML = `<div class="page">${loading('campagnes')}</div>`
+  root.innerHTML = `<div class="page">${loading(t('campaigns.load.campaigns'))}</div>`
   let d
   try { d = await api('/campaigns') } catch (e) {
     root.innerHTML = `<div class="page"><div class="why bad">${esc(e.message)}</div></div>`; return
@@ -30,10 +75,10 @@ export async function mount(root) {
 
   if (!d.campaigns.length) {
     root.innerHTML = `<div class="page">
-      <header><div><h1>Publicités</h1><p>Tes campagnes, leur état et ce qu'elles rapportent.</p></div></header>
-      ${emptyState('Aucune campagne',
-        'Demande-lui en darija : « دير لي إشهار على هاد الصباط بـ 2000 دينار في النهار ». Il la construit, la cible et te la montre avant de la lancer.',
-        '<button class="btn p" id="to-chat">Parler à l\'agent</button>')}
+      <header><div><h1>${t('campaigns.title')}</h1><p>${t('campaigns.subtitle')}</p></div></header>
+      ${emptyState(t('campaigns.empty.title'),
+        t('campaigns.empty.body', { example: t('campaigns.empty.example') }),
+        `<button class="btn p" id="to-chat">${t('campaigns.empty.cta')}</button>`)}
     </div>`
     $('#to-chat').onclick = () => import('./app.js').then((m) => m.go('chat'))
     return
@@ -45,27 +90,28 @@ export async function mount(root) {
 
   root.innerHTML = `<div class="page">
     <header>
-      <div><h1>Publicités</h1><p>${d.campaigns.length} campagne(s) · ${
-        d.campaigns.filter((c) => c.status === 'ACTIVE').length} en ligne</p></div>
+      <div><h1>${t('campaigns.title')}</h1><p>${t('campaigns.count', {
+        n: d.campaigns.length,
+        live: d.campaigns.filter((c) => c.status === 'ACTIVE').length,
+      })}</p></div>
     </header>
 
-    ${simbar(`<b>Chiffres simulés.</b> Aucune publicité n'a tourné et aucun dinar n'a été dépensé.
-      Le modèle économique derrière (les Reels touchent plus de monde par dinar et convertissent moins,
-      le coût par résultat monte avec la fatigue) est délibérément simple, mais il n'est pas arbitraire —
-      sinon l'agent n'aurait jamais de raison de décider quoi que ce soit.`)}
+    ${simbar(`<b>${t('campaigns.sim.title')}</b> ${t('campaigns.sim.body')}`)}
 
     <div class="kpis">
-      ${kpi('dépensé', money(totals.spend))}
-      ${kpi('commandes', String(totals.orders))}
-      ${kpi('coût / commande', money(totals.orders ? Math.round(totals.spend / totals.orders) : null))}
-      ${kpi('clics', num(totals.clicks))}
+      ${kpi(t('campaigns.kpi.spent'), dzd(totals.spend))}
+      ${kpi(t('campaigns.kpi.orders'), String(totals.orders))}
+      ${kpi(t('campaigns.kpi.costPerOrder'), dzd(totals.orders ? Math.round(totals.spend / totals.orders) : null))}
+      ${kpi(t('campaigns.kpi.clicks'), num(totals.clicks))}
     </div>
 
-    <h2 class="sec">Campagnes</h2>
+    <h2 class="sec">${t('campaigns.sec.list')}</h2>
     <div class="card"><div style="overflow:auto">
       <table><thead><tr>
-        <th>campagne</th><th>objectif</th><th>état</th><th class="num">budget/j</th>
-        <th class="num">dépensé</th><th class="num">cmd</th><th class="num">coût/cmd</th><th></th>
+        <th>${t('campaigns.th.campaign')}</th><th>${t('campaigns.th.objective')}</th>
+        <th>${t('campaigns.th.status')}</th><th class="num">${t('campaigns.th.budgetDay')}</th>
+        <th class="num">${t('campaigns.th.spent')}</th><th class="num">${t('campaigns.th.orders')}</th>
+        <th class="num">${t('campaigns.th.costPerOrder')}</th><th></th>
       </tr></thead><tbody id="rows"></tbody></table>
     </div></div>
 
@@ -74,17 +120,17 @@ export async function mount(root) {
 
   const tb = $('#rows')
   for (const c of d.campaigns) {
-    const st = STATUS[c.status] ?? { c: '', t: c.status }
+    const st = status(c.status)
     const tr = el('tr')
     tr.innerHTML =
       `<td><b>${esc(c.name)}</b><div style="color:var(--faint);font:11px var(--mono)">${esc(c.ext_id ?? '')}</div></td>` +
-      `<td>${esc(OBJ[c.objective] ?? c.objective)}</td>` +
+      `<td>${esc(objective(c.objective))}</td>` +
       `<td><span class="chip ${st.c}">${esc(st.t)}</span></td>` +
-      `<td class="num">${money(c.daily_budget_dzd)}</td>` +
-      `<td class="num">${money(c.spend)}</td>` +
+      `<td class="num">${dzd(c.daily_budget_dzd)}</td>` +
+      `<td class="num">${dzd(c.spend)}</td>` +
       `<td class="num">${c.orders}</td>` +
-      `<td class="num">${money(c.cost_per_order_dzd)}</td>` +
-      `<td class="num"><button class="btn sm" data-id="${c.id}">ouvrir</button></td>`
+      `<td class="num">${dzd(c.cost_per_order_dzd)}</td>` +
+      `<td class="num"><button class="btn sm" data-id="${c.id}">${t('campaigns.btn.open')}</button></td>`
     tb.append(tr)
   }
   for (const b of root.querySelectorAll('button[data-id]')) {
@@ -95,49 +141,55 @@ export async function mount(root) {
 
 async function detail(root) {
   const out = $('#detail')
-  out.innerHTML = loading('résultats')
+  out.innerHTML = loading(t('campaigns.load.results'))
   let c
   try { c = await api(`/campaigns/${openId}`) } catch (e) { out.innerHTML = `<div class="why bad">${esc(e.message)}</div>`; return }
 
   const r = c.results
-  const st = STATUS[c.status] ?? { c: '', t: c.status }
+  const st = status(c.status)
 
   out.innerHTML = `
     <div class="card">
       <h3>${esc(c.name)} <span class="chip ${st.c}">${esc(st.t)}</span>
-        <span class="sim" style="margin-inline-start:auto">simulé</span></h3>
+        <span class="sim" style="margin-inline-start:auto">${t('campaigns.sim.badge')}</span></h3>
       <div class="body">
         <div class="row" style="margin-bottom:18px">
           ${c.status === 'PAUSED'
-            ? `<button class="btn p" id="go">${icon('play', 15)} lancer (simulé)</button>`
-            : `<button class="btn" id="adv">${icon('clock', 15)} + 1 jour de données</button>
-               <button class="btn danger" id="stop">${icon('pause', 15)} mettre en pause</button>`}
+            ? `<button class="btn p" id="go">${icon('play', 15)} ${t('campaigns.btn.launch')}</button>`
+            : `<button class="btn" id="adv">${icon('clock', 15)} ${t('campaigns.btn.advance')}</button>
+               <button class="btn danger" id="stop">${icon('pause', 15)} ${t('campaigns.btn.pause')}</button>`}
         </div>
 
         <dl class="kv">
-          <dt>objectif</dt><dd>${esc(OBJ[c.objective] ?? c.objective)}</dd>
-          <dt>budget / jour</dt><dd>${money(c.daily_budget_dzd)}</dd>
-          <dt>ciblage</dt><dd>${esc(c.geo.join(', ') || 'Algérie')} · ${c.age_min}–${c.age_max} ans · ${esc(c.genders)}</dd>
-          <dt>placements</dt><dd>${esc(c.placements.join(', '))}</dd>
-          <dt>créatives</dt><dd>${c.ads.length} · ${c.ads.filter((a) => a.status === 'ACTIVE').length} active(s)</dd>
+          <dt>${t('campaigns.detail.objective')}</dt><dd>${esc(objective(c.objective))}</dd>
+          <dt>${t('campaigns.detail.budgetDay')}</dt><dd>${dzd(c.daily_budget_dzd)}</dd>
+          <dt>${t('campaigns.detail.targeting')}</dt><dd>${t('campaigns.detail.targetingValue', {
+            geo: esc(c.geo.join(', ') || t('campaigns.detail.geoAll')),
+            min: c.age_min, max: c.age_max, genders: esc(c.genders),
+          })}</dd>
+          <dt>${t('campaigns.detail.placements')}</dt><dd>${esc(c.placements.join(', '))}</dd>
+          <dt>${t('campaigns.detail.creatives')}</dt><dd>${t('campaigns.detail.creativesValue', {
+            n: c.ads.length, active: c.ads.filter((a) => a.status === 'ACTIVE').length,
+          })}</dd>
         </dl>
       </div>
     </div>
 
     ${r?.rows?.length ? results(r) : `<div class="card" style="margin-top:16px"><div class="body">
-      <div class="why warn">${esc(r?.note ?? "Pas encore de données — lance la campagne pour en produire.")}</div>
+      <div class="why warn">${esc(note(r?.note) ?? t('campaigns.results.none'))}</div>
     </div></div>`}
 
-    ${c.decisions.length ? `<h2 class="sec">Décisions de l'agent</h2>
+    ${c.decisions.length ? `<h2 class="sec">${t('campaigns.sec.decisions')}</h2>
       <div class="card"><div class="body">
         ${c.decisions.map((d) => `<div class="why"><b>${esc(d.action)}</b>${
           d.target ? ` → ${esc(d.target)}` : ''}<br>${esc(d.because)}</div>`).join('')}
       </div></div>` : ''}
 
-    <h2 class="sec">La requête Marketing API</h2>
+    <h2 class="sec">${t('campaigns.sec.api')}</h2>
     <div class="card"><div class="body">
-      <div class="why">Forme réelle, données simulées. C'est exactement ce que recevrait
-        <span class="chip mono">POST /v21.0/act_&lt;ID&gt;/campaigns</span> si la connexion était vraie.</div>
+      <div class="why">${t('campaigns.api.why', {
+        endpoint: '<span class="chip mono">POST /v21.0/act_&lt;ID&gt;/campaigns</span>',
+      })}</div>
       <pre>${esc(c.api_payload.campaign.endpoint + '\n' + JSON.stringify(c.api_payload.campaign.body, null, 2))}</pre>
       <pre style="margin-top:10px">${esc(c.api_payload.adset.endpoint + '\n' + JSON.stringify(c.api_payload.adset.body, null, 2))}</pre>
     </div></div>`
@@ -145,26 +197,29 @@ async function detail(root) {
   $('#go')?.addEventListener('click', async () => {
     $('#go').disabled = true
     await api(`/campaigns/${openId}/launch`, { method: 'POST' })
-    toast('En ligne — simulé. Aucun dinar n\'a bougé.')
+    toast(t('campaigns.toast.live'))
     await refresh(); mount(root)
   })
   $('#adv')?.addEventListener('click', async () => {
     $('#adv').disabled = true
     await api(`/campaigns/${openId}/advance`, { method: 'POST', body: { days: 1 } })
-    toast('Un jour de plus de données simulées.')
+    toast(t('campaigns.toast.advanced'))
     mount(root)
   })
   $('#stop')?.addEventListener('click', async () => {
     await api(`/campaigns/${openId}/decide`, {
       method: 'POST',
-      body: { action: 'pause_campaign', because: 'Mise en pause manuelle depuis le tableau.' },
+      // `action` est une valeur comparée côté serveur : elle reste telle quelle.
+      // La raison, elle, finit sous les yeux du marchand — elle part dans sa langue.
+      body: { action: 'pause_campaign', because: t('campaigns.decision.manualPause') },
     })
     await refresh(); mount(root)
   })
 }
 
 function results(r) {
-  const t = r.totals
+  // `tot` au lieu de `t` : `t()` est désormais la fonction de traduction.
+  const tot = r.totals
   const d0 = r.by_day[0], dN = r.by_day.at(-1)
   const cpo0 = d0?.cost_per_order_dzd, cpoN = dN?.cost_per_order_dzd
   const drift = cpo0 && cpoN ? Math.round((100 * (cpoN - cpo0)) / cpo0) : null
@@ -172,56 +227,61 @@ function results(r) {
   const maxSpend = Math.max(...r.by_placement.map((p) => p.spend_dzd), 1)
 
   return `
-    <h2 class="sec">Résultats · ${r.days} jour(s)</h2>
+    <h2 class="sec">${t('campaigns.sec.results', { n: r.days })}</h2>
     <div class="kpis">
-      ${kpi('dépensé', money(t.spend_dzd))}
-      ${kpi('commandes', String(t.orders))}
-      ${kpi('coût / commande', money(t.cost_per_order_dzd),
-        drift == null ? '' : `${drift > 0 ? '↑' : '↓'} ${Math.abs(drift)} % depuis le 1ᵉʳ jour`,
+      ${kpi(t('campaigns.kpi.spent'), dzd(tot.spend_dzd))}
+      ${kpi(t('campaigns.kpi.orders'), String(tot.orders))}
+      ${kpi(t('campaigns.kpi.costPerOrder'), dzd(tot.cost_per_order_dzd),
+        drift == null ? '' : t('campaigns.kpi.drift', { arrow: drift > 0 ? '↑' : '↓', pct: Math.abs(drift) }),
         drift == null ? '' : drift > 0 ? 'up' : 'down')}
-      ${kpi('clics', num(t.clicks), `${money(t.cost_per_click_dzd)} / clic`)}
-      ${kpi('messages', num(t.messages))}
-      ${kpi('portée', num(t.reach))}
+      ${kpi(t('campaigns.kpi.clicks'), num(tot.clicks), t('campaigns.kpi.perClick', { amount: dzd(tot.cost_per_click_dzd) }))}
+      ${kpi(t('campaigns.kpi.messages'), num(tot.messages))}
+      ${kpi(t('campaigns.kpi.reach'), num(tot.reach))}
     </div>
 
     <div class="grid-2" style="margin-top:16px">
       <div class="card">
-        <h3>Par placement<span class="sim" style="margin-inline-start:auto">simulé</span></h3>
+        <h3>${t('campaigns.card.byPlacement')}<span class="sim" style="margin-inline-start:auto">${t('campaigns.sim.badge')}</span></h3>
         <div style="overflow:auto"><table><thead><tr>
-          <th>placement</th><th class="num">dépense</th><th class="num">cmd</th><th class="num">coût/cmd</th>
+          <th>${t('campaigns.th.placement')}</th><th class="num">${t('campaigns.th.spend')}</th>
+          <th class="num">${t('campaigns.th.orders')}</th><th class="num">${t('campaigns.th.costPerOrder')}</th>
         </tr></thead><tbody>
           ${r.by_placement.map((p, i) => `<tr class="${i === 0 ? 'best' : i === r.by_placement.length - 1 ? 'worst' : ''}">
-            <td>${esc(p.label)}<div class="pbar"><i style="width:${Math.round(100 * p.spend_dzd / maxSpend)}%"></i></div></td>
-            <td class="num">${money(p.spend_dzd)}</td><td class="num">${p.orders}</td>
-            <td class="num">${money(p.cost_per_order_dzd)}</td></tr>`).join('')}
+            <td>${esc(placement(p.placement, p.label))}<div class="pbar"><i style="width:${Math.round(100 * p.spend_dzd / maxSpend)}%"></i></div></td>
+            <td class="num">${dzd(p.spend_dzd)}</td><td class="num">${p.orders}</td>
+            <td class="num">${dzd(p.cost_per_order_dzd)}</td></tr>`).join('')}
         </tbody></table></div>
       </div>
 
       <div class="card">
-        <h3>Jour par jour<span class="sim" style="margin-inline-start:auto">simulé</span></h3>
+        <h3>${t('campaigns.card.byDay')}<span class="sim" style="margin-inline-start:auto">${t('campaigns.sim.badge')}</span></h3>
         <div style="overflow:auto"><table><thead><tr>
-          <th>jour</th><th class="num">dépense</th><th class="num">clics</th><th class="num">cmd</th><th class="num">coût/cmd</th>
+          <th>${t('campaigns.th.day')}</th><th class="num">${t('campaigns.th.spend')}</th>
+          <th class="num">${t('campaigns.th.clicks')}</th><th class="num">${t('campaigns.th.orders')}</th>
+          <th class="num">${t('campaigns.th.costPerOrder')}</th>
         </tr></thead><tbody>
           ${r.by_day.map((x) => `<tr><td>${esc(x.day)}</td>
-            <td class="num">${money(x.spend_dzd)}</td><td class="num">${num(x.clicks)}</td>
-            <td class="num">${x.orders}</td><td class="num">${money(x.cost_per_order_dzd)}</td></tr>`).join('')}
+            <td class="num">${dzd(x.spend_dzd)}</td><td class="num">${num(x.clicks)}</td>
+            <td class="num">${x.orders}</td><td class="num">${dzd(x.cost_per_order_dzd)}</td></tr>`).join('')}
         </tbody></table></div>
       </div>
     </div>
 
     <div class="card" style="margin-top:16px">
-      <h3>Par créative et placement<span class="sim" style="margin-inline-start:auto">simulé</span></h3>
+      <h3>${t('campaigns.card.byCreative')}<span class="sim" style="margin-inline-start:auto">${t('campaigns.sim.badge')}</span></h3>
       <div style="overflow:auto"><table><thead><tr>
-        <th>créative</th><th>placement</th><th class="num">dépense</th><th class="num">clics</th>
-        <th class="num">CTR</th><th class="num">cmd</th><th class="num">coût/cmd</th>
+        <th>${t('campaigns.th.creative')}</th><th>${t('campaigns.th.placement')}</th>
+        <th class="num">${t('campaigns.th.spend')}</th><th class="num">${t('campaigns.th.clicks')}</th>
+        <th class="num">${t('campaigns.th.ctr')}</th><th class="num">${t('campaigns.th.orders')}</th>
+        <th class="num">${t('campaigns.th.costPerOrder')}</th>
       </tr></thead><tbody>
         ${r.rows.map((x, i) => `<tr class="${i === 0 ? 'best ' : i === r.rows.length - 1 ? 'worst ' : ''}${x.status === 'PAUSED' ? 'off' : ''}">
-          <td>${esc(x.angle ?? x.ad_ext)}${x.status === 'PAUSED' ? ' <span class="chip">en pause</span>' : ''}</td>
-          <td>${esc(x.placement_label)}</td>
-          <td class="num">${money(x.spend_dzd)}</td><td class="num">${num(x.clicks)}</td>
-          <td class="num">${x.ctr} %</td><td class="num">${x.orders}</td>
-          <td class="num">${money(x.cost_per_order_dzd)}</td></tr>`).join('')}
+          <td>${esc(x.angle ?? x.ad_ext)}${x.status === 'PAUSED' ? ` <span class="chip">${t('campaigns.status.paused')}</span>` : ''}</td>
+          <td>${esc(placement(x.placement, x.placement_label))}</td>
+          <td class="num">${dzd(x.spend_dzd)}</td><td class="num">${num(x.clicks)}</td>
+          <td class="num">${t('campaigns.pct', { n: x.ctr })}</td><td class="num">${x.orders}</td>
+          <td class="num">${dzd(x.cost_per_order_dzd)}</td></tr>`).join('')}
       </tbody></table></div>
-      <div class="body"><div class="why"><b>${esc(r.note)}</b></div></div>
+      <div class="body"><div class="why"><b>${esc(note(r.note))}</b></div></div>
     </div>`
 }

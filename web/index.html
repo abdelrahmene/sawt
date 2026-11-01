@@ -1,83 +1,103 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en" dir="ltr" data-shell="phone">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0c10">
 <title>Sawt</title>
-<!-- Le thème avant la feuille de style, sinon l'écran part en blanc puis
-     bascule en sombre à chaque chargement. Nuit par défaut. -->
-<script>try{document.documentElement.dataset.theme=localStorage.getItem('sawt.theme')||'jour'}catch(e){document.documentElement.dataset.theme='jour'}</script>
+<!-- Le thème et la coque AVANT la feuille de style, sinon l'écran part en
+     blanc puis bascule, et le téléphone apparaît après coup en sautant.
+     Clair par défaut, téléphone par défaut. -->
+<script>try{var r=document.documentElement,s=localStorage;r.dataset.theme=s.getItem('sawt.theme')||'jour';r.dataset.shell=s.getItem('sawt.shell')||'phone';var l=s.getItem('sawt.lang')||'en';r.lang=l;r.dir=l==='ar'?'rtl':'ltr'}catch(e){}</script>
 <link rel="stylesheet" href="/web/app.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='13' fill='%230d7a5f'/><circle cx='12' cy='12' r='5' fill='%2338e0ad'/></svg>">
 </head>
 <body>
 
-<!-- The rail is the menu he asked for: every surface of the product in one
-     column, with the number of people waiting on it. -->
-<aside id="rail">
-  <span class="orb" title="Sawt"></span>
-  <button class="themer" id="theme" title="Clair ou sombre"></button>
-  <nav id="tabs"></nav>
-  <!-- Quel modèle vient de répondre : toujours visible, jamais à deviner. -->
-  <div class="foot">
-    <span class="mode brain" id="brain" title="Le cerveau de l'agent"></span>
-    <span class="mode" id="mode">…</span>
+<!-- Le plan de travail. En coque téléphone il entoure l'appareil ; en coque
+     bureau il ne se voit pas. -->
+<div id="stage">
+
+  <div id="device">
+
+    <!-- La barre du haut, commune aux deux coques : qui on est, dans quelle
+         langue, dans quel thème, et surtout QUEL MODÈLE vient de répondre —
+         ça, ça ne doit jamais quitter l'écran pendant une démonstration. -->
+    <header id="appbar">
+      <span class="orb" title="Sawt"></span>
+      <strong class="wordmark">Sawt</strong><span class="ar">صوت</span>
+      <div class="sp"></div>
+      <span class="mode brain" id="brain" data-i18n-title="shell.brain"></span>
+      <span class="mode" id="mode">…</span>
+      <button class="chip lang" id="lang" data-i18n-title="shell.langTitle"></button>
+      <button class="icon sm themer" id="theme"></button>
+      <button class="icon sm" id="reset" data-i18n-title="shell.newChat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      </button>
+    </header>
+
+    <!-- Le menu. Colonne à gauche sur un bureau, barre du bas sur un
+         téléphone — ce sont les mêmes boutons, c'est la grille qui change. -->
+    <aside id="rail">
+      <nav id="tabs"></nav>
+    </aside>
+
+    <main>
+      <!-- ══ the agent ══════════════════════════════════════════════════ -->
+      <section class="view on" id="v-chat">
+        <div id="chat">
+          <div id="log"></div>
+          <div id="dock">
+            <div class="wrap">
+              <!-- Le niveau du micro, dessiné en direct. C'est la signature de
+                   l'app : elle s'appelle « la voix », il faut la voir. -->
+              <canvas id="wave" width="760" height="56" aria-hidden="true"></canvas>
+              <button class="icon" id="photo" data-i18n-title="shell.addPhoto">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3 16.5l5-4.5 4 3.5 3-2.5 4 3.5"/></svg>
+              </button>
+              <textarea id="text" rows="1" data-i18n-ph="shell.composer" autocomplete="off"></textarea>
+              <button class="icon rec" id="mic" data-i18n-title="shell.holdMic">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3.5"/></svg>
+              </button>
+            </div>
+            <div class="hint" data-i18n="shell.hint"></div>
+          </div>
+          <input type="file" id="file" accept="image/*" multiple hidden>
+        </div>
+
+        <div id="canvas">
+          <div class="empty" id="canvas-empty">
+            <div class="big">◍</div>
+            <h3 data-i18n="shell.empty.title"></h3>
+            <p data-i18n="shell.empty.body"></p>
+            <div class="say-ar">دير لي إشهار على هاد الصباط<br>و لانسيه بـ 2000 دينار في النهار</div>
+            <p class="tip" data-i18n="shell.empty.tip"></p>
+          </div>
+          <button id="tolatest" data-i18n="shell.toLatest"></button>
+        </div>
+      </section>
+
+      <!-- ══ the rest, each rendered by its own module ══════════════════ -->
+      <section class="view scroll" id="v-catalog"></section>
+      <section class="view" id="v-studio"></section>
+      <section class="view scroll" id="v-sites"></section>
+      <section class="view scroll" id="v-campaigns"></section>
+      <section class="view" id="v-inbox"></section>
+      <section class="view scroll" id="v-meta"></section>
+      <section class="view scroll" id="v-settings"></section>
+    </main>
+
   </div>
-</aside>
 
-<main>
-  <!-- ══ the agent ══════════════════════════════════════════════════════ -->
-  <section class="view on" id="v-chat">
-    <div id="chat">
-      <div class="top">
-        <h2>Sawt</h2><span class="ar">صوت</span>
-        <div class="actions">
-          <button class="icon sm" id="reset" title="Nouvelle conversation">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
-          </button>
-        </div>
-      </div>
-      <div id="log"></div>
-      <div id="dock">
-        <div class="wrap">
-          <!-- Le niveau du micro, dessiné en direct. C'est la signature de
-               l'app : elle s'appelle « la voix », il faut la voir. -->
-          <canvas id="wave" width="760" height="56" aria-hidden="true"></canvas>
-          <button class="icon" id="photo" title="Ajouter une photo produit">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M3 16.5l5-4.5 4 3.5 3-2.5 4 3.5"/></svg>
-          </button>
-          <textarea id="text" rows="1" placeholder="Écris, ou tiens le micro et parle en darija…" autocomplete="off"></textarea>
-          <button class="icon rec" id="mic" title="Maintenir pour parler">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v3.5"/></svg>
-          </button>
-        </div>
-        <div class="hint">Tiens le micro enfoncé pendant que tu parles · Entrée pour envoyer</div>
-      </div>
-      <input type="file" id="file" accept="image/*" multiple hidden>
-    </div>
+  <!-- Hors de l'appareil : de quoi repasser en pleine largeur quand on a
+       besoin d'un tableau dense. Invisible sur un vrai téléphone. -->
+  <div id="stagebar">
+    <button class="icon sm" id="shelltog" title="Phone or desktop"></button>
+  </div>
 
-    <div id="canvas">
-      <div class="empty" id="canvas-empty">
-        <div class="big">◍</div>
-        <h3>Parle-lui. Il construit.</h3>
-        <p>Donne-lui une photo de produit, puis dis-lui ce que tu veux. Il écrit la page, dessine les visuels, prépare la campagne et répond à tes clients.</p>
-        <div class="say-ar">دير لي إشهار على هاد الصباط<br>و لانسيه بـ 2000 دينار في النهار</div>
-        <p style="font-size:13px;color:var(--faint)">Tiens le micro enfoncé pendant que tu parles.</p>
-      </div>
-      <button id="tolatest">↓ nouveau</button>
-    </div>
-  </section>
+</div>
 
-  <!-- ══ the rest, each rendered by its own module ══════════════════════ -->
-  <section class="view" id="v-studio"></section>
-  <section class="view scroll" id="v-sites"></section>
-  <section class="view scroll" id="v-campaigns"></section>
-  <section class="view" id="v-inbox"></section>
-  <section class="view scroll" id="v-meta"></section>
-  <section class="view scroll" id="v-settings"></section>
-</main>
-
-<div id="lightbox"><img alt=""><span class="hint">clique pour fermer · Échap</span></div>
+<div id="lightbox"><img alt=""><span class="hint" data-i18n="shell.lightbox"></span></div>
 <div class="toast" id="toast"></div>
 
 <script type="module" src="/web/app.js"></script>

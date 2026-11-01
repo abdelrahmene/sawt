@@ -7,17 +7,27 @@
 // expected. The demo shortcut beside it is labelled, because nobody waits for
 // propagation in a three-minute video and a judge owns no domain to point.
 import { $, el, esc, icon, money, ago, api, toast, frame, loading, emptyState, kpi } from './ui.js'
+import { t, num } from './i18n.js'
 
+// `money()` reste celui de ui.js : il n'est plus cloué au français — son
+// nombre passe par le `num()` de i18n.js — et il porte l'isolat bidi sans
+// lequel « 4 500 DA » se lit « DA 500 4 » en arabe (voir CLAUDE.md). Les
+// compteurs, eux, étaient rendus par `String()` : ils passent par `num()`.
+
+// Les libellés ne peuvent pas être résolus ici : ce module n'est évalué qu'une
+// fois, à l'import, et la langue change après. On garde donc la clé et t() est
+// appelé au rendu. À gauche, les statuts que le serveur renvoie — ils se
+// comparent, ils ne se traduisent pas.
 const STATUS = {
-  live: { c: 'ok', t: 'en ligne' },
-  verified: { c: 'ok', t: 'DNS vérifié' },
-  dns_pending: { c: 'warn', t: 'attente DNS' },
-  draft: { c: '', t: 'brouillon' },
-  failed: { c: 'bad', t: 'échec' },
+  live: { c: 'ok', k: 'sites.st.live' },
+  verified: { c: 'ok', k: 'sites.st.verified' },
+  dns_pending: { c: 'warn', k: 'sites.st.dnsPending' },
+  draft: { c: '', k: 'sites.st.draft' },
+  failed: { c: 'bad', k: 'sites.st.failed' },
 }
 
 export async function mount(root) {
-  root.innerHTML = `<div class="page">${loading('sites')}</div>`
+  root.innerHTML = `<div class="page">${loading(t('sites.loading'))}</div>`
   let d, o
   try { [d, o] = await Promise.all([api('/sites'), api('/orders')]) } catch (e) {
     root.innerHTML = `<div class="page"><div class="why bad">${esc(e.message)}</div></div>`; return
@@ -25,10 +35,10 @@ export async function mount(root) {
 
   if (!d.sites.length && !d.loose.length) {
     root.innerHTML = `<div class="page">
-      <header><div><h1>Sites</h1><p>Les pages et les boutiques que l'agent construit, et leurs domaines.</p></div></header>
-      ${emptyState('Rien de construit pour l\'instant',
-        'Envoie-lui une photo de produit et dis-lui de te faire une boutique. Il écrit le texte, génère les visuels de chaque section et te rend de vrais fichiers.',
-        '<button class="btn p" id="to-chat">Parler à l\'agent</button>')}
+      <header><div><h1>${esc(t('sites.empty.head'))}</h1><p>${t('sites.empty.lead')}</p></div></header>
+      ${emptyState(t('sites.empty.title'),
+        t('sites.empty.body'),
+        `<button class="btn p" id="to-chat">${t('sites.empty.cta')}</button>`)}
     </div>`
     $('#to-chat').onclick = () => import('./app.js').then((m) => m.go('chat'))
     return
@@ -40,27 +50,28 @@ export async function mount(root) {
 
   root.innerHTML = `<div class="page">
     <header>
-      <div><h1>Sites &amp; domaines</h1>
-      <p>${d.sites.length} boutique(s) · ${pageCount} page(s) · tout est de vrais fichiers que tu peux ouvrir.</p></div>
+      <div><h1>${esc(t('sites.title'))}</h1>
+      <p>${t('sites.sub', { shops: num(d.sites.length), pages: num(pageCount) })}</p></div>
     </header>
 
     <div class="kpis">
-      ${kpi('pages', String(pageCount))}
-      ${kpi('commandes reçues', String(orderCount), orderCount ? 'depuis les formulaires' : '')}
-      ${kpi('valeur', money(revenue))}
-      ${kpi('IP de la plateforme', `<span style="font:600 15px var(--mono)">${esc(d.edge_ip)}</span>`, 'pour les enregistrements A')}
+      ${kpi(t('sites.kpi.pages'), num(pageCount))}
+      ${kpi(t('sites.kpi.orders'), num(orderCount), orderCount ? t('sites.kpi.ordersFrom') : '')}
+      ${kpi(t('sites.kpi.value'), money(revenue))}
+      ${kpi(t('sites.kpi.ip'), `<span style="font:600 15px var(--mono)">${esc(d.edge_ip)}</span>`, t('sites.kpi.ipFor'))}
     </div>
 
     <div id="body"></div>
 
-    ${orderCount ? `<h2 class="sec">Commandes reçues ${
-      `<span class="sim real">réel</span>`}</h2>
+    ${orderCount ? `<h2 class="sec">${t('sites.orders.title')} ${
+      `<span class="sim real">${t('sites.real')}</span>`}</h2>
       <div class="card">
-        <div class="body"><div class="why">Ces lignes-là ne sont pas simulées : quelqu'un a rempli
-          un formulaire sur une page générée, et la commande est en base.</div></div>
+        <div class="body"><div class="why">${t('sites.orders.why')}</div></div>
         <div style="overflow:auto"><table><thead><tr>
-          <th>produit</th><th>client</th><th>téléphone</th><th>wilaya</th>
-          <th class="num">qté</th><th class="num">total</th><th class="num">reçue</th>
+          <th>${t('sites.th.product')}</th><th>${t('sites.th.client')}</th>
+          <th>${t('sites.th.phone')}</th><th>${t('sites.th.wilaya')}</th>
+          <th class="num">${t('sites.th.qty')}</th><th class="num">${t('sites.th.total')}</th>
+          <th class="num">${t('sites.th.received')}</th>
         </tr></thead><tbody>
           ${o.orders.map((x) => `<tr>
             <td>${esc(x.product ?? '—')}</td><td>${esc(x.name ?? '')}</td>
@@ -76,18 +87,18 @@ export async function mount(root) {
   const body = $('#body')
   for (const s of d.sites) body.append(siteCard(s, root))
   if (d.loose.length) {
-    body.append(el('h2', 'sec', 'Pages seules'))
+    body.append(el('h2', 'sec', t('sites.loose.title')))
     const c = el('div', 'card')
     const b = el('div', 'body')
     const list = el('div', 'plist')
     for (const p of d.loose) {
       list.append(Object.assign(
         el('a', null, `<span>${esc(p.product)}</span><span class="px">${money(p.price_dzd)}${
-          p.orders ? ` · ${p.orders} cmd` : ''}</span>`),
+          p.orders ? ` · ${t('sites.page.orders', { n: num(p.orders) })}` : ''}</span>`),
         { href: p.url, target: '_blank', rel: 'noopener' }))
     }
-    b.append(el('div', 'why', "Des landings construites hors boutique. Attache-leur un domaine en créant d'abord une boutique."), list)
-    c.append(el('h3', null, `${d.loose.length} page(s)`), b)
+    b.append(el('div', 'why', t('sites.loose.why')), list)
+    c.append(el('h3', null, t('sites.loose.count', { n: num(d.loose.length) })), b)
     body.append(c)
   }
 }
@@ -96,7 +107,7 @@ function siteCard(s, root) {
   const c = el('div', 'card')
   c.style.marginBottom = '18px'
   const h = el('h3', null, esc(s.shop))
-  h.append(el('span', 'sim real', 'réel'))
+  h.append(el('span', 'sim real', t('sites.real')))
   const b = el('div', 'body')
 
   if (s.home_url) b.append(frame(s.home_url))
@@ -105,7 +116,8 @@ function siteCard(s, root) {
 
   const list = el('div', 'plist')
   if (s.home_url) {
-    list.append(Object.assign(el('a', null, `<span>accueil</span><span class="px">${s.pages.length} produits</span>`),
+    list.append(Object.assign(el('a', null, `<span>${t('sites.site.home')}</span><span class="px">${
+      t('sites.site.products', { n: num(s.pages.length) })}</span>`),
       { href: s.home_url, target: '_blank', rel: 'noopener' }))
   }
   for (const p of s.pages) {
@@ -116,27 +128,27 @@ function siteCard(s, root) {
   b.append(list)
 
   /* ── domains ──────────────────────────────────────────────────────────── */
-  b.append(el('h2', 'sec', 'Nom de domaine'))
+  b.append(el('h2', 'sec', t('sites.dom.section')))
   const doms = el('div')
   doms.style.display = 'grid'
   doms.style.gap = '10px'
   for (const d of s.domains) doms.append(domainRow(d, root))
-  if (!s.domains.length) doms.append(el('div', 'why warn', "Aucun domaine. La boutique est accessible par son fichier, mais elle n'a pas d'adresse."))
+  if (!s.domains.length) doms.append(el('div', 'why warn', t('sites.dom.none')))
   b.append(doms)
 
   const form = el('div', 'row')
   form.style.marginTop = '12px'
   form.innerHTML = `
-    <div><label class="f">Ajouter un domaine</label>
+    <div><label class="f">${t('sites.dom.addLabel')}</label>
       <input class="f" placeholder="sabat-dzair.dz" autocapitalize="off" spellcheck="false"></div>
-    <button class="btn p">${icon('plus', 15)} ajouter</button>`
+    <button class="btn p">${icon('plus', 15)} ${t('sites.dom.addBtn')}</button>`
   const input = form.querySelector('input')
   form.querySelector('button').onclick = async () => {
     const host = input.value.trim()
     if (!host) return
     try {
       await api('/domains', { method: 'POST', body: { site: s.id, host } })
-      toast(`${host} ajouté. Ajoute les deux enregistrements DNS, puis vérifie.`)
+      toast(t('sites.dom.added', { host }))
       mount(root)
     } catch (e) { toast(e.message, true) }
   }
@@ -148,42 +160,44 @@ function siteCard(s, root) {
 }
 
 function domainRow(d, root) {
-  const st = STATUS[d.status] ?? { c: '', t: d.status }
+  const st = STATUS[d.status] ?? { c: '', k: null }
+  // Statut inconnu : on affiche la valeur brute du serveur plutôt que rien.
+  const label = st.k ? t(st.k) : d.status
   const n = el('div')
   const row = el('div', 'domrow')
   row.innerHTML = `
     <span class="host">${esc(d.host)}</span>
-    <span class="chip ${st.c}">${esc(st.t)}</span>
-    ${d.kind === 'subdomain' ? '<span class="chip">sous-domaine plateforme</span>' : ''}
-    ${d.checked ? `<span class="chip">vérifié il y a ${esc(ago(d.checked))}</span>` : ''}
+    <span class="chip ${st.c}">${esc(label)}</span>
+    ${d.kind === 'subdomain' ? `<span class="chip">${t('sites.dom.subdomain')}</span>` : ''}
+    ${d.checked ? `<span class="chip">${esc(t('sites.dom.checked', { when: ago(d.checked) }))}</span>` : ''}
     <span class="right"></span>`
   const right = row.querySelector('.right')
 
   if (d.kind !== 'subdomain') {
-    const v = el('button', 'btn sm', `${icon('refresh', 14)} vérifier le DNS`)
-    const p = el('button', 'btn sm ghost', 'simuler la propagation')
+    const v = el('button', 'btn sm', `${icon('refresh', 14)} ${t('sites.dom.verify')}`)
+    const p = el('button', 'btn sm ghost', t('sites.dom.pretend'))
     right.append(v, p)
     v.onclick = async () => {
-      v.disabled = true; v.innerHTML = `${icon('clock', 14)} requête DNS…`
+      v.disabled = true; v.innerHTML = `${icon('clock', 14)} ${t('sites.dom.querying')}`
       try {
         const r = await api(`/domains/${d.id}/verify`, { method: 'POST' })
         out.innerHTML = checks(r)
-        toast(r.status === 'live' ? 'En ligne.' : `Toujours « ${r.status} » — regarde ce que le DNS a répondu.`,
+        toast(r.status === 'live' ? t('sites.dom.live') : t('sites.dom.stillNot', { status: r.status }),
           r.status !== 'live')
       } catch (e) { toast(e.message, true) }
-      v.disabled = false; v.innerHTML = `${icon('refresh', 14)} vérifier le DNS`
+      v.disabled = false; v.innerHTML = `${icon('refresh', 14)} ${t('sites.dom.verify')}`
     }
     p.onclick = async () => {
       await api(`/domains/${d.id}/pretend`, { method: 'POST' })
-      toast('Propagation simulée — et c\'est écrit comme tel.')
+      toast(t('sites.dom.pretended'))
       mount(root)
     }
   }
 
   const del = el('button', 'btn sm ghost', icon('trash', 14))
-  del.title = 'retirer'
+  del.title = t('sites.dom.remove')
   del.onclick = async () => {
-    if (!confirm(`Retirer ${d.host} ?`)) return
+    if (!confirm(t('sites.dom.confirm', { host: d.host }))) return
     await api(`/domains/${d.id}`, { method: 'DELETE' })
     mount(root)
   }
@@ -196,7 +210,7 @@ function domainRow(d, root) {
     const dns = el('div', 'dns')
     dns.innerHTML = d.records.map((r) =>
       `<div class="rec"><span class="ty">${esc(r.type)}</span><span>${esc(r.name)}</span><span>${esc(r.value)}</span></div>`).join('')
-    out.append(el('div', 'why', 'À ajouter chez ton registrar. Le bouton « vérifier » fait une vraie requête DNS.'), dns)
+    out.append(el('div', 'why', t('sites.dns.help')), dns)
   }
   return n
 }
@@ -208,6 +222,6 @@ function checks(r) {
     <div class="rec ${c.ok ? 'ok' : 'ko'}">
       <span class="ty">${esc(c.type)}</span>
       <span>${c.ok ? '✓' : '✗'} ${esc(c.why)}</span>
-      <span>${esc(c.got ? `reçu : ${[].concat(c.got).join(', ')}` : c.error ?? '')}</span>
+      <span>${esc(c.got ? t('sites.dns.got', { values: [].concat(c.got).join(', ') }) : c.error ?? '')}</span>
     </div>`).join('')}</div>`
 }

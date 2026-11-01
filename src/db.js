@@ -246,6 +246,63 @@ CREATE TABLE IF NOT EXISTS decisions (
   at       INTEGER NOT NULL
 );
 
+-- ── le catalogue fournisseur ──────────────────────────────────────────────
+-- Le marchand n'a pas forcément de produit. En Algérie, l'immense majorité
+-- des gens qui ouvrent une boutique en ligne vendent le stock de QUELQU'UN
+-- D'AUTRE : le fournisseur garde la marchandise et expédie, le dropshippeur
+-- apporte le client et garde la marge. Un agent marketing qui ne sait pas
+-- faire ça ne sert que la moitié du marché.
+--
+-- Les champs sont ceux du vrai contrat Dropdz, pas une invention :
+--   supplier_cost = supplierCostPrice, ce que le dropshippeur paie
+--   min_selling   = minSellingPrice, le prix de vente conseillé
+--   marge         = min_selling - supplier_cost, JAMAIS calculée sur un
+--                   « prix de détail » — c'est l'erreur qui a déjà produit
+--                   des imports à 0 DA dans l'application d'origine.
+-- Les textes sont en JSON {en,ar,fr} : le même produit se lit dans les trois
+-- langues de l'application.
+CREATE TABLE IF NOT EXISTS catalog_products (
+  id            TEXT PRIMARY KEY,
+  supplier      TEXT NOT NULL,
+  category      TEXT NOT NULL,
+  name          TEXT NOT NULL,
+  blurb         TEXT NOT NULL,
+  -- Le texte écrit par le FOURNISSEUR. Donnée tierce : elle est isolée avant
+  -- d'atteindre le modèle, jamais traitée comme une consigne.
+  record        TEXT,
+  supplier_cost INTEGER NOT NULL,
+  min_selling   INTEGER NOT NULL,
+  images        TEXT NOT NULL,
+  at            INTEGER NOT NULL
+);
+
+-- Pas d'identifiant stable sur une variante : dans la base d'origine la
+-- TAILLE est la clé, et c'est sur elle que la synchronisation de stock et la
+-- correspondance Shopify s'appuient déjà. On garde la même clé plutôt que
+-- d'en inventer une qui ne correspondrait à rien en amont.
+CREATE TABLE IF NOT EXISTS catalog_variants (
+  id      INTEGER PRIMARY KEY,
+  product TEXT NOT NULL REFERENCES catalog_products(id) ON DELETE CASCADE,
+  size    TEXT NOT NULL,
+  stock   INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS catalog_variants_product ON catalog_variants(product);
+
+-- Ce que le marchand a fait entrer dans SA boutique, et à quel prix il le
+-- vend — qui n'est pas forcément le prix conseillé. C'est cette table qui
+-- remplit enfin la liste de produits du briefing : avant elle, le serveur
+-- passait un tableau vide et l'agent ne pouvait littéralement pas savoir ce
+-- que le marchand vendait.
+CREATE TABLE IF NOT EXISTS imports (
+  id      INTEGER PRIMARY KEY,
+  session TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  product TEXT NOT NULL REFERENCES catalog_products(id) ON DELETE CASCADE,
+  selling INTEGER NOT NULL,
+  page    INTEGER REFERENCES pages(id) ON DELETE SET NULL,
+  at      INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS imports_once ON imports(session, product);
+
 -- Orders posted by a generated landing page. Real rows from a real form —
 -- the one number in this app that nothing simulates.
 CREATE TABLE IF NOT EXISTS orders (

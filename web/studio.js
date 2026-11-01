@@ -11,8 +11,14 @@
 // The cost is printed before the button, not after the bill. Four section
 // visuals are four muse-image calls, and someone three days from a deadline
 // should be able to see that before clicking.
-import { $, el, esc, icon, money, api, toast, loading, SESSION } from './ui.js'
+import { $, el, esc, icon, api, toast, loading, SESSION } from './ui.js'
 import { refresh } from './app.js'
+// Les chaînes sont dans `i18n/studio.js`, trois langues par clé, l'anglais par
+// défaut : le jury du hackathon lit l'anglais, le marchand lit la darija.
+// `money` était importé d'ui.js sans servir une seule fois ici — retiré. Les
+// nombres passent par le `num()` de la couche i18n : le séparateur de milliers
+// suit la langue au lieu d'être cloué au français.
+import { t, num } from './i18n.js'
 
 let D = null          // the catalogue + current options, from the server
 let O = {}            // what is selected right now
@@ -23,17 +29,17 @@ let building = false
 
 export async function mount(root) {
   if (!root.dataset.built) {
-    root.innerHTML = `<div class="studio-l" id="sl">${loading('studio')}</div>
+    root.innerHTML = `<div class="studio-l" id="sl">${loading(t('studio.loading'))}</div>
       <div class="studio-r">
         <div class="bar">
-          <span class="t">Aperçu</span>
-          <span class="sim real">réel</span>
+          <span class="t">${t('studio.preview')}</span>
+          <span class="sim real">${t('studio.real')}</span>
           <div class="right">
             <div class="seg" style="padding:3px">
-              <button data-dev="phone">téléphone</button>
-              <button data-dev="desk">bureau</button>
+              <button data-dev="phone">${t('studio.dev.phone')}</button>
+              <button data-dev="desk">${t('studio.dev.desk')}</button>
             </div>
-            <a class="btn sm" id="open" target="_blank" rel="noopener" style="display:none">${icon('ext', 14)} ouvrir</a>
+            <a class="btn sm" id="open" target="_blank" rel="noopener" style="display:none">${icon('ext', 14)} ${t('studio.open')}</a>
           </div>
         </div>
         <div class="stage" id="stage"></div>
@@ -43,6 +49,7 @@ export async function mount(root) {
       b.onclick = () => { device = b.dataset.dev; paintPreview() }
     }
   }
+  paintBar(root)
 
   try { D = await api('/landing') } catch (e) {
     $('#sl').innerHTML = `<div class="why bad">${esc(e.message)}</div>`; return
@@ -58,64 +65,77 @@ export async function mount(root) {
   paintPreview()
 }
 
+/* ── les libellés de la barre d'aperçu ────────────────────────────────────
+   Le squelette de droite n'est bâti qu'une fois (`dataset.built`), sinon
+   l'iframe se rechargerait à chaque fois qu'on revient sur l'écran. Mais
+   app.js remonte l'écran courant quand la langue change, en comptant sur le
+   fait qu'« un module réécrit son innerHTML en entrant » — une barre bâtie
+   une seule fois resterait, elle, dans la langue du premier affichage.
+   Mêmes nœuds, mêmes ids, mêmes gestionnaires : seuls les libellés sont
+   réécrits. */
+function paintBar(root) {
+  $('.bar .t', root).textContent = t('studio.preview')
+  $('.bar .sim', root).textContent = t('studio.real')
+  const dev = { phone: 'studio.dev.phone', desk: 'studio.dev.desk' }
+  for (const b of root.querySelectorAll('[data-dev]')) b.textContent = t(dev[b.dataset.dev])
+  $('#open', root).innerHTML = `${icon('ext', 14)} ${t('studio.open')}`
+}
+
 /* ── the panel ───────────────────────────────────────────────────────────── */
 function paintPanel() {
   const sl = $('#sl')
   sl.innerHTML = `
     <div style="margin-bottom:20px">
-      <h1 style="font-size:19px;font-weight:700;letter-spacing:-.02em;margin:0">Studio landing</h1>
-      <p style="color:var(--dim);font-size:13px;margin:5px 0 0">
-        Le modèle écrit le texte et dessine les visuels. La mise en page, elle, est du code —
-        donc elle est la même à chaque fois.</p>
+      <h1 style="font-size:19px;font-weight:700;letter-spacing:-.02em;margin:0">${t('studio.title')}</h1>
+      <p style="color:var(--dim);font-size:13px;margin:5px 0 0">${t('studio.lede')}</p>
     </div>
 
     <div class="fset">
-      <div class="lbl">Produit</div>
+      <div class="lbl">${t('studio.product')}</div>
       <input class="f" id="f-product" placeholder="صباط رياضي Adidas" value="${esc(form.product)}">
     </div>
     <div class="row" style="margin-bottom:18px">
-      <div><label class="f">Prix (DA)</label>
+      <div><label class="f">${t('studio.price')}</label>
         <input class="f" id="f-price" type="number" min="0" step="50" value="${esc(form.price_dzd)}"></div>
-      <div><label class="f">Boutique</label>
+      <div><label class="f">${t('studio.shop')}</label>
         <input class="f" id="f-shop" value="${esc(D.shop ?? '')}" placeholder="Sabat Dzair"></div>
     </div>
     <div class="fset">
-      <div class="lbl">Angle <span class="hint">la raison d'acheter, en une phrase</span></div>
-      <input class="f" id="f-angle" value="${esc(form.angle)}" placeholder="La qualité se voit, et tu paies à la livraison">
+      <div class="lbl">${t('studio.angle')} <span class="hint">${t('studio.angle.hint')}</span></div>
+      <input class="f" id="f-angle" value="${esc(form.angle)}" placeholder="${esc(t('studio.angle.ph'))}">
     </div>
 
     ${D.photos.length ? `<div class="fset">
-      <div class="lbl">Photos de référence <span class="hint">la 1ʳᵉ est la principale</span></div>
+      <div class="lbl">${t('studio.photos')} <span class="hint">${t('studio.photos.hint')}</span></div>
       <div class="phpick" id="phpick">
         ${D.photos.map((p) => {
           const i = O.photos.indexOf(p.url)
           return `<button data-u="${esc(p.url)}" class="${i >= 0 ? 'on' : ''}" title="${esc(p.label)}">
             <img src="${esc(p.url)}" alt="" loading="lazy">
             ${i >= 0 ? `<span class="n">${i + 1}</span>` : ''}
-            ${i === 0 ? '<span class="main">principale</span>' : ''}
+            ${i === 0 ? `<span class="main">${t('studio.photos.main')}</span>` : ''}
           </button>`
         }).join('')}
       </div>
       <div class="help">${O.photos.length
-        ? `${O.photos.length} sélectionnée(s). Reclique pour retirer.`
-        : "Aucune sélection : il prendra les créatives puis les photos de la session, dans cet ordre."}</div>
-    </div>` : `<div class="fset"><div class="why warn">Aucune photo dans cette session.
-      Envoie-en une à l'agent, ou génère des créatives — une page sans produit ne vend rien.</div></div>`}
+        ? t('studio.photos.count', { n: num(O.photos.length) })
+        : t('studio.photos.none')}</div>
+    </div>` : `<div class="fset"><div class="why warn">${t('studio.photos.empty')}</div></div>`}
 
-    <h2 class="sec" style="margin-top:26px">Réglages</h2>
+    <h2 class="sec" style="margin-top:26px">${t('studio.sec.settings')}</h2>
     <div id="knobs"></div>
 
-    <h2 class="sec">Sections</h2>
+    <h2 class="sec">${t('studio.sec.sections')}</h2>
     <div class="toggles" id="secs">
       ${D.sections.map((s) => `
         <div class="tog ${O.sections[s.k] ? 'on' : ''} ${s.locked ? 'lock' : ''}" data-k="${esc(s.k)}">
           <span class="sw"></span>
-          <div><div class="n">${esc(s.label)}${s.locked ? ' · toujours là' : ''}</div>
+          <div><div class="n">${s.locked ? t('studio.sections.locked', { label: esc(s.label) }) : esc(s.label)}</div>
             ${s.why ? `<div class="w">${esc(s.why)}</div>` : ''}</div>
         </div>`).join('')}
     </div>
 
-    <h2 class="sec">Ce qu'on n'ajoutera pas</h2>
+    <h2 class="sec">${t('studio.sec.refused')}</h2>
     <div class="toggles">
       ${D.refused.map((s) => `
         <div class="tog no"><span class="sw"></span>
@@ -124,22 +144,20 @@ function paintPanel() {
     </div>
 
     <div class="fset" style="margin-top:22px">
-      <div class="lbl">Consigne libre <span class="hint">facultatif</span></div>
+      <div class="lbl">${t('studio.notes')} <span class="hint">${t('studio.notes.hint')}</span></div>
       <textarea class="f" id="f-notes" rows="3"
-        placeholder="Ce que le marchand sait et que le modèle ne peut pas voir : la matière, la garantie, le délai réel…">${esc(form.notes)}</textarea>
-      <div class="help">Il suivra la consigne — sauf si elle lui demande d'affirmer un fait
-        qu'il ne peut pas vérifier. Ça, il refusera.</div>
+        placeholder="${esc(t('studio.notes.ph'))}">${esc(form.notes)}</textarea>
+      <div class="help">${t('studio.notes.help')}</div>
     </div>
 
     <div id="cost" class="help cost" style="margin:16px 0 10px"></div>
     <button class="btn p" id="build" style="width:100%;justify-content:center;padding:13px">
-      ${icon('bolt', 16)} Générer la page
+      ${icon('bolt', 16)} ${t('studio.build')}
     </button>
     <label class="tog" style="margin-top:8px" id="fresh-wrap">
       <span class="sw"></span>
-      <div><div class="n">Redessiner les visuels</div>
-        <div class="w">Par défaut, les visuels déjà sur le disque sont réutilisés — rebâtir une page
-          ne doit pas recoûter quatre générations d'images.</div></div>
+      <div><div class="n">${t('studio.fresh')}</div>
+        <div class="w">${t('studio.fresh.why')}</div></div>
     </label>
     <div id="prog"></div>`
 
@@ -163,9 +181,12 @@ function paintPanel() {
     }
   }
 
-  for (const t of sl.querySelectorAll('#secs .tog')) {
-    if (t.classList.contains('lock')) continue
-    t.onclick = () => { O.sections[t.dataset.k] = !O.sections[t.dataset.k]; t.classList.toggle('on'); save() }
+  // `tog` et pas `t` : `t` est maintenant la fonction de traduction, et une
+  // boucle qui la masque ferait rendre un élément du DOM au premier `t('…')`
+  // ajouté ici. Même boucle, mêmes gestionnaires — juste un nom qui ne mord pas.
+  for (const tog of sl.querySelectorAll('#secs .tog')) {
+    if (tog.classList.contains('lock')) continue
+    tog.onclick = () => { O.sections[tog.dataset.k] = !O.sections[tog.dataset.k]; tog.classList.toggle('on'); save() }
   }
 
   let fresh = false
@@ -202,7 +223,7 @@ function paintKnobs() {
 
     if (k === 'colorMode' && O.colorMode === 'impose') {
       const sw = el('div', 'swatch')
-      sw.innerHTML = `<input type="color" value="${esc(O.color)}" aria-label="couleur principale">
+      sw.innerHTML = `<input type="color" value="${esc(O.color)}" aria-label="${esc(t('studio.color.aria'))}">
         <span class="chip mono">${esc(O.color)}</span>`
       const inp = sw.querySelector('input')
       inp.oninput = () => { O.color = inp.value; sw.querySelector('.chip').textContent = inp.value; save() }
@@ -214,9 +235,11 @@ function paintKnobs() {
 function paintCost() {
   const n = $('#cost'); if (!n) return
   const imgs = O.scenes === 0 ? 0 : O.scenes === 2 ? 2 : 4
+  // `imgs` ne vaut jamais 1 (0, 2 ou 4), donc le pluriel du français n'avait
+  // qu'une seule issue : la clé le porte déjà, et l'arabe n'accorde pas pareil.
   n.textContent = imgs
-    ? `Coût : 1 appel texte + ${imgs} image${imgs > 1 ? 's' : ''} · environ ${30 + imgs * 11} s`
-    : 'Coût : 1 appel texte · environ 25 s'
+    ? t('studio.cost.images', { n: num(imgs), s: num(30 + imgs * 11) })
+    : t('studio.cost.text')
 }
 
 let saveTimer
@@ -228,7 +251,7 @@ function save() {
 /* ── building ────────────────────────────────────────────────────────────── */
 async function build(fresh) {
   if (building) return
-  if (!form.product.trim()) return toast('Il manque le nom du produit.', true)
+  if (!form.product.trim()) return toast(t('studio.need.product'), true)
   building = true
   const btn = $('#build')
   btn.disabled = true
@@ -259,24 +282,24 @@ async function build(fresh) {
         let e; try { e = JSON.parse(line) } catch { continue }
 
         if (e.type === 'progress') {
-          if (e.phase === 'copy') step('le modèle écrit le texte…')
-          else if (e.phase === 'scenes') step('il dessine les visuels…')
-          else if (e.phase === 'scene') step(`visuel « ${e.label} » · ${e.step}/${e.total}`)
+          if (e.phase === 'copy') step(t('studio.step.copy'))
+          else if (e.phase === 'scenes') step(t('studio.step.scenes'))
+          else if (e.phase === 'scene') step(t('studio.step.scene', { label: e.label, step: num(e.step), total: num(e.total) }))
         }
         if (e.type === 'done') {
           lines.forEach((l) => l.classList.replace('now', 'done'))
           const r = e.result
-          const bits = [`${Math.round(r.bytes / 1024)} Ko`]
-          if (r.scenes?.length) bits.push(`${r.scenes.length} visuel(s)`)
-          if (r.scenes_reused) bits.push(`${r.scenes_reused} réutilisé(s)`)
-          step(`prête — ${bits.join(' · ')}`, 'done')
+          const bits = [t('studio.done.size', { n: num(Math.round(r.bytes / 1024)) })]
+          if (r.scenes?.length) bits.push(t('studio.done.scenes', { n: num(r.scenes.length) }))
+          if (r.scenes_reused) bits.push(t('studio.done.reused', { n: num(r.scenes_reused) }))
+          step(t('studio.done.ready', { bits: bits.join(' · ') }), 'done')
           for (const f of r.scenes_failed ?? []) {
-            prog.firstElementChild.append(el('div', 'ln', `<span class="dot"></span><span style="color:var(--warn)">visuel « ${esc(f.slot)} » non généré : ${esc(f.error)}</span>`))
+            prog.firstElementChild.append(el('div', 'ln', `<span class="dot"></span><span style="color:var(--warn)">${t('studio.done.failed', { slot: esc(f.slot), error: esc(f.error) })}</span>`))
           }
           preview = r.url + '?t=' + Date.now()
           paintPreview()
           refresh()
-          toast('Page générée.')
+          toast(t('studio.done.toast'))
         }
         if (e.type === 'error') {
           step(e.error, 'done')
@@ -299,14 +322,13 @@ function paintPreview() {
 
   if (!preview) {
     stage.innerHTML = `<div class="empty" style="padding:60px 20px">
-      <div class="big">◌</div><h3>Rien à montrer encore</h3>
-      <p>Règle les paramètres à gauche, puis génère. La page apparaîtra ici, et ce sera
-         un vrai fichier que tu peux ouvrir, envoyer ou héberger.</p></div>`
+      <div class="big">◌</div><h3>${t('studio.empty.title')}</h3>
+      <p>${t('studio.empty.body')}</p></div>`
     open.style.display = 'none'
     return
   }
   stage.classList.toggle('phone', device === 'phone')
-  stage.innerHTML = `<iframe class="${device}" src="${esc(preview)}" title="aperçu"></iframe>`
+  stage.innerHTML = `<iframe class="${device}" src="${esc(preview)}" title="${esc(t('studio.preview.frame'))}"></iframe>`
   open.href = preview
   open.style.display = ''
 }

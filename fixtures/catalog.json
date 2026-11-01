@@ -1,0 +1,266 @@
+{
+  "_readme": [
+    "Le catalogue fournisseur, embarqué dans le dépôt.",
+    "",
+    "POURQUOI UNE FIXTURE ET PAS L'API : aucun endpoint du vrai catalogue ne",
+    "liste les produits sans clé (GET /api/v1/products exige un Bearer pk_live_",
+    "avec le scope products:read), et l'organisateur du hackathon exige qu'un",
+    "juré lance le dépôt sans créer de compte ni brancher d'identifiant. Le",
+    "catalogue doit donc exister hors ligne. SAWT_CATALOG_API branche la vraie",
+    "source quand une clé est présente ; sinon c'est ce fichier.",
+    "",
+    "LES CHAMPS SONT CEUX DU VRAI CONTRAT, pas une invention :",
+    "  supplier_cost  = supplierCostPrice — ce que le dropshippeur paie",
+    "  min_selling    = minSellingPrice   — le prix de vente conseillé",
+    "  marge          = min_selling - supplier_cost, JAMAIS basée sur `price`",
+    "                   (qui est un prix de détail, source d'un bug d'import à 0 DA)",
+    "  variants       = [{size, stock}] sans identifiant stable : la taille EST",
+    "                   la clé, comme dans la base d'origine.",
+    "",
+    "LES PRODUITS SONT SANS MARQUE, délibérément. Le règlement du concours a une",
+    "clause « trademark », et le catalogue réel contient des répliques (Casablanca,",
+    "Prada, Dior) qui ne peuvent ni être montrées ni être mises en publicité.",
+    "",
+    "LES IMAGES SONT GÉNÉRÉES par muse-image-1.0 depuis le champ `shots`, puis",
+    "converties en WebP et versionnées ici (`npm run catalog`). Donc : pas de",
+    "photo de tiers, pas de droits à demander, et le dépôt tourne hors ligne.",
+    "",
+    "`record` est le texte du fournisseur, en français, tel qu'il arrive dans la",
+    "vraie base. Il est volontairement imparfait — c'est une donnée TIERS, et",
+    "c'est elle qu'on isole avant de la donner au modèle."
+  ],
+
+  "suppliers": {
+    "atlas": { "name": "Atlas Diffusion", "wilaya": "Alger", "since": 2023 },
+    "sahel": { "name": "Sahel Import", "wilaya": "Oran", "since": 2024 },
+    "nedjma": { "name": "Nedjma Maison", "wilaya": "Constantine", "since": 2022 }
+  },
+
+  "products": [
+    {
+      "id": "sacoche-bandouliere",
+      "supplier": "atlas",
+      "category": "accessories",
+      "name": { "en": "Crossbody bag, grained black", "ar": "ساكوش كحلة بالكتف", "fr": "Sacoche bandoulière noire" },
+      "blurb": {
+        "en": "Flat enough for a phone, a wallet and papers. Grained finish, no logo.",
+        "ar": "ترتاح فيها التيليفون، البورتفاي والورق. جلد محبّب، بلا ماركة.",
+        "fr": "De quoi porter téléphone, portefeuille et papiers. Grain mat, sans logo."
+      },
+      "record": "Sacoche homme bandouliere simili cuir graine noir. 2 compartiments zip + 1 poche avant. Sangle reglable. Dim 24x18x6cm. Arrivage 120 pcs.",
+      "supplier_cost": 1250,
+      "min_selling": 2900,
+      "variants": [{ "size": "unique", "stock": 118 }],
+      "images": ["sacoche-bandouliere-1.webp", "sacoche-bandouliere-2.webp"],
+      "shots": [
+        "Studio product photograph of a plain black grained faux-leather crossbody messenger bag with an adjustable webbing strap, two zip compartments and a front pocket, standing upright on a clean seamless light grey background, one large softbox, soft floor shadow, premium catalogue quality, three-quarter view.",
+        "Macro close-up of the grained black faux-leather surface of a bag, the zip pull and the stitching along the edge, raking light so the grain and the thread are clearly visible, shallow depth of field, neutral grey background."
+      ]
+    },
+    {
+      "id": "doudoune-longue",
+      "supplier": "sahel",
+      "category": "clothing",
+      "name": { "en": "Long hooded puffer coat", "ar": "دودون طويل بالكابوش", "fr": "Doudoune longue à capuche" },
+      "blurb": {
+        "en": "Knee length, hooded, matte shell. For the Algiers winter, not the catwalk.",
+        "ar": "يوصل للركبة، بالكابوش، قماش مطفي. لشتاء الجزائر، ماشي للعرض.",
+        "fr": "Longueur genou, capuche, tissu mat. Pour l'hiver d'Alger, pas pour le défilé."
+      },
+      "record": "Doudoune femme longue capuche amovible, matelassage vertical, 2 poches zippees, tissu deperlant mat. Tailles S M L XL. Coloris: noir, beige. Stock limite sur XL.",
+      "supplier_cost": 4200,
+      "min_selling": 8500,
+      "variants": [
+        { "size": "S", "stock": 24 },
+        { "size": "M", "stock": 31 },
+        { "size": "L", "stock": 19 },
+        { "size": "XL", "stock": 4 }
+      ],
+      "images": ["doudoune-longue-1.webp", "doudoune-longue-2.webp"],
+      "shots": [
+        "Studio product photograph of a long black matte quilted hooded puffer coat for women, knee length, vertical quilting, two zipped pockets, shown on an invisible mannequin on a clean seamless light grey background, soft large softbox, gentle floor shadow, no logo, no text, premium catalogue quality.",
+        "Close-up of the vertical quilting and the zip of a matte black puffer coat, the hood edge visible at the top, raking soft light so the stitching channels read clearly, shallow depth of field, neutral background."
+      ]
+    },
+    {
+      "id": "basket-course-homme",
+      "supplier": "atlas",
+      "category": "shoes",
+      "name": { "en": "Men's running shoes, mesh", "ar": "صباط سبور رجالي", "fr": "Baskets running homme" },
+      "blurb": {
+        "en": "Breathable mesh, thick foam sole. Sizes 40 to 45, no brand mark.",
+        "ar": "قماش يتنفّس، نعل سميك. من 40 حتى 45، بلا ماركة.",
+        "fr": "Mesh respirant, semelle épaisse. Du 40 au 45, sans marque."
+      },
+      "record": "Basket running homme mesh respirant semelle EVA epaisse 4cm. Pointures 40 a 45. Coloris gris anthracite / blanc. Poids 290g. Carton de 30 paires.",
+      "supplier_cost": 2300,
+      "min_selling": 4900,
+      "variants": [
+        { "size": "40", "stock": 12 },
+        { "size": "41", "stock": 22 },
+        { "size": "42", "stock": 28 },
+        { "size": "43", "stock": 25 },
+        { "size": "44", "stock": 14 },
+        { "size": "45", "stock": 6 }
+      ],
+      "images": ["basket-course-homme-1.webp", "basket-course-homme-2.webp"],
+      "shots": [
+        "Studio product photograph of a pair of plain anthracite grey and white men's running shoes with breathable mesh uppers and a thick white EVA foam midsole, no logo and no text anywhere, three-quarter view on a clean seamless light grey background, one large softbox, soft floor shadow, premium catalogue quality.",
+        "Macro close-up of the mesh upper and the thick white foam midsole of a grey running shoe, raking light showing the weave of the mesh and the texture of the foam, shallow depth of field, neutral grey background, no logo, no text."
+      ]
+    },
+    {
+      "id": "abaya-croisee",
+      "supplier": "sahel",
+      "category": "clothing",
+      "name": { "en": "Wrap abaya, crepe", "ar": "عباية كروازي كريب", "fr": "Abaya croisée en crêpe" },
+      "blurb": {
+        "en": "Heavy crepe that falls straight and does not cling. Belt included.",
+        "ar": "كريب ثقيل ينزل مليح وما يلصقش. الحزام معاها.",
+        "fr": "Crêpe lourd qui tombe droit et ne colle pas. Ceinture fournie."
+      },
+      "record": "Abaya croisee crepe lourd (Nida) ceinture assortie. Longueurs 54 56 58 60. Coloris: noir, vert sapin, bordeaux. Manches larges. Livraison en pochette.",
+      "supplier_cost": 2800,
+      "min_selling": 5900,
+      "variants": [
+        { "size": "54", "stock": 16 },
+        { "size": "56", "stock": 27 },
+        { "size": "58", "stock": 21 },
+        { "size": "60", "stock": 9 }
+      ],
+      "images": ["abaya-croisee-1.webp", "abaya-croisee-2.webp"],
+      "shots": [
+        "Studio product photograph of a long black wrap abaya in heavy matte crepe with wide sleeves and a matching fabric belt, shown on an invisible mannequin, the fabric falling in straight folds, clean seamless light grey background, soft large softbox, gentle floor shadow, no logo, no text, premium catalogue quality.",
+        "Close-up of the heavy matte black crepe fabric of a garment, the wrap edge and the tied fabric belt, raking soft light so the weave and the drape of the folds are visible, shallow depth of field, neutral background."
+      ]
+    },
+    {
+      "id": "miroir-led",
+      "supplier": "nedjma",
+      "category": "beauty",
+      "name": { "en": "LED vanity mirror", "ar": "مراية بالضو ليد", "fr": "Miroir lumineux LED" },
+      "blurb": {
+        "en": "Three light temperatures, USB. Stands on a table or hangs.",
+        "ar": "ثلاث درجات تاع الضو، بـ USB. يوقف على الطاولة ولا يتعلّق.",
+        "fr": "Trois températures de lumière, USB. Posé ou accroché."
+      },
+      "record": "Miroir maquillage LED 3 temperatures tactile, rechargeable USB-C, diametre 20cm, pied rabattable + trou mural. Boite individuelle. Attention: cable fourni, pas d adaptateur secteur.",
+      "supplier_cost": 1650,
+      "min_selling": 3600,
+      "variants": [{ "size": "unique", "stock": 64 }],
+      "images": ["miroir-led-1.webp", "miroir-led-2.webp"],
+      "shots": [
+        "Studio product photograph of a round white LED vanity makeup mirror, 20cm diameter, with a glowing ring of warm light around the glass, a folding stand behind it and a touch button at the base, standing on a clean seamless light grey background, soft large softbox, gentle floor shadow, no logo, no text, premium catalogue quality.",
+        "Close-up of the glowing LED ring and the touch control of a round white vanity mirror, the light soft and even, shallow depth of field, neutral grey background, no text, no logo."
+      ]
+    },
+    {
+      "id": "gourde-isotherme",
+      "supplier": "nedjma",
+      "category": "home",
+      "name": { "en": "Insulated flask, 750 ml", "ar": "ڨورد إيزوتارم 750 مل", "fr": "Gourde isotherme 750 ml" },
+      "blurb": {
+        "en": "Stainless steel, double wall. Keeps coffee hot through a work morning.",
+        "ar": "ستانلس، جدار مزدوج. تبقى القهوة سخونة الصباح كامل.",
+        "fr": "Inox double paroi. Le café reste chaud toute la matinée."
+      },
+      "record": "Gourde isotherme inox 304 double paroi 750ml, bouchon a vis joint silicone, revetement poudre mat. Coloris: noir mat, vert kaki, sable. Garde chaud 12h froid 24h (donnee fournisseur, non testee).",
+      "supplier_cost": 950,
+      "min_selling": 2400,
+      "variants": [{ "size": "unique", "stock": 140 }],
+      "images": ["gourde-isotherme-1.webp", "gourde-isotherme-2.webp"],
+      "shots": [
+        "Studio product photograph of a matte black stainless steel insulated water flask, 750ml, cylindrical with a screw cap, powder-coated matte finish, standing upright on a clean seamless light grey background, one large softbox, soft floor shadow, no logo, no text, premium catalogue quality.",
+        "Macro close-up of the matte powder-coated surface and the screw cap thread of a black steel flask, raking light so the matte texture and the cap knurling read clearly, shallow depth of field, neutral grey background."
+      ]
+    },
+    {
+      "id": "couteaux-cuisine",
+      "supplier": "nedjma",
+      "category": "home",
+      "name": { "en": "Kitchen knife set, 5 pieces", "ar": "طقم سكاكين 5 قطع", "fr": "Couteaux de cuisine, 5 pièces" },
+      "blurb": {
+        "en": "Five knives and a wooden block. Stainless blades, riveted handles.",
+        "ar": "خمس سكاكين وقاعدة خشب. نصال ستانلس، يدين مثبتين.",
+        "fr": "Cinq couteaux et un bloc bois. Lames inox, manches rivetés."
+      },
+      "record": "Set 5 couteaux cuisine inox manche ABS rivete + bloc bois hetre. Chef 20cm, santoku 17cm, polyvalent 12cm, office 9cm, eplucheur. Vendu sous blister.",
+      "supplier_cost": 2100,
+      "min_selling": 4500,
+      "variants": [{ "size": "unique", "stock": 38 }],
+      "images": ["couteaux-cuisine-1.webp", "couteaux-cuisine-2.webp"],
+      "shots": [
+        "Studio product photograph of a five-piece kitchen knife set with plain stainless steel blades and black riveted handles, standing in a light beech wooden block, on a clean seamless light grey background, one large softbox, soft floor shadow, no logo, no text, premium catalogue quality.",
+        "Macro close-up of a stainless steel chef knife blade and its black riveted handle resting on a neutral grey surface, raking light along the blade showing the steel finish and the three rivets, shallow depth of field, no text, no logo."
+      ]
+    },
+    {
+      "id": "basket-enfant",
+      "supplier": "atlas",
+      "category": "shoes",
+      "name": { "en": "Kids' sneakers, scratch", "ar": "صباط صغار بالسكراتش", "fr": "Baskets enfant à scratch" },
+      "blurb": {
+        "en": "Two scratch straps, no laces. Sizes 28 to 34.",
+        "ar": "زوج سكراتش، بلا لاصي. من 28 حتى 34.",
+        "fr": "Deux scratchs, pas de lacets. Du 28 au 34."
+      },
+      "record": "Basket enfant mixte 2 bandes scratch, semelle caoutchouc souple antiderapante, doublure textile. Pointures 28 a 34. Coloris blanc/gris. 25 paires par taille a la commande.",
+      "supplier_cost": 1400,
+      "min_selling": 3200,
+      "variants": [
+        { "size": "28", "stock": 18 },
+        { "size": "29", "stock": 20 },
+        { "size": "30", "stock": 23 },
+        { "size": "31", "stock": 17 },
+        { "size": "32", "stock": 15 },
+        { "size": "33", "stock": 11 },
+        { "size": "34", "stock": 7 }
+      ],
+      "images": ["basket-enfant-1.webp", "basket-enfant-2.webp"],
+      "shots": [
+        "Studio product photograph of a pair of small plain white and grey children's sneakers with two hook-and-loop scratch straps instead of laces and a flexible white rubber sole, no logo and no text anywhere, three-quarter view on a clean seamless light grey background, soft large softbox, gentle floor shadow, premium catalogue quality.",
+        "Close-up of the two hook-and-loop straps and the flexible white rubber sole of a small white children's sneaker, raking light showing the strap texture and the sole tread, shallow depth of field, neutral grey background, no logo, no text."
+      ]
+    },
+    {
+      "id": "mousseur-lait",
+      "supplier": "nedjma",
+      "category": "home",
+      "name": { "en": "Electric milk frother", "ar": "موسور الحليب الكهربائي", "fr": "Mousseur à lait électrique" },
+      "blurb": {
+        "en": "Hot or cold foam in a minute. Rinses under the tap.",
+        "ar": "رغوة سخونة ولا باردة في دقيقة. تغسلها تحت الروبيني.",
+        "fr": "Mousse chaude ou froide en une minute. Se rince sous l'eau."
+      },
+      "record": "Mousseur a lait electrique inox 240ml, 2 fonctions chaud/froid, base detachable, arret auto. 500W. Prise type C. Notice FR/AR.",
+      "supplier_cost": 2600,
+      "min_selling": 5400,
+      "variants": [{ "size": "unique", "stock": 41 }],
+      "images": ["mousseur-lait-1.webp", "mousseur-lait-2.webp"],
+      "shots": [
+        "Studio product photograph of a small brushed stainless steel electric milk frother jug with a black handle and a detachable base, 240ml, standing on a clean seamless light grey background, one large softbox, soft floor shadow, no logo, no text, premium catalogue quality.",
+        "Close-up of the brushed stainless steel body and the black handle junction of a small milk frother, raking light showing the brushed grain of the metal, shallow depth of field, neutral grey background, no text, no logo."
+      ]
+    },
+    {
+      "id": "tapis-priere",
+      "supplier": "sahel",
+      "category": "home",
+      "name": { "en": "Padded prayer mat", "ar": "سجادة صلاة مبطّنة", "fr": "Tapis de prière matelassé" },
+      "blurb": {
+        "en": "Thick foam under velvet. Folds into its own strap.",
+        "ar": "إسفنج سميك تحت المخمل. تتطوى في الحزام تاعها.",
+        "fr": "Mousse épaisse sous le velours. Se plie dans sa sangle."
+      },
+      "record": "Tapis de priere matelasse velours mousse 1cm, 110x65cm, pliable avec sangle. Coloris: bleu nuit, vert, gris. Motif mihrab discret tisse. Lavable a la main.",
+      "supplier_cost": 1900,
+      "min_selling": 4200,
+      "variants": [{ "size": "unique", "stock": 52 }],
+      "images": ["tapis-priere-1.webp", "tapis-priere-2.webp"],
+      "shots": [
+        "Studio product photograph of a padded navy blue velvet prayer mat, 110x65cm, with a thick foam layer and a discreet woven arch motif, laid flat and slightly angled on a clean seamless light grey background, soft large softbox, gentle shadow, no text, no lettering, no calligraphy, premium catalogue quality.",
+        "Macro close-up of the navy velvet pile and the quilted padding of a prayer mat, raking light so the nap of the velvet and the stitching are visible, shallow depth of field, neutral grey background, no text, no lettering."
+      ]
+    }
+  ]
+}

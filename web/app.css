@@ -108,7 +108,127 @@ html{height:100%}
 body{
   margin:0;height:100dvh;overflow:hidden;background:var(--bg);color:var(--ink);
   font:15px/1.6 var(--sans);-webkit-font-smoothing:antialiased;
-  display:grid;grid-template-columns:var(--rail) minmax(0,1fr);
+}
+
+/* ══ les deux coques ═══════════════════════════════════════════════════
+   Le téléphone est la coque PAR DÉFAUT, et ce n'est pas une coquetterie :
+   le marchand à qui ce produit s'adresse tient son commerce dans une main,
+   debout dans sa boutique. Une application qu'on ne teste qu'en 1440 px de
+   large est une application dont on découvre les défauts le jour de la
+   démonstration. Donc on vit dedans.
+   La coque bureau reste là pour les tableaux denses (les KPI d'une
+   campagne) — un bouton hors de l'appareil, rien de plus.
+
+   Les deux coques partagent EXACTEMENT les mêmes éléments ; seule la grille
+   change. C'est ce qui permet de basculer sans remonter un seul module.    */
+#stage{height:100dvh;display:grid;place-items:center;overflow:hidden;position:relative}
+
+#device{
+  position:relative;overflow:hidden;background:var(--bg);
+  display:grid;min-width:0;min-height:0;
+  grid-template-columns:var(--rail) minmax(0,1fr);
+  grid-template-rows:auto minmax(0,1fr);
+  grid-template-areas:"bar bar" "rail main";
+  width:100%;height:100dvh;
+}
+#appbar{grid-area:bar}
+#rail{grid-area:rail}
+#device > main{grid-area:main}
+
+/* ── coque téléphone ─────────────────────────────────────────────────── */
+:root[data-shell=phone] #stage{
+  background:
+    radial-gradient(120% 90% at 50% -10%,var(--accent-soft),transparent 60%),
+    var(--sunk);
+}
+:root[data-shell=phone] #device{
+  width:min(412px,100vw);
+  height:min(880px,100dvh);
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:auto minmax(0,1fr) auto;
+  grid-template-areas:"bar" "main" "rail";
+  border-radius:38px;
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 0 0 11px #14171d,
+    0 0 0 12px rgba(255,255,255,.07),
+    0 44px 90px -24px rgba(0,0,0,.6);
+}
+/* L'encoche. Purement décorative, et c'est le but : elle dit « téléphone »
+   avant qu'on ait lu un seul mot. */
+:root[data-shell=phone] #device::before{
+  content:"";position:absolute;top:9px;left:50%;translate:-50% 0;z-index:60;
+  width:104px;height:26px;border-radius:99px;background:#14171d;pointer-events:none;
+}
+:root[data-shell=phone] #appbar{padding-top:40px}
+
+/* Sur un VRAI téléphone, le cadre n'a plus de sens : on prend tout l'écran,
+   encoche comprise, et on respecte les zones sûres du système. */
+@media (max-width:640px){
+  :root[data-shell=phone] #stage{background:var(--bg);place-items:stretch}
+  :root[data-shell=phone] #device{
+    width:100%;height:100dvh;border-radius:0;box-shadow:none;
+  }
+  :root[data-shell=phone] #device::before{display:none}
+  :root[data-shell=phone] #appbar{padding-top:max(10px,env(safe-area-inset-top))}
+  :root[data-shell=phone] #rail{padding-bottom:max(6px,env(safe-area-inset-bottom))}
+  #stagebar{display:none}
+}
+
+/* ── la barre hors de l'appareil ─────────────────────────────────────── */
+#stagebar{
+  position:fixed;top:16px;inset-inline-end:16px;z-index:70;display:flex;gap:8px;
+}
+#stagebar .icon{background:var(--panel);border:1px solid var(--line);color:var(--dim)}
+#stagebar .icon:hover{color:var(--ink);border-color:var(--line-2)}
+:root[data-shell=desk] #stagebar{top:12px}
+
+/* ══ la barre du haut ══════════════════════════════════════════════════ */
+#appbar{
+  display:flex;align-items:center;gap:8px;padding:10px 14px;min-width:0;
+  background:#0c0e12;color:#8b949e;position:relative;z-index:40;
+}
+#appbar::after{content:"";position:absolute;bottom:0;inset-inline:0;height:1px;
+  background:linear-gradient(90deg,transparent,#38e0ad,transparent);opacity:.5}
+#appbar .sp{flex:1;min-width:0}
+#appbar .wordmark{color:#e6edf3;font-size:15px;font-weight:720;letter-spacing:-.02em}
+#appbar .ar{font-family:var(--arabic);color:#5c6672;font-size:13px}
+#appbar .orb{
+  width:26px;height:26px;border-radius:50%;flex:0 0 auto;position:relative;
+  background:radial-gradient(circle at 32% 28%,#38e0ad,var(--accent) 64%);
+}
+#appbar .orb::after{
+  content:"";position:absolute;inset:-5px;border-radius:50%;
+  border:1.5px solid #38e0ad;opacity:0;transform:scale(.8);
+}
+body.busy #appbar .orb::after{animation:breathe 1.9s cubic-bezier(.4,0,.2,1) infinite}
+@keyframes breathe{0%{opacity:.6;transform:scale(.8)}70%,100%{opacity:0;transform:scale(1.5)}}
+
+#appbar .mode{
+  font:600 8.5px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase;color:#d4a24c;
+  background:rgba(212,162,76,.14);border:1px solid rgba(212,162,76,.3);padding:4px 7px;border-radius:99px;
+  cursor:default;flex:0 0 auto;
+}
+/* Le cerveau : vert quand ce sont les poids ouverts, pour qu'on le voie à
+   l'écran pendant une démonstration sans avoir à ouvrir les réglages. */
+#appbar .mode.brain{color:#8b949e;background:rgba(139,148,158,.12);border-color:rgba(139,148,158,.26);
+  cursor:pointer}
+#appbar .mode.brain.open{color:#5eead4;background:rgba(56,224,173,.14);border-color:rgba(56,224,173,.34)}
+#appbar .mode.brain:hover{filter:brightness(1.25)}
+
+#appbar .chip.lang{
+  font:700 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+  color:#8b949e;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  padding:6px 9px;border-radius:99px;cursor:pointer;flex:0 0 auto;transition:.15s;
+}
+#appbar .chip.lang:hover{color:#e6edf3;background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.18)}
+#appbar .icon.sm{color:#8b949e;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+#appbar .icon.sm:hover{color:#e6edf3;background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.18)}
+
+/* Un écran étroit ne garde que l'essentiel : l'identité, la langue, le
+   thème. Le modèle et le mode passent dans les Réglages. */
+@media (max-width:420px){
+  #appbar .ar,#appbar #mode{display:none}
 }
 :lang(ar),[dir=rtl]{font-family:var(--arabic)}
 button,input,select,textarea{font-family:inherit}
@@ -117,23 +237,8 @@ button,input,select,textarea{font-family:inherit}
 /* ══ the rail ═══════════════════════════════════════════════════════════ */
 #rail{
   background:#0c0e12;color:#8b949e;display:flex;flex-direction:column;align-items:center;
-  padding:14px 0 10px;gap:4px;overflow:hidden;z-index:30;position:relative;
+  padding:10px 0;gap:4px;overflow:hidden;z-index:30;position:relative;
 }
-/* Une arête lumineuse en haut du rail : discrète, mais c'est elle qui donne
-   à l'app un air d'instrument plutôt que de tableau de bord générique. */
-#rail::before{content:"";position:absolute;top:0;inset-inline:0;height:1px;
-  background:linear-gradient(90deg,transparent,#38e0ad,transparent);opacity:.55}
-#rail .orb{
-  width:30px;height:30px;border-radius:50%;flex:0 0 auto;position:relative;margin-bottom:12px;
-  background:radial-gradient(circle at 32% 28%,#38e0ad,var(--accent) 64%);
-}
-#rail .orb::after{
-  content:"";position:absolute;inset:-6px;border-radius:50%;
-  border:1.5px solid #38e0ad;opacity:0;transform:scale(.8);
-}
-body.busy #rail .orb::after{animation:breathe 1.9s cubic-bezier(.4,0,.2,1) infinite}
-@keyframes breathe{0%{opacity:.6;transform:scale(.8)}70%,100%{opacity:0;transform:scale(1.5)}}
-
 #rail nav{display:flex;flex-direction:column;gap:3px;width:100%;padding:0 8px;flex:1;min-height:0;overflow-y:auto}
 #rail nav::-webkit-scrollbar{width:0}
 #rail button.tab{
@@ -154,18 +259,31 @@ body.busy #rail .orb::after{animation:breathe 1.9s cubic-bezier(.4,0,.2,1) infin
   text-align:center;box-shadow:0 0 0 2px #12151a;
 }
 #rail .pip.calm{background:#2d6a4f}
-#rail .foot{display:flex;flex-direction:column;gap:5px;align-items:center;padding-top:8px;width:100%}
-#rail .mode{
-  font:600 8.5px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase;color:#d4a24c;
-  background:rgba(212,162,76,.14);border:1px solid rgba(212,162,76,.3);padding:4px 7px;border-radius:99px;
-  cursor:default;
+/* ── le rail devient la barre du bas ───────────────────────────────────
+   Mêmes boutons, même ordre, même badge : on retourne la grille et on
+   répartit. Huit onglets ne tiennent pas en bas d'un téléphone sans
+   défilement — c'est assumé, la barre défile horizontalement et les trois
+   premiers (Agent, Catalogue, Studio) sont ceux qu'on touche vraiment. */
+:root[data-shell=phone] #rail{
+  flex-direction:row;padding:4px 0 6px;gap:0;
+  border-top:1px solid rgba(255,255,255,.07);
 }
-/* Le cerveau : vert quand ce sont les poids ouverts, pour qu'on le voie à
-   l'écran pendant une démonstration sans avoir à ouvrir les réglages. */
-#rail .mode.brain{color:#8b949e;background:rgba(139,148,158,.12);border-color:rgba(139,148,158,.26);
-  cursor:pointer}
-#rail .mode.brain.open{color:#5eead4;background:rgba(56,224,173,.14);border-color:rgba(56,224,173,.34)}
-#rail .mode.brain:hover{filter:brightness(1.25)}
+:root[data-shell=phone] #rail nav{
+  flex-direction:row;padding:0 6px;gap:2px;overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;scroll-snap-type:x proximity;
+}
+:root[data-shell=phone] #rail nav::-webkit-scrollbar{height:0}
+:root[data-shell=phone] #rail button.tab{
+  width:auto;flex:0 0 auto;min-width:62px;padding:7px 8px 5px;scroll-snap-align:center;
+  font-size:9.5px;
+}
+:root[data-shell=phone] #rail button.tab svg{width:20px;height:20px}
+/* Le liseré de l'onglet actif passe du côté au-dessus : en bas d'écran, une
+   barre verticale à gauche d'un bouton ne veut plus rien dire. */
+:root[data-shell=phone] #rail button.tab.on::before{
+  inset-inline-start:50%;top:0;translate:-50% 0;width:20px;height:2.5px;border-radius:0 0 3px 3px;
+}
+:root[data-shell=phone] #rail .pip{top:1px;inset-inline-end:5px}
 
 /* ══ view frame ════════════════════════════════════════════════════════ */
 main{min-width:0;min-height:0;overflow:hidden;position:relative}
@@ -330,7 +448,11 @@ input.f:focus,select.f:focus,textarea.f:focus{border-color:var(--accent);box-sha
 [dir=rtl] .msg.bot{padding:1px 18px 1px 0}
 .msg.ask{align-self:stretch;background:var(--warn-soft);border:1px solid var(--warn-line);
   color:var(--ink-warn);padding:13px 16px;border-radius:var(--r)}
-.msg.ask::before{content:"il lui manque quelque chose";display:block;font:600 9.5px/1 var(--mono);
+/* Les deux seules chaînes de l'interface que JavaScript ne peut pas atteindre.
+   i18n.js les pose sur :root à chaque changement de langue — sans ça elles
+   restent en français sur un écran par ailleurs anglais, et celle-ci sort à
+   chaque fois que l'agent demande un détail manquant. */
+.msg.ask::before{content:var(--s-missing,"something is missing");display:block;font:600 9.5px/1 var(--mono);
   letter-spacing:.11em;text-transform:uppercase;color:var(--warn);margin-bottom:7px;opacity:.85}
 .msg[dir=rtl]{text-align:right}
 /* Le serveur est tombé — ce n'est pas l'agent qui demande quelque chose. */
@@ -616,7 +738,7 @@ body.listening #photo{opacity:.25}
 .tbody{flex:1;overflow-y:auto;min-height:0;padding:20px;display:flex;flex-direction:column;gap:10px}
 .post{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;
   font-size:13.5px;direction:rtl;text-align:right;font-family:var(--arabic);line-height:1.9;flex:0 0 auto}
-.post::before{content:"la publication";display:block;font:600 9.5px/1 var(--mono);letter-spacing:.11em;
+.post::before{content:var(--s-publishing,"the post");display:block;font:600 9.5px/1 var(--mono);letter-spacing:.11em;
   text-transform:uppercase;color:var(--faint);margin-bottom:7px;direction:ltr;text-align:left;
   font-family:var(--mono)}
 .bub{flex:0 0 auto;max-width:78%;padding:11px 15px;border-radius:16px;font-size:14.5px;line-height:1.85;
@@ -809,11 +931,161 @@ body.listening #photo{opacity:.25}
 /* ── le rail, sur fond sombre ─────────────────────────────────────────────── */
 :root[data-theme=nuit] #rail{border-inline-end:1px solid var(--line)}
 /* Le bascule clair/sombre, juste sous l'orbe. */
-#rail .themer{flex:0 0 auto;margin:-6px 0 10px;width:30px;height:30px;border-radius:50%;
+/* ══ le catalogue fournisseur ══════════════════════════════════════════
+   Une carte de dropshipping répond à une seule question : « combien je gagne
+   sur celui-là ». Les trois nombres sont donc alignés dans l'ordre où on les
+   lit — ce qu'on paie, ce qu'on encaisse, ce qui reste — et le dernier est
+   le seul en couleur. Tout le reste de la carte lui sert de contexte.      */
+/* `.sim` existe déjà comme PASTILLE : petite, en capitales, en monospace et
+   sur une ligne. Réutiliser son nom pour un paragraphe le faisait déborder
+   de l'écran. Un nom à soi, et le texte respire. */
+.staged{
+  background:var(--warn-soft);border:1px solid var(--warn-line);color:var(--ink-warn);
+  border-radius:var(--r);padding:11px 14px;font-size:12.5px;line-height:1.65;margin-bottom:20px;
+}
+.catbar{display:flex;flex-direction:column;gap:10px;margin-bottom:6px}
+.catbar .chips{display:flex;gap:6px;flex-wrap:wrap}
+.catbar .chip{
+  background:var(--panel);border:1px solid var(--line);color:var(--dim);cursor:pointer;
+  padding:6px 11px;border-radius:99px;font:600 12px var(--sans);transition:.15s;
+}
+.catbar .chip b{color:var(--faint);font-weight:700;margin-inline-start:3px}
+.catbar .chip:hover{border-color:var(--line-2);color:var(--ink-2)}
+.catbar .chip.on{background:var(--accent-soft);border-color:var(--accent-line);color:var(--ink-ok)}
+.catbar .chip.on b{color:inherit;opacity:.7}
+
+.prods{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:14px;margin-bottom:8px}
+.prod{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-l);overflow:hidden;
+  display:flex;flex-direction:column;box-shadow:var(--sh);transition:.16s;
+}
+.prod:hover{border-color:var(--line-2);box-shadow:var(--sh-2);transform:translateY(-2px)}
+.prod.got{border-color:var(--accent-line)}
+.prod .shot{position:relative;aspect-ratio:1;background:var(--sunk);overflow:hidden}
+.prod .shot img{width:100%;height:100%;object-fit:cover;display:block}
+.prod .shot .low{
+  position:absolute;top:8px;inset-inline-start:8px;background:var(--bad);color:#fff;
+  font:700 10px var(--sans);padding:3px 7px;border-radius:99px;
+}
+.prod .body{padding:12px 13px 13px;display:flex;flex-direction:column;gap:7px;flex:1}
+.prod h3{margin:0;font-size:14.5px;font-weight:680;letter-spacing:-.015em;line-height:1.3}
+.prod .blurb{margin:0;font-size:12.5px;color:var(--dim);line-height:1.5}
+.prod .by{font:600 10.5px var(--mono);letter-spacing:.04em;color:var(--faint);text-transform:uppercase}
+
+.prod .nums{display:flex;flex-wrap:wrap;gap:4px 14px;padding:9px 0 2px;border-top:1px solid var(--line)}
+.prod .nums span{display:flex;flex-direction:column;gap:1px;font-size:13px;font-weight:650}
+.prod .nums em{font:600 9.5px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--faint);font-style:normal}
+/* Le seul chiffre en couleur de la carte. C'est celui pour lequel on est là. */
+.prod .nums .win{color:var(--ink-ok)}
+.prod .nums .win b{font-size:11px;opacity:.75;font-weight:700}
+
+.prod .sizes{display:flex;flex-wrap:wrap;gap:4px}
+.prod .sizes span{
+  font:600 11px var(--mono);background:var(--sunk);border:1px solid var(--line);
+  padding:2px 6px;border-radius:7px;color:var(--ink-2);display:flex;gap:4px;align-items:baseline;
+}
+.prod .sizes span b{font-size:9.5px;color:var(--faint);font-weight:700}
+.prod .sizes span.out{opacity:.4;text-decoration:line-through}
+.prod .btn{margin-top:auto;width:100%;justify-content:center}
+
+/* La feuille de prix : on voit la marge bouger pendant qu'on tape. */
+.sheet{
+  position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.52);backdrop-filter:blur(3px);
+  display:grid;place-items:center;padding:18px;animation:fade .16s both;
+}
+@keyframes fade{from{opacity:0}}
+.sheet .box{
+  width:min(380px,100%);background:var(--panel);border:1px solid var(--line-2);
+  border-radius:var(--r-l);padding:20px;box-shadow:var(--sh-2);
+  display:flex;flex-direction:column;gap:10px;animation:rise .2s cubic-bezier(.2,.8,.3,1) both;
+}
+.sheet h3{margin:0;font-size:17px;font-weight:720;letter-spacing:-.02em}
+.sheet .lab{font:600 10.5px var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+.sheet .live{font-size:14px;color:var(--ink-ok);min-height:22px}
+.sheet .live strong{font-weight:750}
+.sheet .live.bad{color:var(--ink-bad)}
+.sheet .acts{display:flex;gap:8px;margin-top:4px}
+.sheet .acts .btn{flex:1;justify-content:center}
+
+/* ══ ce que le téléphone change vraiment ═══════════════════════════════
+   Pas du rétrécissement : des décisions différentes. Tout ce qui suit a été
+   constaté à 390 px, pas déduit d'une feuille de style. */
+
+/* L'agent, sur un téléphone, ne peut pas montrer la conversation ET l'atelier
+   côte à côte. Les deux occupent la même case et un sélecteur bascule — avec
+   une pastille quand l'agent vient de produire quelque chose pendant qu'on
+   regardait ailleurs. C'est le seul endroit où la coque téléphone ajoute une
+   commande plutôt que d'en retirer une, et c'est parce que sans elle la
+   moitié du produit serait invisible. */
+:root[data-shell=phone] #v-chat{
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:auto minmax(0,1fr);
+}
+:root[data-shell=phone] #v-chat > .pane{grid-column:1;grid-row:1}
+:root[data-shell=phone] #chat,
+:root[data-shell=phone] #canvas{grid-column:1;grid-row:2;min-width:0}
+:root[data-shell=phone] #chat{border-inline-end:0}
+:root[data-shell=phone] #v-chat[data-pane=talk] #canvas{display:none}
+:root[data-shell=phone] #v-chat[data-pane=work] #chat{display:none}
+:root[data-shell=desk] #v-chat > .pane{display:none}
+
+.pane{
+  display:flex;gap:3px;padding:7px 10px;background:var(--panel);
+  border-bottom:1px solid var(--line);
+}
+.pane button{
+  flex:1;background:none;border:0;cursor:pointer;color:var(--dim);position:relative;
+  font:650 12px var(--sans);padding:8px 6px;border-radius:10px;transition:.15s;
+}
+.pane button.on{background:var(--sunk);color:var(--ink)}
+.pane button .pip{
+  display:inline-grid;place-items:center;min-width:16px;height:16px;padding:0 4px;margin-inline-start:6px;
+  border-radius:99px;background:var(--accent);color:var(--acc-on);font:700 9.5px/1 var(--sans);
+  vertical-align:1px;
+}
+
+/* De l'air repris partout : 72 px de marge sur 390 px d'écran, c'est 242 px
+   de contenu utile. */
+@media (max-width:640px){
+  .page{padding:22px 16px 40px}
+  .page h1{font-size:25px}
+  #log{padding:18px 14px 6px}
+  #dock{padding:8px 12px 12px}
+  #canvas{padding:18px 14px 28px}
+  #chat > .top{padding:12px 14px}
+
+  /* Deux grilles dont le plancher de piste dépasse la largeur disponible :
+     elles débordaient latéralement, sans garde-fou. */
+  .grid-2{grid-template-columns:minmax(0,1fr)}
+  .assets{grid-template-columns:minmax(0,1fr)}
+
+  /* Sous 16 px, iOS zoome tout seul au focus et la mise en page saute. */
+  input.f,select.f,textarea.f,#text{font-size:16px}
+
+  /* La boîte de réception n'était pas « étroite », elle était MORTE : la
+     liste des fils était masquée et ne revenait que sous une classe
+     `.inbox.list` que inbox.js ne pose jamais. On empile au lieu de cacher :
+     ça marche sans une ligne de JavaScript. */
+  .inbox{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);overflow-y:auto}
+  .inbox .tlist{display:flex !important;max-height:38dvh}
+  .inbox .tview{display:flex !important}
+}
+
+/* Les tableaux de l'agent étaient les seuls non enveloppés, et `.card` les
+   rognait. On les laisse défiler dans leur carte plutôt que de les couper. */
+.card > table,.card .tbl{display:block;max-width:100%;overflow-x:auto}
+
+/* Le geste du micro n'était pas sûr au doigt : pas de `touch-action`, donc un
+   appui que le navigateur transforme en défilement laissait l'enregistrement
+   ouvert, bouton allumé. */
+#mic{touch-action:none;-webkit-user-select:none;user-select:none}
+
+.themer{flex:0 0 auto;width:30px;height:30px;border-radius:50%;
   border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#8b949e;
   display:grid;place-items:center;cursor:pointer;transition:.15s}
-#rail .themer:hover{background:rgba(255,255,255,.11);color:#e6edf3;border-color:rgba(255,255,255,.18)}
-#rail .themer svg{width:17px;height:17px;stroke-width:1.8}
+.themer:hover{background:rgba(255,255,255,.11);color:#e6edf3;border-color:rgba(255,255,255,.18)}
+.themer svg{width:17px;height:17px;stroke-width:1.8}
 
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001s !important;transition-duration:.001s !important}

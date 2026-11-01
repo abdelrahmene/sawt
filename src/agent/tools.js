@@ -53,6 +53,46 @@ export const TOOLS = [
       },
     },
   },
+  /* ── le dropshipping ────────────────────────────────────────────────────
+     La moitié du marché n'a pas de produit. En Algérie, la plupart de ceux
+     qui ouvrent une boutique en ligne vendent le stock d'un fournisseur :
+     ils apportent le client, le fournisseur expédie, et la marge est la
+     différence entre deux prix. Sans ces deux outils, l'agent ne sait parler
+     qu'à ceux qui ont déjà de la marchandise et une photo. */
+  {
+    type: 'function',
+    function: {
+      name: 'browse_catalog',
+      description:
+        "Show the merchant products they can sell WITHOUT owning any stock. Call this whenever they have nothing to sell yet, ask what they could sell, say they have no product or no photo, or ask about dropshipping. Each result carries the supplier's cost, the recommended selling price and the resulting margin per delivered order, so you can answer \"what do I actually make on this\" with a number.",
+      parameters: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', enum: ['shoes', 'clothing', 'accessories', 'home', 'beauty'] },
+          q: { type: 'string', description: 'Free text, if they named a kind of product.' },
+          max_cost: { type: 'number', description: 'The most they can pay the supplier per unit, in DZD.' },
+          min_margin: { type: 'number', description: 'The least they want to make per delivered order, in DZD.' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'import_product',
+      description:
+        "Put a catalog product into the merchant's own shop, at the price THEY choose. After this the product is theirs to sell: it appears in their product list, you can build it a page and run a campaign on it. Never call this without the merchant naming the product — choosing what someone sells is their decision, not yours.",
+      parameters: {
+        type: 'object',
+        properties: {
+          product_id: { type: 'string', description: 'The id from browse_catalog.' },
+          selling: { type: 'number', description: "What the merchant will sell it for, in DZD. Leave out to use the recommended price. Below the supplier's cost is refused." },
+        },
+        required: ['product_id'],
+      },
+    },
+  },
+
   // There is deliberately no separate "build a storefront" tool. Offered both,
   // the model reliably picked the cheaper one and shipped a bare index page
   // with dead links. build_site writes the product pages first and only then
@@ -356,9 +396,15 @@ export const TOOL_NAMES = TOOLS.map((t) => t.function.name)
 // Tools that are honest about being simulated. The UI badges these, and the
 // agent is told to say so — belt and braces, because the one thing we must
 // never do is let a simulated number read as a measured one.
+// Le catalogue en fait partie, et il faut le dire : ses produits sont
+// modelés sur un vrai catalogue algérien — mêmes champs, mêmes prix d'ordre
+// de grandeur, mêmes marges — mais AUCUN fournisseur n'expédiera quoi que ce
+// soit. Ce qui en sort, en revanche, est réel : la page, les visuels et le
+// calcul de marge sont les vrais.
 export const SIMULATED = new Set([
   'configure_campaign', 'launch_campaign', 'campaign_results', 'adjust_campaign',
   'simulate_days', 'connect_meta', 'read_inbox',
+  'browse_catalog', 'import_product',
 ])
 
 // Tools that produce something the merchant can actually open.

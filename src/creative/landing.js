@@ -63,22 +63,31 @@ export async function buildLandingPage({
   const slots = slotsFor(o)
   if (o.photos.length) images = o.photos
 
+  // Un chemin local pour le modèle, une URL servie pour la page. Les photos
+  // du marchand vivent dans out/, celles du catalogue dans fixtures/ — les
+  // deux doivent se résoudre, sinon un produit importé perd sa photo.
+  const localPath = (u) =>
+    /^https?:/.test(u) ? u : join(ROOT, String(u).replace(/^\//, ''))
+
   onProgress({ phase: 'copy', label: product })
   const content = await landingContent({
     product, price_dzd, angle, language: o.language, shop, notes,
     extra: briefFor(o),
-    // Local paths are inlined as data URLs for the vision call; the page
-    // itself references the served /out/ URLs.
-    photos: images.map((u) => (u.startsWith('/out/') ? join(ROOT, u.replace(/^\//, '')) : u)),
+    photos: images.map(localPath),
   })
   if (o.colorMode === 'impose' && o.color) content.theme.primary = o.color
 
   const slug = slugify(product)
-  let scenes = {}, sceneFails = [], reused = 0
+  let scenes = {}, sceneFails = [], reused = 0, sceneFrom = 'texte', isolated = null
   if (slots.length) {
     onProgress({ phase: 'scenes', label: product })
     const r = await renderScenes(content.scenes, {
       slug, only: slots, scenario: o.scenario, force: freshScenes, onProgress,
+      // LA correction qui change la qualité de la page : les scènes partent
+      // de la photo du produit, pas d'une description de produit. La photo 0
+      // fait autorité, comme le dit la consigne de fidélité.
+      photo: images.length ? localPath(images[0]) : null,
+      visual: content.visual,
     }).catch((e) => {
       // A page without its scenery is still a page. A page that threw is not.
       return { images: {}, failed: [{ slot: 'all', error: e.message }], asked: slots.length, reused: 0 }
@@ -86,6 +95,13 @@ export async function buildLandingPage({
     scenes = r.images
     sceneFails = r.failed
     reused = r.reused ?? 0
+    sceneFrom = r.from ?? 'texte'
+    isolated = r.isolated ?? null
+
+    // Une scène ratée devient la VRAIE photo du produit, pas un trou.
+    // La page reste complète et reste vraie, même quand l'endpoint image
+    // lâche — ce qui arrive, c'est le service le moins fiable du projet.
+    if (images.length) for (const f of sceneFails) if (!scenes[f.slot]) scenes[f.slot] = images[0]
   }
 
   const file = `lp-${slug}.html`
@@ -115,6 +131,10 @@ export async function buildLandingPage({
     scenes: Object.keys(scenes),
     scenes_reused: reused,
     scenes_failed: sceneFails,
+    // Dit à l'écran d'où viennent les images de la page : « depuis ta photo »
+    // n'est pas la même promesse que « depuis une description ».
+    scenes_from: sceneFrom,
+    isolated,
     sections: {
       problem: !!content.problem.title, solution: !!content.solution.title,
       benefits: content.benefits.length, features: content.features.length,
