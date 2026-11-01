@@ -39,6 +39,7 @@ let cherche = ''      // le filtre de recherche
 const choisis = new Set()
 let device = 'desk'
 let preview = null    // url of the last page built
+let vue = null        // l'identifiant de la page déjà adoptée (voir mount)
 let building = false
 
 /* L'aperçu s'appelle « studio-stage », surtout pas « stage ».
@@ -55,6 +56,7 @@ export async function mount(root) {
           <span class="t">${t('studio.preview')}</span>
           <span class="sim real">${t('studio.real')}</span>
           <div class="right">
+            <select class="f sm" id="pagepick" style="max-width:190px"></select>
             <div class="seg" style="padding:3px">
               <button data-dev="phone">${t('studio.dev.phone')}</button>
               <button data-dev="desk">${t('studio.dev.desk')}</button>
@@ -75,14 +77,54 @@ export async function mount(root) {
     $('#sl').innerHTML = `<div class="why bad">${esc(e.message)}</div>`; return
   }
   O = D.options
-  if (!form.product && D.pages?.[0]) {
-    form.product = D.pages[0].product
-    form.price_dzd = String(D.pages[0].price_dzd ?? '')
-    form.angle = D.pages[0].angle ?? ''
-    preview = preview ?? D.pages[0].url
+  /* LA SYNCHRO.
+     `preview = preview ?? …` ne s'exécutait qu'une fois : dès qu'une page
+     avait été vue, le Studio gardait la sienne pour toujours. L'agent
+     construisait une page dans la conversation, on passait au Studio, et
+     l'écran montrait encore celle d'avant — sans rien dire. Les deux écrans
+     affirmaient deux choses différentes sur la même boutique.
+
+     On suit donc la page la plus RÉCENTE, mais seulement quand elle a
+     changé : sinon un simple aller-retour entre deux écrans ramènerait de
+     force le marchand sur la dernière page alors qu'il en regardait une
+     autre exprès. `vue` retient ce qu'on a déjà adopté.
+
+     Le formulaire, lui, n'est écrasé que s'il est vide : une page en cours
+     de réglage ne doit pas être effacée parce que l'agent a travaillé à
+     côté. */
+  const derniere = D.pages?.[0]
+  if (derniere && derniere.id !== vue) {
+    vue = derniere.id
+    preview = derniere.url
+    if (!form.product) {
+      form.product = derniere.product
+      form.price_dzd = String(derniere.price_dzd ?? '')
+      form.angle = derniere.angle ?? ''
+    }
   }
+  paintPages()
   paintPanel()
   paintPreview()
+}
+
+/* La liste des pages de la boutique, la plus récente en tête.
+   Elle existe pour que « suivre la dernière page » ne veuille pas dire
+   « cacher les autres » : le marchand voit tout ce qu'il a construit et
+   revient où il veut, sans passer par l'écran Sites. */
+function paintPages() {
+  const sel = $('#pagepick'); if (!sel) return
+  const pages = D.pages ?? []
+  sel.style.display = pages.length > 1 ? '' : 'none'
+  sel.innerHTML = pages
+    .map((p) => `<option value="${esc(String(p.id))}"${p.id === vue ? ' selected' : ''}>${esc(p.product)}</option>`)
+    .join('')
+  sel.onchange = () => {
+    const p = pages.find((x) => String(x.id) === sel.value)
+    if (!p) return
+    vue = p.id
+    preview = p.url
+    paintPreview()
+  }
 }
 
 /* ── les libellés de la barre d'aperçu ────────────────────────────────────
@@ -462,10 +504,14 @@ async function lancer(cible, fresh, step) {
           const bits = [t('studio.done.size', { n: num(Math.round(r.bytes / 1024)) })]
           if (r.scenes?.length) bits.push(t('studio.done.scenes', { n: num(r.scenes.length) }))
           if (r.scenes_reused) bits.push(t('studio.done.reused', { n: num(r.scenes_reused) }))
+          // Le débit, à la ligne suivante : le panneau annonçait un prix
+          // au-dessus du bouton, il doit dire ce qui a VRAIMENT été pris.
+          if (e.cost?.credits) bits.push(t('studio.done.cost', { n: num(e.cost.credits) }))
           step(t('studio.done.ready', { bits: bits.join(' · ') }), 'done')
           for (const f of r.scenes_failed ?? []) {
             prog.firstElementChild.append(el('div', 'ln', `<span class="dot"></span><span style="color:var(--warn)">${t('studio.done.failed', { slot: esc(f.slot), error: esc(f.error) })}</span>`))
           }
+          vue = r.id ?? vue
           preview = r.url + '?t=' + Date.now()
           paintPreview()
           refresh()

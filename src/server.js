@@ -593,7 +593,18 @@ const server = createServer(async (req, res) => {
           onProgress: (e) => send({ type: 'progress', ...e }),
         })
         remember(sid, { k: 'artifact', name: 'build_landing_page', args: { product: b.product }, result: r, real: true })
-        send({ type: 'done', result: r, counts: counts(sid) })
+        /* Le Studio débite comme l'agent. Sans cette ligne, une page
+           construite ici ne coûtait rien au registre alors que le panneau
+           annonçait son prix juste au-dessus du bouton : le solde ne
+           bougeait pas, et un compteur qui ne bouge pas ne veut rien dire.
+           Compté sur ce qui est revenu — les scènes reprises du cache ne
+           sont pas dans `r.scenes`, donc elles ne sont pas facturées. */
+        const facture = credits.charge(sid, [
+          { kind: 'text', n: 1 },
+          { kind: 'segment', n: r.isolated?.model ? 1 : 0 },
+          { kind: 'image', n: r.scenes?.length ?? 0 },
+        ], 'studio:landing')
+        send({ type: 'done', result: r, counts: counts(sid), cost: facture, credits: credits.balance(sid) })
       } catch (e) {
         console.error('[landing]', e)
         send({ type: 'error', error: e.message })

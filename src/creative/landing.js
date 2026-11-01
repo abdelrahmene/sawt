@@ -30,6 +30,18 @@ export const OUT_DIR = join(ROOT, 'out')
  * digest of the name, which is stable (the same product always lands on the
  * same file) and unique.
  */
+/* La marque de la boutique dans le nom du fichier.
+   SANS elle, deux sessions qui vendent le même produit écrivaient le MÊME
+   fichier et, pire, partageaient la même ligne en base : la requête
+   `SELECT id FROM pages WHERE url=?` retrouvait la ligne de l'autre et la
+   mettait à jour au lieu d'en créer une. Mesuré le 01/11/2026 — la seconde
+   session voyait « 0 page » alors qu'elle venait d'en construire une, et le
+   contenu de la première avait été remplacé sans un mot.
+   Quatre caractères suffisent : le nom reste lisible, et une session sans
+   identifiant (le banc d'essai, la ligne de commande) garde l'ancien nom. */
+const marque = (sessionId) =>
+  sessionId ? '-' + createHash('sha1').update(String(sessionId)).digest('hex').slice(0, 4) : ''
+
 export function slugify(name) {
   const ascii = String(name ?? '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -104,7 +116,7 @@ export async function buildLandingPage({
     if (images.length) for (const f of sceneFails) if (!scenes[f.slot]) scenes[f.slot] = images[0]
   }
 
-  const file = `lp-${slug}.html`
+  const file = `lp-${slug}${marque(sessionId)}.html`
   const url = `/out/${file}`
 
   // The row goes in before the render so the form can carry its id, which is
@@ -253,7 +265,7 @@ export async function buildStorefront({ shop_name, products, language = 'ar', ta
     throw new Error('The model did not return an HTML document.')
   }
 
-  const file = `storefront-${slugify(shop_name) || 'boutique'}.html`
+  const file = `storefront-${slugify(shop_name) || 'boutique'}${marque(sessionId)}.html`
   const url = `/out/${file}`
   mkdirSync(OUT_DIR, { recursive: true })
   writeFileSync(join(OUT_DIR, file), html, 'utf8')

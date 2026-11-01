@@ -33,6 +33,7 @@ export const studio = {
   'studio.showcase.offer': { en: 'supplier +{m}', ar: 'فورنيسور +{m}', fr: 'fourn. +{m}' },
 
   /* ── le lot ───────────────────────────────────────────────────────────── */
+  'studio.done.cost': { en: '−{n} credits', ar: '−{n} كريدي', fr: '−{n} crédits' },
   'studio.build.many': { en: 'Build {n} landing pages', ar: 'إبني {n} صفحات', fr: 'Construire {n} pages' },
   'studio.batch.now': { en: '{name} — {i} of {n}', ar: '{name} — {i} من {n}', fr: '{name} — {i} sur {n}' },
   'studio.batch.done': { en: '{n} pages built', ar: '{n} صفحات جاهزين', fr: '{n} pages construites' },

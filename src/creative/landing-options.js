@@ -43,22 +43,34 @@ export const OPTIONS = {
         help: T('For showing the page to someone who reads neither Arabic nor French. Not what you sell with in Algeria.', 'باش توري الصفحة لواحد ما يقراش عربية ولا فرنسية. ماشي هي لي تبيع بيها في الجزائر.', "Pour montrer la page à qui ne lit ni l'arabe ni le français. Pas la langue avec laquelle on vend en Algérie.") },
     ],
   },
+  /* Le libellé dit ce que la scène CONTIENT, pas seulement son nom.
+     « Studio » tout court ne laisse rien deviner ; « reflets, macros,
+     piédestal » dit au marchand ce qu'il va recevoir avant de payer. Les
+     deux intitulés viennent du générateur qui tourne déjà en boutique. */
   scenario: {
-    label: T('Visual style', 'ستيل التصاور', 'Scénario des visuels'), default: 'lifestyle',
+    label: T('Photo scenario', 'ستيل التصاور', 'Scénario photo'), default: 'lifestyle',
     choices: [
-      { v: 'lifestyle', label: T('Lifestyle', 'في الحياة', 'Lifestyle'),
-        help: T('The product in a real setting. The banner is a generated scene.', 'المنتج في بلاصة حقيقية. البانير تصويرة مولّدة.', "Le produit en situation. La bannière est une scène générée.") },
-      { v: 'studio', label: T('Studio', 'ستوديو', 'Studio'),
-        help: T('Neutral background, product centred. The banner is YOUR photo, not a scene.', 'خلفية نقية، المنتج في الوسط. البانير هي تصويرتك نتاع، ماشي تصويرة مولّدة.', "Fond neutre, le produit au centre. La bannière est TA photo, pas une scène.") },
+      { v: 'studio', label: T('Premium studio — product in the spotlight (reflections, macros, pedestal)',
+          'ستوديو بريميوم — المنتج في الضو (انعكاسات، ماكرو، بييدستال)',
+          'Studio premium — le produit en vedette (reflets, macros, piédestal)'),
+        help: T('Switch scenarios to vary your landing pages from one product to the next.',
+          'بدّل السيناريو باش الصفحات ما يجيوش كيف كيف من منتج لآخر.',
+          "Change de scénario pour que tes pages ne se ressemblent pas d'un produit à l'autre.") },
+      { v: 'lifestyle', label: T('Lifestyle — real settings, natural light, product in use',
+          'في الحياة — بلايص حقيقية، ضو طبيعي، المنتج مستعمل',
+          "Lifestyle — décors réels, lumière naturelle, produit en situation"),
+        help: T('Switch scenarios to vary your landing pages from one product to the next.',
+          'بدّل السيناريو باش الصفحات ما يجيوش كيف كيف من منتج لآخر.',
+          "Change de scénario pour que tes pages ne se ressemblent pas d'un produit à l'autre.") },
     ],
   },
   theme: {
-    label: T('Mood', 'الجو', 'Ambiance'), default: 'light',
+    label: T('Visual style', 'الستيل', 'Style visuel'), default: 'light',
     choices: [
-      { v: 'light', label: T('Light', 'فاتح', 'Clair'),
-        help: T('White background. The default, and the most readable on a phone in the sun.', 'خلفية بيضة. هي الأصل، وأحسن وحدة تتقرا في الشمس.', 'Fond blanc. Le défaut, et le plus lisible sur un téléphone au soleil.') },
-      { v: 'dark', label: T('Dark', 'غامق', 'Sombre'),
-        help: T('Black background. Makes dark products look more expensive.', 'خلفية كحلة. تخلي المنتجات الغامقة تبان أغلى.', 'Fond noir. Donne un air plus cher aux produits sombres.') },
+      { v: 'dark', label: T('Dark — cinematic luxury', 'غامق — لوكس سينمائي', 'Sombre — luxe cinématographique'),
+        help: T('Black page. Makes dark products look more expensive.', 'صفحة كحلة. تخلي المنتجات الغامقة تبان أغلى.', 'Page noire. Donne un air plus cher aux produits sombres.') },
+      { v: 'light', label: T('Light — bright commercial', 'فاتح — تجاري ومضوي', 'Clair — commercial lumineux'),
+        help: T('White page. The default, and the most readable on a phone in the sun.', 'صفحة بيضة. هي الأصل، وأحسن وحدة تتقرا في الشمس.', 'Page blanche. Le défaut, et le plus lisible sur un téléphone au soleil.') },
     ],
   },
   template: {

@@ -67,11 +67,14 @@ const SUFFIX = {
   // Studio keeps the product recognisable above everything else, which is
   // what a merchant selling a specific article actually needs: a buyer must
   // see the thing that will arrive, not a mood.
+  // « Studio premium » dit au marchand qu'il aura des reflets, des macros et
+  // un piédestal. Le menu l'annonce, donc le prompt doit le livrer — sinon on
+  // vend une promesse. Ce que le fond neutre d'avant ne donnait pas.
   studio: {
-    hero: 'Studio photograph on a clean seamless background, soft large softbox, gentle floor shadow, product centred and sharp, premium catalogue quality.',
-    problem: 'Studio photograph on a dark neutral background, single hard light, the product alone and slightly off-centre, sombre.',
-    solution: 'Studio photograph on a warm light background, soft shadow, product centred, inviting and clean.',
-    benefits: 'Macro studio shot of one material detail on a neutral background, raking light, texture visible.',
+    hero: 'Premium studio photograph: the product raised on a low stone pedestal, lit by one large softbox from above, a clean mirror reflection beneath it, deep gradient backdrop, sharp, luxury catalogue quality.',
+    problem: 'Premium studio photograph on a dark gradient backdrop, single hard rim light grazing the product, long dramatic shadow, the product alone and slightly off-centre, sombre and cinematic.',
+    solution: 'Premium studio photograph, warm key light and soft fill, the product on a polished surface with a gentle reflection, inviting, clean, high-end.',
+    benefits: 'Extreme macro studio shot of one material detail, raking light across the texture, shallow depth of field, the weave and the stitching clearly visible.',
   },
 }
 
