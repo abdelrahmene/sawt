@@ -112,7 +112,7 @@ function account(root, c) {
   const next = async () => { await api('/meta/review', { method: 'POST' }); mount(root) }
   $('#who').onclick = next
   $('#next').onclick = next
-  $('#cancel').onclick = async () => { await api('/meta/disconnect', { method: 'POST' }); mount(root) }
+  $('#cancel', root).onclick = async () => { await api('/meta/disconnect', { method: 'POST' }); mount(root) }
 }
 
 const initialsOf = (s) => String(s).split(/\s+/).map((w) => w[0]).join('').toUpperCase().slice(0, 2)
@@ -167,7 +167,7 @@ function permissions(root, c) {
     }
   }
 
-  $('#cancel').onclick = async () => { await api('/meta/disconnect', { method: 'POST' }); chosen = new Set(); mount(root) }
+  $('#cancel', root).onclick = async () => { await api('/meta/disconnect', { method: 'POST' }); chosen = new Set(); mount(root) }
   $('#grant').onclick = async () => {
     const btn = $('#grant'); btn.disabled = true; btn.textContent = t('meta.granting')
     try {

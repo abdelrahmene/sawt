@@ -43,6 +43,16 @@ English. The "scenes" values stay in English — they are read by an image model
 const RULES_FR = `LANGUAGE: every value in the JSON is written in French. The "scenes" values
 stay in English — they are read by an image model.`
 
+// L'anglais sert à MONTRER la page, pas à vendre avec. La consigne insiste
+// donc sur un point : rester la voix d'un commerçant algérien, pas glisser
+// dans l'anglais commercial international. Une page anglaise qui parle de
+// « free returns within 30 days » mentirait sur ce que fait le marchand.
+const RULES_EN = `LANGUAGE: every value in the JSON is written in plain English.
+Keep the voice of an Algerian shopkeeper writing to a customer — direct,
+concrete, no international marketing register, no slogans. Prices stay in DZD
+and delivery stays cash on delivery. The "scenes" values are already English;
+they are read by an image model.`
+
 const RULES = `
 BRANDS: brand names, models and references stay in LATIN script exactly as
 written — "Adidas IF5340", never "أديداس". Transliterating a brand makes the
@@ -112,7 +122,7 @@ Answer with the JSON object and nothing else.`
 export async function landingContent({ product, price_dzd, angle, language = 'ar', shop, photos = [], notes, extra = '' }) {
   const system = [
     `You write cash-on-delivery sales pages for Algerian shops.`,
-    language === 'fr' ? RULES_FR : RULES_AR,
+    language === 'en' ? RULES_EN : language === 'fr' ? RULES_FR : RULES_AR,
     `Return exactly this shape:\n${SCHEMA}`,
     RULES,
     // The merchant's own settings, last, so they win over the defaults above —
@@ -169,7 +179,7 @@ function normalise(d, { product, price_dzd, language }) {
       eyebrow: str(d.hero?.eyebrow),
       headline: str(d.hero?.headline, product),
       sub: str(d.hero?.sub),
-      cta: str(d.hero?.cta, language === 'fr' ? 'Commander' : 'اطلب الآن'),
+      cta: str(d.hero?.cta, language === 'en' ? 'Order now' : language === 'fr' ? 'Commander' : 'اطلب الآن'),
     },
     highlights: arr(d.highlights).map((x) => str(x)).filter(Boolean).slice(0, 4),
     problem: { title: str(d.problem?.title), text: str(d.problem?.text) },

@@ -24,8 +24,37 @@ import { WILAYAS_AR, WILAYAS_FR } from '../dz/wilayas.js'
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
-const AR = `"Segoe UI","Noto Kufi Arabic","Noto Naskh Arabic","Geeza Pro",Tahoma,sans-serif`
-const LAT = `system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif`
+/* ══ LA TYPOGRAPHIE ══════════════════════════════════════════════════════
+   C'est elle qui faisait « page générée » plutôt que « marque ». La page
+   était composée en `system-ui` : Segoe UI sur Windows, Roboto sur Android.
+   Ces caractères sont très bons, et c'est précisément le problème — ce sont
+   ceux de l'interface du téléphone, donc la page avait l'air d'un formulaire
+   du système, pas d'une boutique.
+
+   UNE seule paire, et c'est délibéré : **Inter Tight** pour les titres,
+   **Inter** pour le texte, **Cairo** pour l'arabe. C'est exactement celle de
+   `landing-lab`, la page de référence du fondateur, celle qu'il a jugée
+   bonne. Je n'en invente pas une quatrième gabarit par gabarit : le gabarit
+   fait déjà varier l'échelle, la graisse et les arrondis — faire varier AUSSI
+   le caractère donnerait quatre pages qui n'ont plus rien à voir entre elles.
+
+   L'arabe est à part. Il n'a pas la coupure sérif/sans du latin, et une
+   police latine n'a aucun glyphe arabe : un titre en Inter Tight retomberait
+   sur le repli système et casserait l'unité de la page. Cairo partout en
+   arabe — liaisons correctes, graisses jusqu'au noir, et c'est le caractère
+   déjà en service sur les pages des vraies boutiques.
+
+   ⚠️ Le repli n'est pas décoratif. Si fonts.googleapis.com ne répond pas —
+   4G d'Oran, coupure, bloqueur — `display=swap` affiche IMMÉDIATEMENT la
+   pile système et la page reste lisible. Aucun texte invisible, jamais. */
+const SYS = `system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif`
+const SYS_AR = `"Cairo","Segoe UI","Noto Kufi Arabic","Noto Naskh Arabic","Geeza Pro",Tahoma,sans-serif`
+
+const FACE = {
+  lat: { d: `"Inter Tight",${SYS}`, t: `"Inter",${SYS}` },
+  ar: { d: SYS_AR, t: SYS_AR },
+  q: 'Cairo:wght@400;500;600;700;800&family=Inter+Tight:wght@600;700&family=Inter:wght@400;500;600;700',
+}
 
 // A price inside a right-to-left paragraph gets reordered by the bidi
 // algorithm: "4 500 DA" renders as "DA 500 4", which is not a price. The
@@ -35,6 +64,18 @@ const money = (n) => {
   const s = Number(n || 0).toLocaleString('fr-FR').replace(/[  ]/g, ' ')
   return `<bdi dir="ltr">${s} DA</bdi>`
 }
+
+/* Une image de section, déclarée correctement.
+   `width`/`height` ne sont pas décoratifs : sans eux le navigateur ne connaît
+   pas la place à réserver, et chaque image qui arrive pousse le texte déjà lu
+   vers le bas. Sur une page de vente, c'est le moment exact où l'acheteur
+   voulait toucher le bouton. Le héros est chargé en priorité, le reste en
+   différé — une page ne doit pas télécharger la cinquième image avant que la
+   première soit à l'écran. */
+const shotTag = (src, alt, first = false) =>
+  `<img src="${esc(src)}" alt="${esc(alt)}" width="1024" height="1536"` +
+  (first ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"') +
+  ' decoding="async">'
 
 // Inline, so the page still has its icons with no network. Drawn on a 24 grid,
 // stroked, inheriting currentColor.
@@ -58,16 +99,20 @@ const icon = (name, size = 20) =>
    is the type scale, how round the corners are, how heavy the headings sit
    and whether the accent is flat or a gradient. */
 const TEMPLATES = {
-  editorial: { h1: '30px,6vw,52px', h2: '22px,3.4vw,32px', w: 760, r: 16, weight: 750, pad: 72, grad: false, track: '-.022em' },
-  bold:      { h1: '34px,8vw,68px', h2: '26px,4.4vw,40px', w: 1060, r: 6,  weight: 850, pad: 84, grad: false, track: '-.035em' },
-  soft:      { h1: '28px,6vw,46px', h2: '21px,3.2vw,30px', w: 920, r: 28, weight: 700, pad: 68, grad: false, track: '-.015em' },
-  vivid:     { h1: '32px,7vw,58px', h2: '24px,3.8vw,36px', w: 1000, r: 20, weight: 800, pad: 76, grad: true,  track: '-.028em' },
+  editorial: { h1: '30px,6vw,52px', h2: '22px,3.4vw,32px', r: 16, weight: 750, pad: 72, grad: false, track: '-.022em' },
+  bold:      { h1: '34px,8vw,68px', h2: '26px,4.4vw,40px', r: 6,  weight: 850, pad: 84, grad: false, track: '-.035em' },
+  soft:      { h1: '28px,6vw,46px', h2: '21px,3.2vw,30px', r: 28, weight: 700, pad: 68, grad: false, track: '-.015em' },
+  vivid:     { h1: '32px,7vw,58px', h2: '24px,3.8vw,36px', r: 20, weight: 800, pad: 76, grad: true,  track: '-.028em' },
 }
 
-const clamp = (s) => `clamp(${s.split(',').join(',')})`
-
 export function renderLanding(c, { images = [], scenes = {}, shop, pageId, opts = {}, variants = [] } = {}) {
-  const ar = c.language !== 'fr'
+  // Trois langues, plus deux. L'arabe reste le repli : une page enregistree
+  // avant l'anglais n'a pas de champ `language` et doit rester en arabe.
+  const en = c.language === 'en'
+  const ar = c.language !== 'fr' && !en
+  // Le gabarit choisit la paire de caractères ; l'arabe passe outre, parce
+  // qu'un titre en Fraunces n'a aucun glyphe arabe et retomberait seul.
+  const face = ar ? FACE.ar : FACE.lat
   const t = c.theme
   const tpl = TEMPLATES[opts.template] ?? TEMPLATES.editorial
   const dark = opts.theme === 'dark'
@@ -78,6 +123,12 @@ export function renderLanding(c, { images = [], scenes = {}, shop, pageId, opts 
         size: 'القياس', pickSize: 'اختر القياس', soldOut: 'ما كاينش',
         faq: 'أسئلة متكررة', how: 'كيفاش تطلب', why: 'علاش تشري من عندنا', gallery: 'تصاور المنتج',
         total: 'المجموع', free: 'بلا دفع مقدّم', wil: '58 ولاية', call: 'نعيطولك باش نأكّدو' }
+    : en
+    ? { order: 'Order now', name: 'Full name', phone: 'Phone number', wilaya: 'Wilaya', commune: 'Commune',
+        qty: 'Quantity', pick: 'Choose your wilaya', send: 'Confirm the order', cod: 'Cash on delivery',
+        size: 'Size', pickSize: 'Choose a size', soldOut: 'out of stock',
+        faq: 'Questions', how: 'How to order', why: 'Why buy from us', gallery: 'Product photos',
+        total: 'Total', free: 'Nothing to pay up front', wil: '58 wilayas', call: 'We call you to confirm' }
     : { order: 'Commander', name: 'Nom complet', phone: 'Téléphone', wilaya: 'Wilaya', commune: 'Commune',
         qty: 'Quantité', pick: 'Choisir la wilaya', send: 'Confirmer la commande', cod: 'Paiement à la livraison',
         size: 'Taille', pickSize: 'Choisir la taille', soldOut: 'épuisé',
@@ -105,17 +156,23 @@ export function renderLanding(c, { images = [], scenes = {}, shop, pageId, opts 
   /* A section with a picture on one side and words on the other. Flipped every
      other time, which is most of what makes a page read as designed. */
   let turn = 0
-  const split = (img, title, text, extra = '') => {
+  /* Texte, puis image remontée dessous. L'alternance gauche/droite n'existe
+     plus : dans une colonne de 480 px il n'y a pas de gauche ni de droite.
+     Ce qui alterne maintenant, c'est le chevauchement — un rythme, pas une
+     symétrie. Sans image, la section reste du texte et ne laisse pas de
+     trou : `--ov` ne sert à rien s'il n'y a rien à remonter. */
+  const split = (img, title, text, extra = '', kicker = '') => {
     if (!title && !text && !extra) return ''
-    const flip = turn++ % 2 ? ' flip' : ''
-    return `<section class="s split${flip}${band(turn)}"><div class="w">
-      ${img ? `<div class="pic"><img src="${esc(img)}" alt="${esc(c.product)}" loading="lazy"></div>` : ''}
-      <div class="txt">
+    const ov = [0.3, 0.16, 0.28, 0.22][turn++ % 4]
+    return `<section class="sec s split${band(turn)} rv" style="--ov:${ov}">
+      <div class="sec-text">
+        ${kicker ? `<span class="kicker">${esc(kicker)}</span>` : ''}
         ${title ? `<h2>${esc(title)}</h2>` : ''}
         ${text ? `<p>${esc(text)}</p>` : ''}
         ${extra}
       </div>
-    </div></section>`
+      ${img ? `<div class="sec-media">${shotTag(img, c.product)}</div>` : ''}
+    </section>`
   }
 
   const cardList = (items) => items.length
@@ -131,7 +188,7 @@ export function renderLanding(c, { images = [], scenes = {}, shop, pageId, opts 
     : ''
 
   return `<!doctype html>
-<html lang="${ar ? 'ar' : 'fr'}" dir="${ar ? 'rtl' : 'ltr'}">
+<html lang="${c.language ?? 'ar'}" dir="${ar ? 'rtl' : 'ltr'}">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(shop ? `${c.hero.headline} — ${shop}` : c.hero.headline)}</title>
@@ -139,6 +196,9 @@ export function renderLanding(c, { images = [], scenes = {}, shop, pageId, opts 
 <meta property="og:title" content="${esc(c.hero.headline)}">
 <meta property="og:description" content="${esc(c.hero.sub || '')}">
 ${shot ? `<meta property="og:image" content="${esc(shot)}">` : ''}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${FACE.q}&display=swap">
 ${pixelSnippet({ pixelId: opts.pixelId, product: c.product, price: c.price_dzd, pageId })}
 <style>
 :root{
@@ -146,26 +206,64 @@ ${pixelSnippet({ pixelId: opts.pixelId, product: c.product, price: c.price_dzd, 
   ${dark
     ? '--ink:#f2f4f6; --mid:#aeb6bf; --dim:#8b949e; --line:#262a2f; --paper:#0e1013;'
     : '--ink:#15181c; --mid:#4a525b; --dim:#737c86; --line:#e7eaee; --paper:#fff;'}
+  --w:min(100vw,480px); --pad:24px;
+  --outer:${dark ? '#060608' : '#e9ebee'};
+  --f-head:${face.d}; --f-body:${face.t};
   --r:${tpl.r}px; --r-s:${Math.max(6, Math.round(tpl.r * 0.66))}px;
   --cta:${tpl.grad ? `linear-gradient(135deg,var(--p),color-mix(in srgb,var(--a) 55%,var(--p)))` : 'var(--p)'};
   --sh:0 1px 2px rgba(0,0,0,${dark ? '.4' : '.04'}), 0 10px 30px -12px rgba(0,0,0,${dark ? '.55' : '.14'});
   --sh-lg:0 2px 4px rgba(0,0,0,${dark ? '.45' : '.05'}), 0 24px 60px -20px rgba(0,0,0,${dark ? '.7' : '.22'});
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{background:var(--paper);color:var(--ink);
-  font:17px/${ar ? '1.95' : '1.7'} ${ar ? AR : LAT};
-  -webkit-font-smoothing:antialiased;padding-bottom:86px;overflow-x:hidden}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;background:var(--outer)}
+
+/* ── LA COLONNE ───────────────────────────────────────────────────────────
+   480 px, centrés, sur un fond plus sombre que la page. C'est le format de
+   « landing-lab », et ce n'est pas un rétrécissement : une page de vente en
+   paiement à la livraison se lit à 100 % au pouce, sur un téléphone tenu
+   d'une main. La version d'avant faisait 760 à 1060 px — une page de bureau
+   qu'on regardait sur un mobile.
+
+   On habille les enfants directs plutôt que d'ajouter un conteneur : ça
+   évite de retoucher tout le gabarit, et la barre collante, qui est en
+   position fixe, se centre sur la même colonne au lieu de barrer l'écran. */
+body{background:var(--outer);color:var(--ink);
+  font:400 16px/${ar ? '1.85' : '1.6'} var(--f-body);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+body > :not(script){max-width:var(--w);margin-inline:auto;background:var(--paper)}
 img{max-width:100%;display:block}
-.w{max-width:${tpl.w}px;margin:0 auto;padding:0 22px}
-.s{padding:${tpl.pad}px 0}
+.w{max-width:var(--w);margin:0 auto;padding:0 var(--pad)}
+.s{padding:56px 0}
 .s.alt{background:var(--l)}
-h1{font-size:${clamp(tpl.h1)};line-height:1.16;font-weight:${tpl.weight + 50};
-  letter-spacing:${ar ? '0' : tpl.track}}
-h2{font-size:${clamp(tpl.h2)};line-height:1.26;font-weight:${tpl.weight};
-  letter-spacing:${ar ? '0' : tpl.track};margin-bottom:14px}
-h3{font-size:17px;font-weight:700;margin-bottom:6px;letter-spacing:${ar ? '0' : '-.008em'}}
-p{color:var(--mid);font-size:16.5px}
+
+/* ── LA TYPOGRAPHIE ───────────────────────────────────────────────────────
+   « text-wrap:balance » sur les titres : le navigateur répartit lui-même les
+   mots sur les lignes au lieu de laisser un mot seul en bas. « pretty » sur
+   les paragraphes fait la même chose contre les orphelines. Deux
+   déclarations, et c'est la différence la plus visible entre une page
+   composée et une page empilée.
+
+   La mesure compte autant : 32 à 34 signes par ligne. Au-delà, l'œil perd
+   le début de la ligne suivante — sur une colonne de 480 px, un paragraphe
+   pleine largeur se lit mal même avec la bonne police. */
+h1,h2{font-family:var(--f-head);text-wrap:balance;color:var(--ink)}
+h1{font-size:clamp(32px,9.5vw,${Math.round(parseInt(tpl.h1.split(',')[2]) * 0.84)}px);
+  line-height:1.04;font-weight:${Math.min(900, tpl.weight + 50)};letter-spacing:${ar ? '0' : tpl.track}}
+h2{font-size:clamp(26px,7.4vw,33px);line-height:1.1;font-weight:${tpl.weight};
+  letter-spacing:${ar ? '0' : tpl.track};margin-bottom:12px}
+h3{font-family:var(--f-head);font-size:18px;font-weight:700;margin-bottom:6px;
+  letter-spacing:${ar ? '0' : '-.008em'}}
+p{color:var(--mid);font-size:16px;text-wrap:pretty;max-width:34ch}
+.lead{margin-top:14px;font-size:17px;line-height:1.5;color:var(--mid);max-width:32ch;text-wrap:pretty}
+${ar ? '.lead{font-size:18px;line-height:1.8}p{font-size:17px;line-height:1.85}' : ''}
+.head p,.sticky p,.sec-text .checks p{max-width:none}
+
+/* Le chapeau de section. En latin il est en capitales largement tracées —
+   c'est ce qui donne le ton éditorial. En arabe, JAMAIS : l'arabe n'a pas de
+   capitales, et l'interlettrage casse les liaisons entre les glyphes. */
+.kicker{font:600 12.5px/1.25 var(--f-body);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--p);margin-bottom:12px;display:block}
+${ar ? '.kicker{letter-spacing:0;text-transform:none;font-size:15px;font-weight:700}' : ''}
 
 /* ── top bar ─────────────────────────────────────────────────────────── */
 .bar{position:sticky;top:0;z-index:20;background:${dark ? 'rgba(14,16,19,.84)' : 'rgba(255,255,255,.86)'};
@@ -178,29 +276,45 @@ p{color:var(--mid);font-size:16.5px}
 .bar .tag svg{flex:0 0 auto;opacity:.8}
 
 /* ── hero ────────────────────────────────────────────────────────────── */
-.hero{position:relative;min-height:min(86vh,720px);display:grid;align-items:end;
-  background:var(--d);overflow:hidden;isolation:isolate}
-.hero .bg{position:absolute;inset:0;z-index:-2}
-.hero .bg img{width:100%;height:100%;object-fit:cover;transform:scale(1.03)}
-.hero::after{content:"";position:absolute;inset:0;z-index:-1;
-  background:linear-gradient(to top,rgba(8,10,12,.93) 0%,rgba(8,10,12,.62) 42%,rgba(8,10,12,.28) 100%)}
-.hero .w{padding:0 22px 56px;color:#fff;max-width:1060px}
-.hero .in{max-width:680px}
-.eyebrow{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.13);
-  border:1px solid rgba(255,255,255,.26);backdrop-filter:blur(6px);border-radius:99px;
-  padding:7px 15px;font-size:13px;font-weight:600;letter-spacing:.02em;margin-bottom:20px}
-.hero h1{color:#fff;text-shadow:0 2px 24px rgba(0,0,0,.35)}
-.hero .sub{color:rgba(255,255,255,.9);font-size:clamp(16px,2.1vw,20px);margin-top:14px;max-width:560px}
-.hero .buy{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-top:30px}
-.price{font-size:clamp(28px,4.6vw,42px);font-weight:800;letter-spacing:-.02em;line-height:1}
-.cta{display:inline-flex;align-items:center;gap:9px;background:var(--cta);color:#fff;
-  text-decoration:none;padding:17px 32px;border-radius:99px;font-size:17px;font-weight:750;
-  box-shadow:0 10px 32px -8px color-mix(in srgb,var(--p) 70%,transparent);transition:.18s}
-.cta:hover{transform:translateY(-2px);filter:brightness(1.07)}
-.hl{display:flex;flex-wrap:wrap;gap:9px;margin-top:26px}
-.hl span{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.12);
-  border:1px solid rgba(255,255,255,.2);border-radius:99px;padding:8px 14px;font-size:13.5px;
-  color:#fff;backdrop-filter:blur(4px)}
+/* ── TEXTE DESSUS, IMAGE DESSOUS ──────────────────────────────────────────
+   LE changement. Avant, le titre était posé SUR la photo, et il fallait
+   demander au modèle d'image de « laisser le tiers supérieur vide » pour
+   lui faire de la place. Ça ne marchait pas : le produit remplissait le
+   cadre et le titre tombait sur la capuche.
+
+   Ici le texte a son propre espace, puis l'image est REMONTÉE sous lui de
+   « --ov » fois sa hauteur (l'image fait 1,5 fois la largeur de la colonne,
+   puisqu'elle est en 2:3), et un dégradé fond son bord haut dans le fond de
+   page. Résultat : aucune couture visible, l'image a l'air de sortir du
+   texte, et le modèle d'image n'a plus aucune contrainte de composition.
+
+   « --ov » se règle par section : 0 = aucun chevauchement, .34 = franc. */
+.sec{position:relative}
+.sec-text{position:relative;z-index:2;padding:66px var(--pad) 0}
+.hero .sec-text{padding-top:40px}
+.sec-media{position:relative;z-index:1;margin-top:calc(var(--w) * -1.5 * var(--ov,.26))}
+.sec-media img{width:100%;height:auto;aspect-ratio:2/3;object-fit:cover}
+.sec-media::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to bottom,var(--paper) 0%,
+    color-mix(in srgb,var(--paper) 92%,transparent) calc(var(--ov,.26) * 55%),
+    transparent calc(var(--ov,.26) * 100% + 10%),transparent 82%,var(--paper) 99%)}
+
+.buy{padding:22px var(--pad) 0}
+.prix-ligne{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.cod{display:inline-flex;align-items:center;gap:8px;font:500 14.5px/1.3 var(--f-body);color:var(--dim)}
+.eyebrow{display:none}
+.price{font-family:var(--f-head);font-size:38px;font-weight:800;letter-spacing:-.02em;line-height:1;
+  font-variant-numeric:tabular-nums}
+/* Un seul bouton, pleine largeur, 58 px de haut : au pouce, une cible
+   étroite se rate. C'est la mesure de « landing-lab ». */
+.cta{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:58px;
+  background:var(--cta);color:#fff;text-decoration:none;padding:0 20px;border-radius:14px;
+  font:700 17px/1.2 var(--f-body);letter-spacing:.01em;
+  box-shadow:0 10px 30px -12px color-mix(in srgb,var(--p) 80%,transparent);transition:.18s}
+.cta:hover{filter:brightness(1.08)}
+.hl{list-style:none;display:grid;gap:12px;margin-top:20px}
+.hl span{display:flex;align-items:center;gap:12px;font:500 15px/1.35 var(--f-body);color:var(--mid)}
+.hl span svg{flex:0 0 auto;color:var(--p)}
 
 /* ── trust strip ─────────────────────────────────────────────────────── */
 .trust{background:var(--d);color:#fff}
@@ -211,14 +325,26 @@ p{color:var(--mid);font-size:16.5px}
 .trust svg{opacity:.75;flex:0 0 auto}
 
 /* ── alternating picture / words ─────────────────────────────────────── */
-.split .w{display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,5vw,64px);align-items:center}
-.split.flip .pic{order:2}
-.split .pic{border-radius:var(--r);overflow:hidden;box-shadow:var(--sh-lg);background:var(--l)}
-.split .pic img{width:100%;aspect-ratio:4/3;object-fit:cover}
-@media (max-width:820px){
-  .split .w{grid-template-columns:1fr;gap:26px}
-  .split.flip .pic{order:0}
-}
+/* Les sections illustrées suivent la même composition que le héros : le
+   texte d'abord, l'image ensuite, remontée et fondue. La grille à deux
+   colonnes d'avant n'a plus de sens dans une colonne de 480 px. */
+.split{padding:0}
+.split .w{padding:0;max-width:none}
+
+/* ── LES GRILLES, DANS UNE COLONNE ────────────────────────────────────────
+   Trois colonnes de bandeau de confiance, trois étapes côte à côte, des
+   cartes à 248 px de plancher : tout ça était dimensionné pour une page
+   large. Dans 480 px moins 48 de marge, il reste 432 px. */
+.trust .w{grid-template-columns:1fr;gap:0}
+.trust div{justify-content:flex-start;padding:15px 0}
+.trust div + div{border-inline-start:0;border-top:1px solid rgba(255,255,255,.14)}
+.cards{grid-template-columns:1fr}
+.steps{grid-template-columns:1fr;gap:24px;text-align:start}
+.steps article{text-align:start;padding:0}
+.steps article::before{margin:0 0 12px;width:44px;height:44px;font-size:18px}
+.gal{grid-template-columns:1fr 1fr;gap:10px}
+.two{grid-template-columns:1fr}
+.head{text-align:start;margin-bottom:26px}
 
 /* ── cards & lists ───────────────────────────────────────────────────── */
 .head{text-align:center;max-width:620px;margin:0 auto 38px}
@@ -325,18 +451,21 @@ html.js .rv.in{opacity:1;transform:none}
   <span class="tag">${icon('cash', 16)}${esc(L.cod)}</span>
 </div></div>
 
-<header class="hero">
-  ${heroBg ? `<div class="bg"><img src="${esc(heroBg)}" alt="${esc(c.product)}" fetchpriority="high"></div>` : ''}
-  <div class="w"><div class="in">
-    ${c.hero.eyebrow ? `<span class="eyebrow">${icon('spark', 15)}${esc(c.hero.eyebrow)}</span>` : ''}
+<header class="sec hero" style="--ov:.30">
+  <div class="sec-text">
+    ${c.hero.eyebrow ? `<span class="kicker">${esc(c.hero.eyebrow)}</span>` : ''}
     <h1>${esc(c.hero.headline)}</h1>
-    ${c.hero.sub ? `<p class="sub">${esc(c.hero.sub)}</p>` : ''}
-    <div class="buy">
+    ${c.hero.sub ? `<p class="lead">${esc(c.hero.sub)}</p>` : ''}
+  </div>
+  ${heroBg ? `<div class="sec-media">${shotTag(heroBg, c.product, true)}</div>` : ''}
+  <div class="buy">
+    <div class="prix-ligne">
       <span class="price">${money(c.price_dzd)}</span>
-      <a class="cta" href="#order">${esc(c.hero.cta || L.order)}${icon('check', 18)}</a>
+      <span class="cod">${icon('cash', 18)}${esc(L.cod)}</span>
     </div>
-    ${c.highlights.length ? `<div class="hl">${c.highlights.map((h) => `<span>${icon('check', 14)}${esc(h)}</span>`).join('')}</div>` : ''}
-  </div></div>
+    <a class="cta" href="#order">${esc(c.hero.cta || L.order)}${icon('check', 18)}</a>
+    ${c.highlights.length ? `<div class="hl">${c.highlights.map((h) => `<span>${icon('check', 17)}${esc(h)}</span>`).join('')}</div>` : ''}
+  </div>
 </header>
 
 <div class="trust"><div class="w">
@@ -349,17 +478,17 @@ ${split(scenes.problem, c.problem.title, c.problem.text)}
 ${split(scenes.solution ?? images[0], c.solution.title, c.solution.text)}
 
 ${show('benefits') && c.benefits.length ? `<section class="s rv"><div class="w">
-  <div class="head"><h2>${esc(ar ? 'علاش هاد المنتج' : 'Ce qu\'il vous apporte')}</h2></div>
+  <div class="head"><h2>${esc(ar ? 'علاش هاد المنتج' : en ? 'What it gives you' : 'Ce qu\'il vous apporte')}</h2></div>
   ${cardList(c.benefits)}
 </div></section>` : ''}
 
-${show('features') && c.features.length ? `<section class="s alt split rv"><div class="w">
-  ${scenes.benefits ? `<div class="pic"><img src="${esc(scenes.benefits)}" alt="${esc(c.product)}" loading="lazy"></div>` : ''}
-  <div class="txt">
-    <h2>${esc(ar ? 'التفاصيل' : 'Les détails')}</h2>
+${show('features') && c.features.length ? `<section class="sec s alt split rv" style="--ov:.20">
+  <div class="sec-text">
+    <h2>${esc(ar ? 'التفاصيل' : en ? 'The details' : 'Les détails')}</h2>
     ${checks(c.features)}
   </div>
-</div></section>` : ''}
+  ${scenes.benefits ? `<div class="sec-media">${shotTag(scenes.benefits, c.product)}</div>` : ''}
+</section>` : ''}
 
 ${show('gallery') && gallery.length ? `<section class="s rv"><div class="w">
   <div class="head"><h2>${esc(L.gallery)}</h2></div>

@@ -123,7 +123,34 @@ body{
    change. C'est ce qui permet de basculer sans remonter un seul module.    */
 #stage{height:100dvh;display:grid;place-items:center;overflow:hidden;position:relative}
 
+/* L'APPAREIL EST UN CONTENEUR. C'est la pièce centrale de toute la mise en
+   page, et elle corrige un défaut qui rendait la coque téléphone mensongère.
+
+   Avant : chaque règle « écran étroit » était un `@media (max-width:…)`,
+   donc elle interrogeait la FENÊTRE. En coque téléphone sur un bureau,
+   l'appareil fait 412 px dans une fenêtre de 1920 — aucune ne se
+   déclenchait. On croyait tester un téléphone et on regardait une mise en
+   page de bureau serrée dans un cadre : boîte de réception morte, marges de
+   40 px sur 412, studio en deux colonnes dont la seconde faisait 80 px.
+
+   Maintenant les règles interrogent `device`, c'est-à-dire la largeur de
+   l'appareil lui-même. Un seul jeu de règles couvre les trois cas :
+     · coque bureau   → l'appareil fait la fenêtre, rien ne change ;
+     · coque téléphone→ l'appareil fait 412 px, tout le mobile s'allume ;
+     · vrai téléphone → l'appareil fait l'écran, pareil.
+   Et `container-type` fait de l'appareil le bloc conteneur des descendants
+   en position fixe : toasts, visionneuse et feuille de prix restent DEDANS.
+
+   `size` et pas `inline-size` : ça débloque les unités `cqh`/`cqi`, et on en
+   a besoin. Plusieurs hauteurs étaient écrites en `dvh`, c'est-à-dire en
+   hauteur d'ÉCRAN — l'aperçu du Studio demandait `100dvh - 160px` dans un
+   appareil haut de 880 px et débordait de plusieurs centaines de pixels.
+   ⚠️ Ce choix tient à une condition : la hauteur de `#device` doit rester
+   EXPLICITE dans les trois cas (100dvh en bureau, min(880px,100dvh) en
+   téléphone, 100dvh sur un vrai mobile). Avec `contain:size`, une hauteur
+   qui dépendrait du contenu s'effondrerait à zéro. Ne pas la retirer. */
 #device{
+  container:device / size;
   position:relative;overflow:hidden;background:var(--bg);
   display:grid;min-width:0;min-height:0;
   grid-template-columns:var(--rail) minmax(0,1fr);
@@ -225,10 +252,17 @@ body.busy #appbar .orb::after{animation:breathe 1.9s cubic-bezier(.4,0,.2,1) inf
 #appbar .icon.sm{color:#8b949e;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
 #appbar .icon.sm:hover{color:#e6edf3;background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.18)}
 
-/* Un écran étroit ne garde que l'essentiel : l'identité, la langue, le
-   thème. Le modèle et le mode passent dans les Réglages. */
-@media (max-width:420px){
-  #appbar .ar,#appbar #mode{display:none}
+/* Un écran étroit resserre la barre du haut, mais ne lâche PAS le cerveau :
+   savoir quel modèle vient de répondre est la seule chose que cette barre
+   doit garder coûte que coûte pendant une démonstration. Ce qui part, c'est
+   le mot arabe décoratif à côté du nom. Le mode se réduit sans disparaître.
+   (Ancienne version : masquait le modèle sous 420 px — exactement l'inverse
+   de ce que demande une démonstration filmée sur un téléphone.) */
+@container device (max-width:430px){
+  #appbar{gap:6px;padding-inline:11px}
+  #appbar .ar{display:none}
+  #appbar .mode{max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #appbar .icon.sm{width:28px;height:28px}
 }
 :lang(ar),[dir=rtl]{font-family:var(--arabic)}
 button,input,select,textarea{font-family:inherit}
@@ -302,7 +336,11 @@ main{min-width:0;min-height:0;overflow:hidden;position:relative}
 .page > header{display:flex;align-items:flex-start;gap:16px;margin-bottom:24px;flex-wrap:wrap}
 /* Les titres portent le caractère : larges, serrés, assumés. C'est le seul
    endroit où l'app hausse la voix. */
-.page h1{margin:0;font-size:clamp(28px,3.4vw,38px);font-weight:760;letter-spacing:-.035em;
+/* La taille suit la largeur de l'APPAREIL, pas celle de la fenêtre.
+   `3.4vw` lisait 3,4 % de 1920 px — 65 px, donc 38 px après plafonnement —
+   et posait ce titre de 38 px dans un téléphone de 412 px. En `cqi` : 6 %
+   de 412 font 25 px, 6 % de 1920 en font 38. Un seul réglage, deux coques. */
+.page h1{margin:0;font-size:clamp(23px,6cqi,38px);font-weight:760;letter-spacing:-.035em;
   line-height:1.08}
 .page > header{position:relative;padding-top:4px}
 .page > header::before{content:"";position:absolute;top:-14px;inset-inline-start:0;width:34px;height:3px;
@@ -414,8 +452,8 @@ input.f:focus,select.f:focus,textarea.f:focus{border-color:var(--accent);box-sha
    shrink below its content, so both columns grew past the viewport and the
    panes clipped instead of scrolling. */
 #v-chat{grid-template-columns:minmax(360px,46%) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
-@media (max-width:1040px){
-  #v-chat{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,46dvh)}
+@container device (max-width:1040px){
+  #v-chat{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,46cqh)}
   #canvas{border-top:1px solid var(--line);border-inline-start:0 !important}
 }
 #chat{display:flex;flex-direction:column;min-height:0;background:var(--panel);
@@ -689,8 +727,16 @@ body.listening #photo{opacity:.25}
 /* ══ inbox ═════════════════════════════════════════════════════════════ */
 #v-inbox{grid-template-columns:minmax(0,1fr)}
 .inbox{display:grid;grid-template-columns:230px minmax(280px,360px) minmax(0,1fr);height:100%;min-height:0}
-@media (max-width:1180px){.inbox{grid-template-columns:minmax(260px,340px) minmax(0,1fr)}.inbox .surf{display:none}}
-@media (max-width:780px){.inbox{grid-template-columns:minmax(0,1fr)}.inbox .tlist{display:none}.inbox.list .tlist{display:flex}.inbox.list .tview{display:none}}
+@container device (max-width:1180px){.inbox{grid-template-columns:minmax(260px,340px) minmax(0,1fr)}.inbox .surf{display:none}}
+/* Sous 780 px on EMPILE, on ne masque plus. L'ancienne règle cachait la
+   liste des fils et ne la rendait que sous une classe `.inbox.list` que
+   inbox.js ne pose jamais : la boîte de réception n'était pas étroite, elle
+   était vide. Empiler marche sans une ligne de JavaScript. */
+@container device (max-width:780px){
+  .inbox{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);overflow:hidden}
+  .inbox .tlist{display:flex;max-height:34cqh;border-inline-end:0;border-bottom:1px solid var(--line)}
+  .inbox .tview{display:flex;min-height:0}
+}
 
 .inbox .surf{border-inline-end:1px solid var(--line);background:var(--raise);padding:14px 12px;
   overflow-y:auto;min-height:0}
@@ -760,20 +806,32 @@ body.listening #photo{opacity:.25}
 
 /* ══ the landing studio ════════════════════════════════════════════════ */
 #v-studio{grid-template-columns:minmax(330px,400px) minmax(0,1fr)}
-@media (max-width:1100px){#v-studio{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,44dvh)}}
+/* Réglages dessus, aperçu dessous. La règle existait déjà mais interrogeait
+   la fenêtre : dans un appareil de 412 px elle ne se déclenchait jamais, et
+   le Studio gardait ses deux colonnes — 330 px de réglages et 80 px
+   d'aperçu. */
+@container device (max-width:1100px){
+  #v-studio{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(0,46cqh)}
+  .studio-l{border-inline-end:0;border-bottom:1px solid var(--line)}
+}
 .studio-l{border-inline-end:1px solid var(--line);background:var(--panel);overflow-y:auto;min-height:0;
   padding:20px 20px 40px}
 .studio-r{background:var(--bg);display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .studio-r .bar{flex:0 0 auto;padding:11px 18px;border-bottom:1px solid var(--line);background:var(--panel);
-  display:flex;align-items:center;gap:9px}
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .studio-r .bar .t{font-weight:650;font-size:14px}
 .studio-r .bar .right{margin-inline-start:auto;display:flex;gap:7px;align-items:center}
-.studio-r .stage{flex:1;min-height:0;overflow:auto;display:grid;place-items:start center;padding:20px}
-.studio-r .stage.phone{padding:22px}
-.studio-r iframe{border:0;background:#fff;display:block;box-shadow:var(--sh-2);border-radius:var(--r)}
-.studio-r iframe.desk{width:100%;max-width:1100px;height:calc(100dvh - 160px);min-height:520px}
-.studio-r iframe.phone{width:392px;max-width:100%;height:calc(100dvh - 180px);min-height:560px;
-  border:9px solid #16130f;border-radius:34px}
+/* L'aperçu remplit la place qu'on lui donne au lieu de la calculer sur la
+   fenêtre : `calc(100dvh - 160px)` partait de la hauteur de l'ÉCRAN, donc
+   dans un appareil de 880 px l'iframe dépassait de plusieurs centaines de
+   pixels et poussait la page. Ici la rangée fait 1fr et l'iframe la suit. */
+.studio-r .stage{flex:1;min-height:0;overflow:auto;padding:20px;
+  display:grid;grid-template-rows:minmax(0,1fr);justify-items:center;align-items:stretch}
+.studio-r .stage.phone{padding:18px}
+.studio-r iframe{border:0;background:#fff;display:block;box-shadow:var(--sh-2);border-radius:var(--r);
+  height:100%;min-height:360px}
+.studio-r iframe.desk{width:100%;max-width:1100px}
+.studio-r iframe.phone{width:392px;max-width:100%;border:9px solid #16130f;border-radius:34px}
 
 .fset{margin-bottom:18px}
 .fset > .lbl{display:flex;align-items:baseline;gap:8px;font-size:12.5px;font-weight:650;
@@ -847,7 +905,7 @@ body.listening #photo{opacity:.25}
 
 .toast{position:fixed;bottom:22px;left:50%;translate:-50% 0;z-index:95;background:var(--solid);color:var(--solid-on);
   padding:12px 20px;border-radius:99px;font-size:13.5px;box-shadow:var(--sh-2);opacity:0;
-  transition:.25s;pointer-events:none;max-width:min(560px,86vw);text-align:center}
+  transition:.25s;pointer-events:none;max-width:min(560px,86cqw);text-align:center}
 .toast.on{opacity:1;translate:-50% -6px}
 .toast.bad{background:var(--bad)}
 
@@ -1046,10 +1104,10 @@ body.listening #photo{opacity:.25}
 }
 
 /* De l'air repris partout : 72 px de marge sur 390 px d'écran, c'est 242 px
-   de contenu utile. */
-@media (max-width:640px){
-  .page{padding:22px 16px 40px}
-  .page h1{font-size:25px}
+   de contenu utile. Sur `device`, donc ça s'applique aussi dans la coque
+   téléphone d'un écran de bureau — c'est là qu'on répète la démonstration. */
+@container device (max-width:640px){
+  .page{padding:20px 15px 42px}
   #log{padding:18px 14px 6px}
   #dock{padding:8px 12px 12px}
   #canvas{padding:18px 14px 28px}
@@ -1063,13 +1121,23 @@ body.listening #photo{opacity:.25}
   /* Sous 16 px, iOS zoome tout seul au focus et la mise en page saute. */
   input.f,select.f,textarea.f,#text{font-size:16px}
 
-  /* La boîte de réception n'était pas « étroite », elle était MORTE : la
-     liste des fils était masquée et ne revenait que sous une classe
-     `.inbox.list` que inbox.js ne pose jamais. On empile au lieu de cacher :
-     ça marche sans une ligne de JavaScript. */
-  .inbox{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);overflow-y:auto}
-  .inbox .tlist{display:flex !important;max-height:38dvh}
-  .inbox .tview{display:flex !important}
+  /* Trois colonnes dont une valeur DNS complète sur 380 px : illisible.
+     Le type reste une étiquette en tête, le nom à côté, la valeur dessous
+     sur toute la largeur — c'est elle qu'on recopie chez le registrar. */
+  .dns .rec{grid-template-columns:52px minmax(0,1fr);gap:3px 9px}
+  .dns .rec > :nth-child(3){grid-column:1/-1;word-break:break-all;color:var(--dim)}
+
+  /* Un en-tête de page dont les actions restent collées à droite finit en
+     colonne de boutons d'une largeur chacun. À l'étroit, elles passent en
+     ligne sous le titre et défilent si besoin. */
+  .page header .actions{margin-inline-start:0;width:100%}
+  .kv{grid-template-columns:minmax(0,1fr);gap:2px 0}
+  .kv dt{color:var(--faint);font-size:12px}
+  .kv dd{margin:0 0 9px}
+
+  /* Les segments du Studio (4 à 5 choix) débordaient : ils s'enroulent
+     déjà, mais chaque bouton réclamait sa largeur de contenu. */
+  .seg button{flex:1 1 auto;min-width:0;padding:8px 9px;font-size:12px}
 }
 
 /* Les tableaux de l'agent étaient les seuls non enveloppés, et `.card` les

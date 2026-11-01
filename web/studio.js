@@ -27,6 +27,12 @@ let device = 'desk'
 let preview = null    // url of the last page built
 let building = false
 
+/* L'aperçu s'appelle « studio-stage », surtout pas « stage ».
+   index.html donne déjà ce nom-là au conteneur qui entoure tout l'appareil.
+   Comme $() cherche dans le document entier, la recherche renvoyait ce
+   conteneur, et paintPreview() réécrivait son contenu : barre du haut, rail,
+   vues — tout disparaissait, et il ne restait que l'état vide du Studio,
+   centré sur un écran blanc. Un simple clic sur Studio effaçait l'app. */
 export async function mount(root) {
   if (!root.dataset.built) {
     root.innerHTML = `<div class="studio-l" id="sl">${loading(t('studio.loading'))}</div>
@@ -42,7 +48,7 @@ export async function mount(root) {
             <a class="btn sm" id="open" target="_blank" rel="noopener" style="display:none">${icon('ext', 14)} ${t('studio.open')}</a>
           </div>
         </div>
-        <div class="stage" id="stage"></div>
+        <div class="stage" id="studio-stage"></div>
       </div>`
     root.dataset.built = '1'
     for (const b of root.querySelectorAll('[data-dev]')) {
@@ -340,7 +346,7 @@ async function build(fresh) {
 }
 
 function paintPreview() {
-  const stage = $('#stage'); if (!stage) return
+  const stage = $('#studio-stage'); if (!stage) return
   const open = $('#open')
   for (const b of document.querySelectorAll('[data-dev]')) b.classList.toggle('on', b.dataset.dev === device)
 

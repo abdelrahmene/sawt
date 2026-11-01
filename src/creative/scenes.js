@@ -77,15 +77,21 @@ const SUFFIX = {
 
 const GUARD = 'Absolutely no text, no letters, no numbers, no logos, no watermark anywhere in the image. No people looking at the camera.'
 
-/* La bande du haut, réservée.
-   Le titre de la page est du VRAI texte HTML posé sur la photo. Si le produit
-   occupe toute la hauteur, le titre lui passe dessus et on ne voit plus ni
-   l'un ni l'autre. On demande donc au modèle de laisser le tiers supérieur
-   calme et dégagé — c'est ce qui fait qu'une page a l'air dessinée plutôt que
-   générée. */
-const BANDE = 'Compose with the top third of the frame calm and visually empty — ' +
-  'plain background, no subject, evenly lit — so a headline can sit there afterwards. ' +
-  'Place the product in the lower two thirds.'
+/* RETIRÉ : la bande calme du haut.
+   Elle demandait au modèle de laisser le tiers supérieur vide « pour que le
+   titre puisse s'y poser ». C'était une rustine : le titre était écrit EN
+   HTML par-dessus la photo, donc il fallait lui faire de la place dans
+   l'image. On payait ça cher — un tiers du cadre perdu, le produit repoussé
+   en bas, et la contrainte était de toute façon mal suivie.
+   Depuis le portage de `landing-lab`, le texte a sa propre place AU-DESSUS
+   de l'image, qui est ensuite remontée sous lui et fondue dans le fond. Le
+   modèle peut donc composer librement, et le produit occupe le cadre.
+
+   PORTRAIT 2:3 et non carré : la page se lit sur un téléphone tenu à la
+   verticale. Un carré y perd un tiers de la hauteur utile. Vérifié le
+   01/11/2026 — muse-image accepte 1024x1536. */
+const FORMAT = '1024x1536'
+const CADRE = 'Vertical portrait composition, 2:3. The product is the subject and fills the frame confidently.'
 
 /**
  * La consigne de fidélité, EN PREMIER dans le prompt.
@@ -110,7 +116,7 @@ const fidele = (visual, scene, suffix) => [
   'Re-photograph THIS object in a new setting:',
   scene,
   suffix,
-  BANDE,
+  CADRE,
   GARDE_MARQUE,
   GUARD,
 ].filter(Boolean).join(' ')
@@ -176,8 +182,8 @@ export async function renderScenes(scenes = {}, {
   let done = 0
   const settled = await Promise.allSettled(wanted.map(async (slot) => {
     const b64 = source
-      ? await edit(source, fidele(visual, scenes[slot].trim(), suffix[slot]))
-      : await generate(`${scenes[slot].trim()} ${suffix[slot]} ${BANDE} ${GUARD}`, { size: '1024x1024' })
+      ? await edit(source, fidele(visual, scenes[slot].trim(), suffix[slot]), { size: FORMAT })
+      : await generate(`${scenes[slot].trim()} ${suffix[slot]} ${CADRE} ${GUARD}`, { size: FORMAT })
     if (!b64) throw new Error('aucune image renvoyée')
     const png = join(OUT, base(slot) + '.png')
     save(b64, png)

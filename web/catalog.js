@@ -148,7 +148,11 @@ function ouvrir(root, id) {
         <button class="btn ghost" id="no">${esc(t('catalog.cancel'))}</button>
       </div>
     </div>`
-  document.body.append(back)
+  // Dans l'appareil, pas dans <body> : la feuille est en position fixe, et
+  // depuis <body> elle se calait sur la fenêtre — en coque téléphone elle
+  // débordait du cadre et noircissait tout l'écran de bureau autour.
+  // `#device` est le bloc conteneur des descendants fixes (container-type).
+  ;($('#device') ?? document.body).append(back)
 
   const px = $('#px', back), live = $('#live', back)
   const show = () => {

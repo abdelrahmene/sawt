@@ -59,6 +59,32 @@ export function go(id) {
   location.hash = id
   if (id === 'chat') seenWork()
   try { tab.mod.mount?.($(`#v-${id}`)) } catch (e) { console.error(`[${id}]`, e); toast(e.message, true) }
+  gardeIds()
+}
+
+/* ── le garde-fou des identifiants ────────────────────────────────────────
+   Pourquoi ce bout de code existe : le Studio nommait son aperçu « stage »,
+   un nom que index.html donne déjà au conteneur de tout l'appareil. $()
+   cherche dans le document entier et renvoie le PREMIER trouvé, donc peindre
+   l'aperçu réécrivait le contenu de la coque : barre du haut, rail, vues —
+   tout disparaissait. Deux autres doublons dormaient à côté : les Réglages
+   enregistraient « language: "" » parce qu'ils lisaient le bouton EN/AR/FR
+   de la barre du haut, et le bouton d'état vide des Campagnes ne faisait
+   rien parce que celui des Sites portait le même nom et passait avant.
+
+   Aucun de ces trois-là n'a levé d'erreur. C'est précisément pour ça qu'il
+   faut les faire crier : chaque vue est montée dans le document commun, donc
+   un nom choisi dans un module peut en percuter un autre à tout moment. */
+const criees = new Set()
+function gardeIds() {
+  const vus = new Map()
+  for (const n of $$('[id]')) vus.set(n.id, (vus.get(n.id) ?? 0) + 1)
+  for (const [nom, n] of vus) {
+    if (n < 2 || criees.has(nom)) continue
+    criees.add(nom)
+    console.error(`[ids] « ${nom} » apparaît ${n} fois dans le document — $('#${nom}') ne verra que le premier.`)
+    toast(`Identifiant en double : ${nom}`, true)
+  }
 }
 
 /** Views call this after they change something that a badge counts. */

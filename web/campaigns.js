@@ -78,9 +78,13 @@ export async function mount(root) {
       <header><div><h1>${t('campaigns.title')}</h1><p>${t('campaigns.subtitle')}</p></div></header>
       ${emptyState(t('campaigns.empty.title'),
         t('campaigns.empty.body', { example: t('campaigns.empty.example') }),
-        `<button class="btn p" id="to-chat">${t('campaigns.empty.cta')}</button>`)}
+        `<button class="btn p" id="camp-to-chat">${t('campaigns.empty.cta')}</button>`)}
     </div>`
-    $('#to-chat').onclick = () => import('./app.js').then((m) => m.go('chat'))
+    // Portée au conteneur de l'écran : `sites.js` donne le même id à SON
+    // bouton d'état vide, et les deux vues coexistent dans le document.
+    // `#v-sites` passe avant `#v-campaigns`, donc une recherche globale
+    // branchait le bouton des sites et laissait celui-ci mort.
+    $('#camp-to-chat', root).onclick = () => import('./app.js').then((m) => m.go('chat'))
     return
   }
 

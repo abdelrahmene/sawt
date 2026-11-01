@@ -38,9 +38,9 @@ export async function mount(root) {
       <header><div><h1>${esc(t('sites.empty.head'))}</h1><p>${t('sites.empty.lead')}</p></div></header>
       ${emptyState(t('sites.empty.title'),
         t('sites.empty.body'),
-        `<button class="btn p" id="to-chat">${t('sites.empty.cta')}</button>`)}
+        `<button class="btn p" id="sites-to-chat">${t('sites.empty.cta')}</button>`)}
     </div>`
-    $('#to-chat').onclick = () => import('./app.js').then((m) => m.go('chat'))
+    $('#sites-to-chat', root).onclick = () => import('./app.js').then((m) => m.go('chat'))
     return
   }
 

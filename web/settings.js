@@ -44,6 +44,11 @@ const SIM = [
 // seulement la phrase qui a le droit de les déplacer.
 const CHIP = (s) => `<span class="chip mono">${s}</span>`
 
+/* Le sélecteur de langue de la boutique s'appelle « set-lang ».
+   La barre du haut porte déjà le nom « lang » : c'est le bouton EN/AR/FR.
+   La recherche globale renvoyait donc ce bouton, dont .value vaut la chaîne
+   vide — on enregistrait « language: "" » à chaque sauvegarde, sans erreur
+   et sans rien dire. Les lectures de ce formulaire passent par root. */
 export async function mount(root) {
   root.innerHTML = `<div class="page">${loading(t('settings.loading'))}</div>`
   const s = await api('/state')
@@ -60,7 +65,7 @@ export async function mount(root) {
           <div><label class="f">${t('settings.shop.name')}</label>
             <input class="f" id="shop" value="${esc(s.settings?.shop ?? '')}" placeholder="Sabat Dzair"></div>
           <div style="max-width:200px"><label class="f">${t('settings.shop.lang')}</label>
-            <select class="f" id="lang">
+            <select class="f" id="set-lang">
               <option value="ar"${s.settings?.language === 'ar' ? ' selected' : ''}>${t('settings.shop.langAr')}</option>
               <option value="fr"${s.settings?.language === 'fr' ? ' selected' : ''}>${t('settings.shop.langFr')}</option>
             </select></div>
@@ -151,7 +156,7 @@ export async function mount(root) {
   }
 
   $('#save').onclick = async () => {
-    await api('/settings', { method: 'POST', body: { shop: $('#shop').value.trim(), language: $('#lang').value } })
+    await api('/settings', { method: 'POST', body: { shop: $('#shop', root).value.trim(), language: $('#set-lang', root).value } })
     await refresh()
     toast(t('settings.saved'))
   }

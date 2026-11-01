@@ -87,6 +87,16 @@
       <section class="view scroll" id="v-settings"></section>
     </main>
 
+    <!-- Dedans, pas dehors. Ces trois-là sont en `position:fixed` : posés
+         dans <body>, ils se calaient sur la FENÊTRE — un toast centré au
+         milieu de l'écran de bureau pendant que l'app tient dans un
+         téléphone de 412 px, et une visionneuse qui noircissait les 1920 px.
+         `#device` porte maintenant `container-type`, ce qui en fait le bloc
+         conteneur des descendants fixes : ils restent dans l'appareil.
+         Ils sont hors flux, donc ils ne prennent aucune case de la grille. -->
+    <div id="lightbox"><img alt=""><span class="hint" data-i18n="shell.lightbox"></span></div>
+    <div class="toast" id="toast"></div>
+
   </div>
 
   <!-- Hors de l'appareil : de quoi repasser en pleine largeur quand on a
@@ -96,9 +106,6 @@
   </div>
 
 </div>
-
-<div id="lightbox"><img alt=""><span class="hint" data-i18n="shell.lightbox"></span></div>
-<div class="toast" id="toast"></div>
 
 <script type="module" src="/web/app.js"></script>
 </body>

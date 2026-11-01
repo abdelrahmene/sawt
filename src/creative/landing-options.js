@@ -35,6 +35,12 @@ export const OPTIONS = {
         help: T('The way a shopkeeper writes to a customer. Brand names stay in Latin script.', 'كيما يكتب التاجر للزبون. أسماء الماركات تبقى باللاتيني.', "Comme un vendeur écrit à un client. Les marques restent en latin.") },
       { v: 'fr', label: T('French', 'فرنسية', 'Français'),
         help: T('For a French-speaking customer base.', 'للزبائن لي يهدرو الفرنسية.', 'Pour une clientèle francophone.') },
+      // L'anglais n'est pas la langue d'un acheteur algérien — il est là pour
+      // qu'on puisse MONTRER la page à quelqu'un qui ne lit ni l'arabe ni le
+      // français. Sans lui, « tout en anglais pour la démonstration »
+      // s'arrêtait à l'interface : la page produite, elle, restait en arabe.
+      { v: 'en', label: T('English', 'إنجليزية', 'Anglais'),
+        help: T('For showing the page to someone who reads neither Arabic nor French. Not what you sell with in Algeria.', 'باش توري الصفحة لواحد ما يقراش عربية ولا فرنسية. ماشي هي لي تبيع بيها في الجزائر.', "Pour montrer la page à qui ne lit ni l'arabe ni le français. Pas la langue avec laquelle on vend en Algérie.") },
     ],
   },
   scenario: {
