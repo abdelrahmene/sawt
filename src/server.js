@@ -97,8 +97,15 @@ const remember = (sid, entry) => {
 // avant la garde ressort avec un bouton « Lance-la » en pilule ordinaire, et
 // le point de contrôle qu'on a mis à l'écran ne protège que les sessions
 // neuves. Une seule fonction, appelée aux deux bouts.
+//
+// ⚠️ Et la coupe se fait par le BON bout. `ORDER BY id LIMIT 400` gardait les
+// 400 événements les plus ANCIENS : une session assez longue pour importer un
+// produit, construire une page et faire tourner une campagne rechargeait sur
+// son propre début, la fin manquante. On prend les 400 derniers, remis à
+// l'endroit.
 const timeline = (sid) =>
-  all('SELECT json FROM events WHERE session=? ORDER BY id LIMIT 400', sid)
+  all('SELECT json FROM events WHERE session=? ORDER BY id DESC LIMIT 400', sid)
+    .reverse()
     .map((r) => unJ(r.json))
     .filter(Boolean)
     .map((e) => (e.k === 'choices' && e.choices ? { ...e, choices: e.choices.map(marquerEngagement) } : e))
@@ -484,7 +491,7 @@ const server = createServer(async (req, res) => {
 
     /* ── sites, pages, domains ──────────────────────────────────────────── */
     if (reading && p === '/api/sites') {
-      return json(res, 200, { sites: sites.sites(sid), loose: sites.loosePages(), edge_ip: sites.EDGE_IP })
+      return json(res, 200, { sites: sites.sites(sid), loose: sites.loosePages(sid), edge_ip: sites.EDGE_IP })
     }
     if (reading && seg[1] === 'sites' && seg[2]) {
       const s = sites.site(Number(seg[2]))
@@ -504,7 +511,7 @@ const server = createServer(async (req, res) => {
       return json(res, 200, sites.removeDomain(Number(seg[2])))
     }
 
-    if (reading && p === '/api/orders') return json(res, 200, { orders: sites.orders() })
+    if (reading && p === '/api/orders') return json(res, 200, { orders: sites.orders(sid) })
 
     /* ── the landing studio ─────────────────────────────────────────────── */
     // The catalogue of knobs, what this session last chose, and everything it

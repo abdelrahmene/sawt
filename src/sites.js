@@ -48,10 +48,16 @@ export function site(id) {
   }
 }
 
-/** Pages built outside a site (a single landing page, which is the common case). */
-export const loosePages = () =>
+/** Pages built outside a site (a single landing page, which is the common case).
+ *
+ *  Bornées à la session. Sans le filtre, l'écran Sites listait les pages de
+ *  TOUTES les sessions tout en étant servi pour une seule : le badge du rail
+ *  comptait quatre pages et l'en-tête de l'écran en annonçait dix-neuf, dont
+ *  seize appartenaient à quelqu'un d'autre. Un écran qui montre le travail
+ *  d'une autre session n'est pas « plus complet », il est faux. */
+export const loosePages = (session = null) =>
   all(`SELECT p.*, (SELECT COUNT(*) FROM orders WHERE page=p.id) orders
-       FROM pages p WHERE p.site IS NULL ORDER BY p.id DESC`)
+       FROM pages p WHERE p.site IS NULL AND (? IS NULL OR p.session = ?) ORDER BY p.id DESC`, session, session)
     .map((p) => ({ ...p, theme: unJ(p.theme, {}), content: undefined }))
 
 /* ── domains ──────────────────────────────────────────────────────────── */
@@ -166,8 +172,12 @@ export function recordOrder(data) {
   return one('SELECT * FROM orders WHERE id=?', id)
 }
 
-export const orders = (limit = 50) =>
+// Même raison : une commande posée sur la page d'une autre session n'a rien
+// à faire dans celle-ci. Ce sont les seules lignes que rien ne simule, donc
+// les attribuer au mauvais marchand est la pire des confusions possibles.
+export const orders = (session = null, limit = 50) =>
   all(`SELECT o.*, p.url page_url FROM orders o LEFT JOIN pages p ON p.id=o.page
-       ORDER BY o.id DESC LIMIT ?`, limit)
+       WHERE ? IS NULL OR p.session = ?
+       ORDER BY o.id DESC LIMIT ?`, session, session, limit)
 
 export { J, unJ }

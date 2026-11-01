@@ -179,6 +179,8 @@ export function shopProducts(sessionId) {
         supplier: p.supplier,
         variants: p.variants.filter((v) => v.stock > 0).map((v) => v.size),
         image: p.image,
+        images: p.images,
+        record: p.record,
         page: im.page,
       }
     })

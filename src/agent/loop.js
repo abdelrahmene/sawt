@@ -32,7 +32,11 @@ const MAX_STEPS = 9
  * photo is the hanger-on-a-bedsheet it came from. Both belong on the page,
  * in that order.
  */
-const isUrl = (s) => typeof s === 'string' && (s.startsWith('/out/') || s.startsWith('http'))
+// `/fixtures/` compte aussi : les produits du catalogue arrivent avec leurs
+// propres photos, versionnées dans le dépôt. Sans cette ligne elles étaient
+// filtrées ici et la page d'un produit importé sortait sans une seule image —
+// le marchand n'a pourtant rien à envoyer, c'est tout l'intérêt.
+const isUrl = (s) => typeof s === 'string' && (s.startsWith('/out/') || s.startsWith('/fixtures/') || s.startsWith('http'))
 
 function assetsFor(ctx, explicit) {
   // The model answers this field with what the schema asked for — ids like
@@ -44,7 +48,11 @@ function assetsFor(ctx, explicit) {
 
   const creatives = (ctx.creatives ?? []).map((c) => c.url ?? c).filter(isUrl)
   const photos = (ctx.photos ?? []).map((p) => p.url ?? p).filter(isUrl)
-  return [...creatives, ...photos].slice(0, 6)
+  // Les produits que le marchand a fait entrer depuis le catalogue. En
+  // dernier, parce qu'une photo qu'il a prise lui-même prime toujours sur
+  // une photo de catalogue.
+  const boutique = (ctx.products ?? []).flatMap((p) => p.images ?? (p.image ? [p.image] : [])).filter(isUrl)
+  return [...creatives, ...photos, ...boutique].slice(0, 6)
 }
 
 /* Ce qui met une campagne en ligne, dans les trois langues du marchand, et ce
@@ -183,6 +191,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       ;(ctx.products ??= []).unshift({
         id: r.product_id, name: r.name?.en ?? r.product_id, price: r.selling,
         variants: r.variants?.filter((v) => v.stock > 0).map((v) => v.size) ?? [],
+        images: r.images ?? [], image: r.images?.[0] ?? null,
       })
       return { ...r, next: 'Tu peux maintenant lui construire une page et une campagne, sans lui demander de photo : le catalogue en fournit.' }
     }
@@ -335,7 +344,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       })
 
     case 'build_storefront':
-      return buildStorefront(args)
+      return buildStorefront({ ...args, sessionId: ctx.sessionId })
 
     /* ── campaigns, now rows rather than a closure ───────────────────────── */
     case 'configure_campaign':

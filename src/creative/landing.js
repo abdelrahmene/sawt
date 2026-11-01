@@ -180,7 +180,7 @@ export async function buildSite({ shop_name, tagline, products, language = 'ar',
   const ok = pages.filter((p) => !p.error)
   onProgress({ step: total, total, label: shop_name, phase: 'home' })
   const home = await buildStorefront({
-    shop_name, language, tagline,
+    shop_name, language, tagline, sessionId, siteId,
     products: ok.map((p) => ({ name: p.name, price: p.price_dzd, image: p.image, href: p.url })),
   })
 
@@ -218,7 +218,17 @@ link to that product's landing page at the href given. A card with no photo is
 a dead card. Prices stay readable in right-to-left text: wrap each one in
 <bdi dir="ltr">.`
 
-export async function buildStorefront({ shop_name, products, language = 'ar', tagline }) {
+/**
+ * La vitrine n'existait nulle part.
+ *
+ * Elle écrivait son fichier, rendait une URL, et n'insérait AUCUNE ligne :
+ * elle vivait donc uniquement dans la carte du chat. Elle n'apparaissait pas
+ * dans l'écran Sites, on ne pouvait pas lui attacher un domaine, elle ne
+ * comptait pas dans le badge, et un rechargement la faisait disparaître de
+ * partout sauf de la conversation. Deux écrans qui parlent du même objet
+ * doivent lire la même table — sinon l'un des deux ment.
+ */
+export async function buildStorefront({ shop_name, products, language = 'ar', tagline, sessionId = null, siteId = null }) {
   const prompt = [
     `Shop: ${shop_name}`,
     tagline ? `Tagline: ${tagline}` : '',
@@ -243,7 +253,20 @@ export async function buildStorefront({ shop_name, products, language = 'ar', ta
   }
 
   const file = `storefront-${slugify(shop_name) || 'boutique'}.html`
+  const url = `/out/${file}`
   mkdirSync(OUT_DIR, { recursive: true })
   writeFileSync(join(OUT_DIR, file), html, 'utf8')
-  return { file, url: `/out/${file}`, bytes: html.length, shop_name, count: products.length }
+
+  // buildSite passe son siteId et met home_url à jour lui-même. Appelée
+  // seule, la vitrine se donne un site, pour exister sur l'écran Sites
+  // comme n'importe quelle autre page.
+  let id = siteId
+  if (!id) {
+    const deja = one('SELECT id FROM sites WHERE session IS ? AND shop=?', sessionId, shop_name)
+    id = deja?.id ?? insert('INSERT INTO sites(session,shop,tagline,language,home_url,at) VALUES(?,?,?,?,?,?)',
+      sessionId, shop_name, tagline ?? null, language, url, now())
+    run('UPDATE sites SET home_url=?, tagline=COALESCE(?,tagline) WHERE id=?', url, tagline ?? null, id)
+  }
+
+  return { file, url, bytes: html.length, shop_name, count: products.length, site_id: id }
 }
