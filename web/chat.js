@@ -273,8 +273,23 @@ function photoGrid() {
 // One malformed artifact must not take the screen down with it. Replaying a
 // conversation means replaying data written by older code, and the first time
 // that happened the whole app rendered blank on a single undefined field.
+/* Le débit, écrit SOUS ce qu'il a payé.
+   Pas dans un relevé qu'on irait chercher ailleurs : le marchand voit la
+   page, et juste en dessous ce qu'elle lui a coûté, avec le détail des
+   appels. Une action gratuite — lire la boîte, ouvrir le catalogue —
+   n'affiche rien du tout plutôt qu'un « 0 crédit » qui ferait douter. */
+function ligneCout(cost) {
+  if (!cost?.credits) return null
+  const detail = cost.lines
+    .map((l) => t('chat.cost.line', { n: num(l.n), model: l.model }))
+    .join(' · ')
+  return el('div', 'cost-line',
+    `<b>−${num(cost.credits)}</b> ${esc(t('chat.cost.credits'))}` +
+    `<span>${detail}</span>`)
+}
+
 function renderArtifact(a) {
-  try { return renderArtifactInner(a) } catch (e) {
+  try { renderArtifactInner(a) } catch (e) {
     console.error('[artifact]', a?.name, e)
     const b = card(a?.name ?? t('chat.label.artifact'), {})
     b.append(el('div', 'why warn',
@@ -285,6 +300,10 @@ function renderArtifact(a) {
         { href: a.result.url, target: '_blank', rel: 'noopener' }))
     }
   }
+  // Collé à la dernière carte posée, quelle qu'elle soit : chaque branche
+  // n'a donc pas à y penser, et une branche ajoutée demain l'aura aussi.
+  const ligne = ligneCout(a?.cost)
+  if (ligne) canvas.lastElementChild?.querySelector('.body')?.append(ligne)
 }
 
 function renderArtifactInner({ name, args, result, simulated, real }) {
@@ -296,6 +315,63 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
       btn.onclick = () => go('meta')
       b.append(el('div', null, '').appendChild(btn).parentElement)
     }
+    return
+  }
+
+  /* ── le catalogue fournisseur, en images ───────────────────────────────
+     Ce résultat tombait dans l'affichage JSON de repli : dix produits en
+     accolades et en guillemets. Un dropshippeur ne choisit pas un produit
+     sur une ligne de JSON — il le choisit en le voyant, et il décide sur
+     la marge. Les deux manquaient à l'écran alors que le serveur les
+     envoyait déjà. */
+  if (name === 'browse_catalog') {
+    const b = card(t('chat.card.catalog', { n: result.count ?? 0 }), { sim: simulated })
+    // La MÊME carte que l'écran Catalogue, pas une deuxième à entretenir :
+    // mêmes classes, donc le jour où l'une change, l'autre suit.
+    const g = el('div', 'prods')
+    for (const p of result.products ?? []) {
+      const c = el('article', 'prod')
+      c.innerHTML = `
+        <div class="shot">${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">` : ''}</div>
+        <div class="body">
+          <h3>${esc(p.name)}</h3>
+          <div class="by">${esc(p.supplier ?? '')}</div>
+          <div class="nums">
+            <span><em>${esc(t('chat.catalog.cost'))}</em>${dinars(p.supplier_cost)}</span>
+            <span><em>${esc(t('chat.catalog.price'))}</em>${dinars(p.recommended_price)}</span>
+            <span class="win"><em>${esc(t('chat.catalog.marginLbl'))}</em>${dinars(p.margin_per_order)} <b>${num(p.margin_pct)}%</b></span>
+          </div>
+          <div class="sizes">${String(p.sizes ?? '').split(',').filter(Boolean)
+            .map((s) => `<span>${esc(s.trim())}</span>`).join('')}</div>
+        </div>`
+      // Choisir se fait en PARLANT à l'agent, pas en appelant l'outil nous-
+      // mêmes : c'est lui qui connaît le prix de vente à proposer et qui doit
+      // garder la main sur ce qui entre dans la boutique.
+      const btn = el('button', 'btn go', t('chat.catalog.sell'))
+      btn.onclick = () => send(t('chat.catalog.sellMsg', { name: p.name }))
+      c.querySelector('.body').append(btn)
+      g.append(c)
+    }
+    b.append(g)
+    if (result.say) b.append(el('div', 'why', esc(result.say)))
+    return
+  }
+
+  if (name === 'import_product') {
+    const b = card(t('chat.card.imported', { name: result.name?.en ?? result.product_id ?? '' }), { real: true })
+    const g = el('div', 'thumbs')
+    for (const u of (result.images ?? []).slice(0, 3)) g.append(thumb(u, ''))
+    if (g.childElementCount) b.append(g)
+    b.append(el('div', 'why',
+      t('chat.imported.money', {
+        price: `<b>${dinars(result.selling)}</b>`,
+        cost: dinars(result.supplier_cost),
+        margin: `<b>${dinars(result.margin)}</b>`,
+        pct: num(result.margin_pct),
+      })))
+    const go2 = el('button', 'btn go', t('chat.imported.next'))
+    go2.onclick = () => send(t('chat.imported.nextMsg', { name: result.name?.en ?? result.product_id }))
+    b.append(go2)
     return
   }
 

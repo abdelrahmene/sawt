@@ -5,7 +5,7 @@
 // share nothing but ui.js and the counts, which is why adding the Meta console
 // did not disturb the chat.
 import { $, $$, el, icon, esc, api, toast } from './ui.js'
-import { t, lang, setLang, LANGS, applyDocument, onLang } from './i18n.js'
+import { t, num, lang, setLang, LANGS, applyDocument, onLang } from './i18n.js'
 
 import * as chat from './chat.js'
 import * as catalog from './catalog.js'
@@ -94,6 +94,20 @@ export async function refresh({ repaint = true } = {}) {
     COUNTS = s.counts ?? {}
     $('#mode').textContent = s.mode ?? '—'
     $('#mode').title = `mode ${s.mode} · base ${s.db ?? ''}`
+
+    /* Le solde. Il baisse pendant la démonstration, et c'est le but : on
+       voit ce que chaque page coûte au moment où on la fabrique. La pastille
+       passe à l'orange sous 15 % — pas plus tôt, sinon elle crie pour rien. */
+    const cr = $('#credits')
+    const w = s.credits
+    if (cr && w) {
+      cr.textContent = `${num(w.left)} cr`
+      cr.classList.toggle('low', w.left < w.pack * 0.15)
+      cr.title = t('shell.creditsTitle', {
+        left: num(w.left), pack: num(w.pack), usd: num(w.usd), spent: num(w.spent),
+      })
+      cr.setAttribute('aria-label', cr.title)
+    }
 
     // Le cerveau, toujours à l'écran. Un clic bascule — c'est la démonstration
     // la plus courte du chemin open-weights : on change, on reparle, ça marche.

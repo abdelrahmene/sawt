@@ -49,6 +49,15 @@ export const shell = {
   'shell.toLight': { en: 'Switch to light', ar: 'دير الضوء', fr: 'Passer en clair' },
   'shell.toDark': { en: 'Switch to dark', ar: 'دير الظلام', fr: 'Passer en sombre' },
   'shell.toDesk': { en: 'Desktop layout', ar: 'عرض أورديناتور', fr: 'Affichage bureau' },
+  /* Le portefeuille est une MISE EN SCÈNE et l'infobulle le dit en toutes
+     lettres. Le nombre d'appels derrière, lui, est compté pour de vrai :
+     une scène reprise du cache ne coûte rien et n'est pas débitée. */
+  'shell.credits': { en: 'Credits left', ar: 'الكريدي لي باقي', fr: 'Crédits restants' },
+  'shell.creditsTitle': {
+    en: '{left} of {pack} credits left · {spent} spent. Pack: {pack} credits for ${usd}. The wallet is staged — the model calls behind it are counted for real.',
+    ar: '{left} من {pack} كريدي · صرفت {spent}. الباكي: {pack} كريدي بـ {usd} دولار. البورتوفاي راه ديمو — أما عدد الطلبات للموديل محسوب بصح.',
+    fr: '{left} crédits sur {pack} · {spent} dépensés. Pack : {pack} crédits pour {usd} $. Le portefeuille est une mise en scène — les appels aux modèles, eux, sont comptés pour de vrai.',
+  },
   'shell.toPhone': { en: 'Phone layout', ar: 'عرض تيليفون', fr: 'Affichage téléphone' },
   'shell.brain': { en: "The agent's brain", ar: 'العقل تاع الوكيل', fr: "Le cerveau de l'agent" },
   'shell.brainSwap': { en: 'click to switch', ar: 'كليكي باش تبدل', fr: 'clique pour basculer' },

@@ -104,6 +104,29 @@ export const chat = {
 
   /* ── les titres des cartes ────────────────────────────────────────────── */
   'chat.card.photos':      { en: 'Product photos',       ar: 'تصاور المنتج',      fr: 'Photos produit' },
+  /* ── le catalogue fournisseur, dans la conversation ───────────────────
+     « par commande LIVRÉE » n'est pas une précaution de style. En paiement
+     à la livraison une part des colis revient, donc une marge annoncée par
+     commande PASSÉE est une marge que le marchand ne touchera jamais. */
+  'chat.card.catalog': { en: '{n} products from the supplier', ar: '{n} منتجات من المورد', fr: '{n} produits du fournisseur' },
+  'chat.catalog.cost': { en: 'cost', ar: 'التكلفة', fr: 'coût' },
+  'chat.catalog.price': { en: 'sell at', ar: 'تبيع بـ', fr: 'vendre à' },
+  'chat.catalog.marginLbl': { en: 'you keep', ar: 'تربح', fr: 'tu gardes' },
+  'chat.catalog.sell': { en: 'Sell this one', ar: 'نبيع هذا', fr: 'Vendre celui-ci' },
+  'chat.catalog.sellMsg': { en: 'I want to sell the {name}.', ar: 'نحب نبيع {name}.', fr: 'Je veux vendre le {name}.' },
+  'chat.card.imported': { en: '{name} — now in your shop', ar: '{name} — راه في حانوتك', fr: '{name} — dans ta boutique' },
+  'chat.imported.money': {
+    en: 'You sell at {price}. The supplier bills you {cost}. You keep {margin} on every delivered order — {pct}%.',
+    ar: 'تبيع بـ {price}. المورد يحاسبك {cost}. تربح {margin} في كل طلب موصل — {pct}%.',
+    fr: 'Tu vends à {price}. Le fournisseur te facture {cost}. Tu gardes {margin} par commande livrée — {pct} %.',
+  },
+  'chat.imported.next': { en: 'Build its page', ar: 'إبني الصفحة تاعو', fr: 'Construire sa page' },
+  'chat.imported.nextMsg': { en: 'Build the landing page for the {name}.', ar: 'إبنيلي الصفحة تاع {name}.', fr: 'Construis la landing page du {name}.' },
+
+  /* ── le débit ─────────────────────────────────────────────────────── */
+  'chat.cost.credits': { en: 'credits', ar: 'كريدي', fr: 'crédits' },
+  'chat.cost.line': { en: '{n}× {model}', ar: '{n}× {model}', fr: '{n}× {model}' },
+
   'chat.card.angles':      { en: 'Marketing angles',     ar: 'أفكار الإشهار',     fr: 'Angles marketing' },
   'chat.card.restyle':     { en: 'Photo redone — {product}', ar: 'التصويرة معاودة — {product}', fr: 'Photo refaite — {product}' },
   'chat.card.creatives':   { en: 'Creatives',            ar: 'تصاور الإشهار',     fr: 'Créatives' },

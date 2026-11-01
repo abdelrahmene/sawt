@@ -16,6 +16,7 @@ import { connection } from '../meta-sim/connect.js'
 import { threads, thread, draftReply, sendReply, shopFacts } from '../meta-sim/inbox.js'
 import { addDomain } from '../sites.js'
 import * as catalog from '../catalog.js'
+import { charge } from '../credits.js'
 import { setting } from '../db.js'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
@@ -181,6 +182,37 @@ async function menuDeFin({ messages, artifacts, onEvent }) {
   }
 }
 
+/* Ce qu'un outil a RÉELLEMENT consommé, lu dans son résultat.
+   Pas un barème écrit à l'avance : une page dont les quatre scènes sortent
+   du cache ne coûte qu'un appel de texte, et l'annoncer à dix crédits
+   serait facturer du vent. Les outils absents de cette table ne coûtent
+   rien — lire la boîte de réception ou ouvrir le catalogue n'appelle aucun
+   modèle. */
+function consomme(name, r) {
+  if (!r || r.error) return []
+  const iso = r.isolated?.model ? 1 : 0
+  switch (name) {
+    case 'build_landing_page':
+      return [{ kind: 'text', n: 1 }, { kind: 'segment', n: iso },
+        { kind: 'image', n: (r.scenes?.length ?? 0) }]
+    case 'build_site':
+      // Une copie par page, plus la page d'accueil, plus les scènes de
+      // chacune. Le site est de loin l'action la plus chère de l'app.
+      return [
+        { kind: 'text', n: (r.pages?.length ?? 0) + 1 },
+        { kind: 'image', n: (r.pages ?? []).reduce((s, p) => s + (p.scenes ?? 0), 0) },
+      ]
+    case 'generate_creatives':
+      return [{ kind: 'segment', n: iso }, { kind: 'image', n: r.creatives?.length ?? 0 }]
+    case 'restyle_photo':
+      return [{ kind: 'segment', n: iso }, { kind: 'image', n: r.photos?.length ?? 0 }]
+    case 'answer_inbox':
+      return [{ kind: 'text', n: r.answered?.length ?? 1 }]
+    default:
+      return []
+  }
+}
+
 async function runTool(name, args, ctx, onEvent = () => {}) {
   switch (name) {
     case 'ask_merchant':
@@ -209,6 +241,11 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
           margin_per_order: p.margin, margin_pct: p.margin_pct,
           sizes: p.variants.map((v) => `${v.size} (${v.stock})`).join(', '),
           in_stock: p.stock,
+          // La photo part avec la fiche. Sans elle, l'écran affichait un
+          // tableau de chiffres : un dropshippeur ne choisit pas un produit
+          // sur une ligne de JSON, il le choisit en le voyant. Et c'est la
+          // même photo qui servira de source aux scènes de sa page.
+          image: p.image, images: p.images,
         })),
         note: 'Catalogue de démonstration, modelé sur un vrai catalogue algérien : ' +
           'les champs, les prix et les marges sont réalistes, mais aucun fournisseur n\'expédiera. ' +
@@ -558,7 +595,15 @@ export async function runTurn({ history = [], input, ctx = {}, onEvent = () => {
         result = { error: e.message }
       }
 
-      const artifact = { name, args, result, simulated: SIMULATED.has(name), real: REAL.has(name) }
+      // Le débit, compté sur ce qui est VRAIMENT revenu : une scène reprise
+      // du cache ne coûte rien, un appel en échec non plus. Il voyage avec
+      // l'artefact pour que l'écran l'écrive à côté de ce qu'il montre, et
+      // pas dans un relevé qu'on irait chercher ailleurs.
+      const facture = charge(ctx.sessionId, consomme(name, result), name)
+      const artifact = {
+        name, args, result, simulated: SIMULATED.has(name), real: REAL.has(name),
+        cost: facture.credits ? facture : null,
+      }
       artifacts.push(artifact)
       onEvent({ type: 'tool:end', ...artifact })
 

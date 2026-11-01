@@ -836,6 +836,17 @@ body.listening #photo{opacity:.25}
 .studio-r iframe.desk{width:100%;max-width:1100px}
 .studio-r iframe.phone{width:392px;max-width:100%;border:9px solid #16130f;border-radius:34px}
 
+/* Le débit sous la carte. Discret, mais toujours là : on ne cache pas ce
+   qu'on fait payer, et on ne le met pas non plus en gros rouge. */
+.cost-line{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:10px;
+  padding-top:9px;border-top:1px solid var(--line);font-size:12px;color:var(--dim)}
+.cost-line b{font:700 13px var(--mono);color:var(--ink-2)}
+.cost-line span{font:600 10.5px var(--mono);color:var(--faint);letter-spacing:.02em}
+
+/* La pastille du solde, dans la barre du haut. */
+#appbar .credits{font-family:var(--mono);letter-spacing:.02em}
+#appbar .credits.low{color:#f0b429;background:rgba(240,180,41,.14);border-color:rgba(240,180,41,.3)}
+
 /* ── la vitrine du Studio ─────────────────────────────────────────────────
    Avant, le Studio demandait de TAPER le nom du produit et son prix. Le
    marchand repartait donc sans sa photo — et les quatre scènes de la page

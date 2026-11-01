@@ -28,6 +28,7 @@ import * as sites from './sites.js'
 import * as opts from './creative/landing-options.js'
 import { buildLandingPage } from './creative/landing.js'
 import * as catalog from './catalog.js'
+import * as credits from './credits.js'
 
 const sh = promisify(execFile)
 const PORT = Number(process.env.PORT || 7070)
@@ -394,6 +395,7 @@ const server = createServer(async (req, res) => {
         photos: photosOf(sid).map((x) => x.url),
         timeline: timeline(sid),
         counts: counts(sid),
+        credits: credits.balance(sid),
         settings: {
           shop: s?.shop ?? null,
           language: s?.language ?? 'ar',
