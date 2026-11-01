@@ -95,6 +95,23 @@ const initials = (name) =>
   name.replace(/[^\p{L}\s.]/gu, '').split(/[\s.]+/).filter(Boolean).slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? '').join('')
 
+/**
+ * Les surfaces d'une connexion — Page et Instagram — boîte semée.
+ *
+ * POURQUOI CETTE FONCTION EXISTE : le semis ne vivait que dans le serveur,
+ * sur le chemin de l'écran Messages. L'agent, lui, lisait les fils
+ * directement. Donc un marchand qui connecte Facebook et demande aussitôt
+ * « واش كاين في الميساجات » s'entendait répondre « rien d'ouvert » — avec
+ * aplomb — et trouvait huit clients en cliquant sur l'onglet juste après.
+ * Deux écrans, deux vérités, et c'est l'agent qui avait tort.
+ *
+ * Le semis est idempotent : l'appeler sur les deux chemins ne duplique rien.
+ */
+export const surfacesOf = (connection) =>
+  (connection?.assets ?? [])
+    .filter((a) => a.kind === 'page' || a.kind === 'instagram')
+    .map((a) => { seedInbox(a.id, a.kind); return a })
+
 export function threads(assetId) {
   return all(
     `SELECT t.*,

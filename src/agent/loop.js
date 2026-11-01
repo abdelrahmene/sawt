@@ -13,7 +13,7 @@ import { generate, edit, save, headlinePrompt, GARDE_MARQUE, risqueMarque } from
 import { isolate } from '../models/segment.js'
 import * as camp from '../meta-sim/campaigns.js'
 import { connection } from '../meta-sim/connect.js'
-import { threads, thread, draftReply, sendReply, shopFacts } from '../meta-sim/inbox.js'
+import { threads, thread, draftReply, sendReply, shopFacts, surfacesOf } from '../meta-sim/inbox.js'
 import { addDomain } from '../sites.js'
 import * as catalog from '../catalog.js'
 import { charge } from '../credits.js'
@@ -473,7 +473,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       const c = connection(ctx.sessionId)
       if (c.status !== 'connected') return { error: 'Meta n\'est pas connecté — il n\'y a pas de boîte de réception.', needs: 'connect_meta' }
       const want = args.status ?? 'open'
-      const rows = c.assets.filter((a) => a.kind === 'page' || a.kind === 'instagram')
+      const rows = surfacesOf(c)
         .flatMap((a) => threads(a.id).map((t) => ({ ...t, asset_name: a.name })))
         .filter((t) => want === 'all' || t.status === want)
         .sort((x, y) => y.last_at - x.last_at)
@@ -496,7 +496,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
 
       let ids = (args.thread_ids ?? []).map(Number).filter(Boolean)
       if (!ids.length) {
-        ids = c.assets.filter((a) => a.kind === 'page' || a.kind === 'instagram')
+        ids = surfacesOf(c)
           .flatMap((a) => threads(a.id)).filter((t) => t.status === 'open')
           .sort((x, y) => y.last_at - x.last_at).slice(0, 6).map((t) => t.id)
       }

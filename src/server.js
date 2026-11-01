@@ -182,12 +182,7 @@ function counts(sid) {
 function surfaces(sid) {
   const c = meta.connection(sid)
   if (c.status !== 'connected') return []
-  return c.assets
-    .filter((a) => a.kind === 'page' || a.kind === 'instagram')
-    .map((a) => {
-      inbox.seedInbox(a.id, a.kind)
-      return { ...a, stats: inbox.inboxStats(a.id) }
-    })
+  return inbox.surfacesOf(c).map((a) => ({ ...a, stats: inbox.inboxStats(a.id) }))
 }
 
 /* ── the server ───────────────────────────────────────────────────────────── */
