@@ -9,6 +9,16 @@
 // Marketplace) ne se traduisent pas ; en lettres arabes ils gardent la forme
 // que Facebook lui-même emploie dans son interface arabe.
 export const campaigns = {
+  /* ── le portefeuille du compte publicitaire ───────────────────────────
+     Un tableau de dépenses sans le solde en face oblige le marchand à
+     additionner de tête pour savoir s'il peut encore lancer quelque chose.
+     Le « dépensé » n'est pas un nombre choisi : c'est la somme des
+     insights, donc il ne peut pas contredire le tableau juste en dessous. */
+  'campaigns.wallet.title': { en: 'Ad account', ar: 'كومبت الإشهار', fr: 'Compte publicitaire' },
+  'campaigns.wallet.left': { en: 'left', ar: 'باقي', fr: 'restant' },
+  'campaigns.wallet.spent': { en: 'spent', ar: 'مصروف', fr: 'dépensé' },
+  'campaigns.wallet.cap': { en: 'cap', ar: 'السقف', fr: 'plafond' },
+
   /* ── l'en-tête de l'écran ─────────────────────────────────────────────── */
   'campaigns.title': { en: 'Ads', ar: 'الإشهار', fr: 'Publicités' },
   'campaigns.subtitle': {

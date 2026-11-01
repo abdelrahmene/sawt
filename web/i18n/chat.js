@@ -104,6 +104,76 @@ export const chat = {
 
   /* ── les titres des cartes ────────────────────────────────────────────── */
   'chat.card.photos':      { en: 'Product photos',       ar: 'تصاور المنتج',      fr: 'Photos produit' },
+  /* ── l'accueil d'une conversation neuve ───────────────────────────────
+     Quatre cartes, pas douze : ce sont les quatre choses que l'app fait
+     vraiment de bout en bout. Chaque phrase d'exemple est écrite comme un
+     marchand la dirait — en darija c'est de la darija d'Alger, pas de
+     l'arabe littéraire, parce qu'on apprend en tapant dessus et qu'une
+     phrase qu'on n'aurait jamais dite n'apprend rien. */
+  'chat.hello.title': {
+    en: 'I run the marketing. You just talk.',
+    ar: 'أنا نتكفّل بالماركتينڨ. انت غير احكي.',
+    fr: 'Je fais le marketing. Toi, tu parles.',
+  },
+  'chat.hello.lede': {
+    en: 'Hold the mic and speak in darija, or tap one of these to see what happens.',
+    ar: 'شد الميكرو واحكي بالدارجة، ولا اضغط على وحدة من هادو باش تشوف.',
+    fr: 'Tiens le micro et parle en darija, ou touche une de ces cartes pour voir.',
+  },
+  'chat.hello.foot': {
+    en: 'Everything it builds is a real file you can open. What is staged is labelled SIMULATED.',
+    ar: 'كلشي لي يبنيه راه فيشي حقيقي تقدر تحلّو. واللي ديمو راه مكتوب عليه SIMULÉ.',
+    fr: "Tout ce qu'il construit est un vrai fichier que tu peux ouvrir. Ce qui est mis en scène porte la mention SIMULÉ.",
+  },
+
+  'chat.hello.sell.title': { en: 'Find me something to sell', ar: 'لقّيلي واش نبيع', fr: 'Trouve-moi quoi vendre' },
+  'chat.hello.sell.what': {
+    en: 'Supplier catalogue, with the margin on every delivered order.',
+    ar: 'كاتالوڨ المورد، بالربحة على كل طلب موصل.',
+    fr: 'Le catalogue fournisseur, avec la marge par commande livrée.',
+  },
+  'chat.hello.sell.say': {
+    en: 'I have no product yet. Show me the catalogue.',
+    ar: 'ما عنديش منتج. وريني كاتالوڨ المورد.',
+    fr: "Je n'ai pas encore de produit. Montre-moi le catalogue.",
+  },
+
+  'chat.hello.page.title': { en: 'Build a sales page', ar: 'إبنيلي صفحة بيع', fr: 'Construis une page de vente' },
+  'chat.hello.page.what': {
+    en: 'Copy, photos and the cash-on-delivery form. A real file.',
+    ar: 'النص، التصاور، وفورم الدفع عند الاستلام. فيشي حقيقي.',
+    fr: 'Le texte, les photos et le formulaire de paiement à la livraison.',
+  },
+  'chat.hello.page.say': {
+    en: 'Build the sales page for my product.',
+    ar: 'إبنيلي صفحة البيع تاع المنتج تاعي.',
+    fr: 'Construis la page de vente de mon produit.',
+  },
+
+  'chat.hello.ads.title': { en: 'Launch an ad', ar: 'لانسي إشهار', fr: 'Lance une publicité' },
+  'chat.hello.ads.what': {
+    en: 'Targeting, budget, and the daily read of what it costs per order.',
+    ar: 'السيبلاج، البيدجي، وكل نهار نقولك شحال كلفك الطلب.',
+    fr: "Le ciblage, le budget, et chaque jour ce que coûte une commande.",
+  },
+  'chat.hello.ads.say': {
+    en: 'Launch an ad on this product at 2000 DA a day.',
+    ar: 'لانسيلي إشهار على هاد المنتج بـ 2000 دينار في النهار.',
+    fr: 'Lance une pub sur ce produit à 2000 DA par jour.',
+  },
+
+  'chat.hello.answer.title': { en: 'Answer the customers', ar: 'جاوب الزبائن', fr: 'Réponds aux clients' },
+  'chat.hello.answer.what': {
+    en: 'Messages and comments, in darija. It hands back what it cannot prove.',
+    ar: 'الميساجات والكومنتيرات بالدارجة. واللي ما يعرفوش يرجّعهولك.',
+    fr: "Messages et commentaires, en darija. Il te rend ce qu'il ne peut pas prouver.",
+  },
+  'chat.hello.answer.say': {
+    en: 'Answer the people waiting, messages and comments.',
+    ar: 'جاوب الناس لي يستناو، الميساجات والكومنتيرات.',
+    fr: 'Réponds aux gens qui attendent, messages et commentaires.',
+  },
+
   /* ── le catalogue fournisseur, dans la conversation ───────────────────
      « par commande LIVRÉE » n'est pas une précaution de style. En paiement
      à la livraison une part des colis revient, donc une marge annoncée par

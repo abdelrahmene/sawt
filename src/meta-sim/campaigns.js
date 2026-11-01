@@ -304,3 +304,65 @@ export function decide(id, { action, target, because }) {
 
   return { simulated: true, campaign: get(id), applied: { action, target: target ?? null, because } }
 }
+
+/* ── ce qu'un compte publicitaire a DÉJÀ quand on s'y connecte ────────────
+   Un marchand qui branche son Business Manager ne part pas de zéro : il a
+   déjà fait tourner des choses, bien ou mal, et c'est précisément ce passé
+   qui rend l'agent utile — il peut comparer, dire ce qui a marché, et
+   expliquer pourquoi la prochaine devrait être différente. L'écran « aucune
+   campagne » après une connexion réussie était le contraire d'une reprise
+   de compte : il donnait l'impression que le branchement n'avait rien
+   rapporté.
+
+   Deux campagnes, et elles racontent deux choses opposées :
+     · une qui a bien tourné puis s'est arrêtée — la référence ;
+     · une en cours qui dérive — le travail du jour.
+   Une seule campagne « moyenne » n'apprendrait rien à personne.
+
+   Idempotent, comme tous les semis : se reconnecter ne double pas l'historique. */
+const PASSE = [
+  { name: 'Sandales été — Alger & Blida', product: 'Sandales', budget: 1500, days: 9,
+    status: 'PAUSED', ago: 26, placements: ['facebook_feed', 'instagram_stories'] },
+  { name: 'Basket homme — national', product: "Men's running shoes", budget: 2500, days: 5,
+    status: 'ACTIVE', ago: 5, placements: ['facebook_feed', 'instagram_reels', 'instagram_stories'] },
+]
+
+export function seedCampaigns(sessionId) {
+  const deja = one('SELECT COUNT(*) n FROM campaigns WHERE session=?', sessionId)
+  if (deja?.n) return deja.n
+
+  for (const p of PASSE) {
+    const c = configure(sessionId, {
+      name: p.name, product: p.product, daily_budget_dzd: p.budget,
+      objective: 'OUTCOME_SALES', placements: p.placements,
+    })
+    // On antidate le lancement pour que l'historique tombe dans le passé :
+    // generate() part de `launched`, donc sans ça les neuf jours d'une
+    // campagne « d'il y a un mois » seraient datés d'aujourd'hui.
+    const debut = now() - p.ago * 86400_000
+    run('UPDATE campaigns SET status=?, launched=? WHERE id=?', 'ACTIVE', debut, c.id)
+    generate(c.id, p.days)
+    if (p.status !== 'ACTIVE') run('UPDATE campaigns SET status=? WHERE id=?', p.status, c.id)
+  }
+  return PASSE.length
+}
+
+/* Le portefeuille du compte publicitaire.
+   Le solde et le plafond vivent déjà dans l'actif `adaccount` — on ne les
+   réinvente pas ici, on les lit, et on y ajoute ce qui a VRAIMENT été
+   dépensé d'après les insights. Un portefeuille dont le « dépensé » serait
+   un nombre choisi au hasard contredirait le tableau juste en dessous. */
+export function wallet(sessionId, adAccount) {
+  const spent = one(
+    'SELECT COALESCE(SUM(spend_dzd),0) s FROM insights WHERE campaign IN (SELECT id FROM campaigns WHERE session=?)',
+    sessionId)?.s ?? 0
+  const cap = adAccount?.meta?.spend_cap_dzd ?? 0
+  return {
+    currency: adAccount?.currency ?? 'DZD',
+    funding: adAccount?.meta?.funding ?? null,
+    status: adAccount?.meta?.status ?? null,
+    timezone: adAccount?.meta?.timezone ?? null,
+    cap, spent, left: Math.max(0, cap - spent),
+    simulated: true,
+  }
+}

@@ -17,6 +17,7 @@
 // messages are Platform Data, and they do not belong in a public repository.
 import { createHash } from 'node:crypto'
 import { all, one, run, insert, now, J, unJ } from '../db.js'
+import { seedCampaigns } from './campaigns.js'
 
 /**
  * The permissions this product actually needs, with the real Graph API scope
@@ -171,6 +172,16 @@ export function grant(sessionId, granted = []) {
       a.followers ?? null, a.currency ?? null, J(a.meta ?? {}), now()
     )
   }
+
+  /* Le compte ne part pas de zéro. Un marchand qui branche son Business
+     Manager a déjà un passé publicitaire, et c'est ce passé qui rend
+     l'agent utile dès la première phrase : il peut comparer. L'écran
+     « aucune campagne » juste après une connexion réussie donnait
+     l'impression que le branchement n'avait rien rapporté.
+     Semé ICI, au moment de la connexion, et pas à la lecture d'un écran :
+     les campagnes doivent exister pour l'agent avant que qui que ce soit
+     ait ouvert l'onglet Ads. */
+  seedCampaigns(sessionId)
 
   return connection(sessionId)
 }

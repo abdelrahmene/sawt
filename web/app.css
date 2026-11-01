@@ -847,6 +847,87 @@ body.listening #photo{opacity:.25}
 #appbar .credits{font-family:var(--mono);letter-spacing:.02em}
 #appbar .credits.low{color:#f0b429;background:rgba(240,180,41,.14);border-color:rgba(240,180,41,.3)}
 
+/* ══ l'accueil d'une conversation neuve ═══════════════════════════════════
+   Une zone de saisie vide ne dit pas ce qu'on peut demander. Le marchand
+   regarde le micro et ne sait pas par où commencer — et la première chose
+   qu'il tape décide s'il reste.
+
+   L'animation est décalée de 60 ms par carte : quatre blocs qui
+   apparaissent ensemble se lisent comme un mur, quatre qui arrivent l'un
+   après l'autre se lisent comme une liste. C'est le seul endroit de l'app
+   où une animation porte du sens plutôt que du décor. */
+.hello{padding:26px 4px 10px;animation:rise .4s cubic-bezier(.2,.8,.3,1) both}
+.hello h2{font-size:21px;font-weight:720;letter-spacing:-.025em;margin:0 0 6px;text-wrap:balance}
+.hello > p{color:var(--dim);font-size:14px;margin:0 0 20px;max-width:46ch;text-wrap:pretty}
+.hello .hfoot{margin:16px 0 0;font-size:12px;color:var(--faint);max-width:52ch}
+
+/* L'orbe respire — c'est la seule chose à l'écran qui dit « ça écoute »
+   avant qu'on ait parlé. Lente : 4 s, parce qu'un battement rapide fait
+   « chargement » et non « présence ». */
+.horb{width:44px;height:44px;border-radius:50%;margin-bottom:16px;position:relative;
+  background:radial-gradient(circle at 34% 32%,#38e0ad,var(--accent) 62%,transparent 72%)}
+.horb span{position:absolute;inset:-9px;border-radius:50%;border:1px solid var(--accent-line);
+  animation:souffle 4s ease-in-out infinite}
+@keyframes souffle{0%,100%{transform:scale(1);opacity:.75}50%{transform:scale(1.16);opacity:.18}}
+
+.hgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.hcard{
+  display:grid;gap:5px;text-align:start;padding:15px 15px 14px;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-l);
+  color:inherit;font:inherit;box-shadow:var(--sh);transition:.16s;
+  animation:rise .42s cubic-bezier(.2,.8,.3,1) both;
+}
+.hcard:hover{border-color:var(--accent-line);transform:translateY(-2px);box-shadow:var(--sh-2)}
+.hcard .hic{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;
+  background:var(--accent-soft);color:var(--accent);margin-bottom:4px}
+.hcard b{font-size:14px;font-weight:680;letter-spacing:-.012em}
+.hcard .hw{font-size:12.5px;color:var(--dim);line-height:1.45}
+/* La phrase d'exemple est en retrait et entre guillemets : on voit que
+   c'est ce qu'on VA dire, pas une étiquette de bouton. */
+.hcard .hsay{margin-top:7px;padding-top:8px;border-top:1px dashed var(--line);
+  font-size:12px;color:var(--ink-2);line-height:1.45}
+.hcard .hsay::before{content:"« "}
+.hcard .hsay::after{content:" »"}
+
+/* ══ un bloc replié ═══════════════════════════════════════════════════════
+   L'écran Meta posait une carte pleine pour trois lignes dont deux
+   identifiants, puis treize puces de permissions. Rien de faux, mais le
+   mur de la Page et les actifs — ce qu'on vient vraiment regarder —
+   arrivaient après deux écrans de défilement. Ce qui est vérifiable reste
+   accessible, à un clic, au lieu d'occuper la place par défaut. */
+.fold{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-l);
+  box-shadow:var(--sh);margin-bottom:14px;overflow:hidden}
+.fold > summary{display:flex;align-items:center;gap:10px;cursor:pointer;list-style:none;
+  padding:14px 18px;font-size:14.5px;font-weight:650}
+.fold > summary::-webkit-details-marker{display:none}
+.fold > summary .who{margin-inline-start:auto;font-weight:500;font-size:13px;color:var(--dim);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fold > summary .sim{flex:0 0 auto}
+/* Le chevron dit l'état. Sans lui, un bloc replié ressemble à un titre. */
+.fold > summary::after{content:"";flex:0 0 auto;width:8px;height:8px;
+  border-right:2px solid var(--faint);border-bottom:2px solid var(--faint);
+  transform:rotate(45deg);transition:transform .2s}
+.fold[open] > summary::after{transform:rotate(225deg)}
+.fold > .body{padding:0 18px 16px}
+.fold[open] > .body{animation:rise .2s cubic-bezier(.2,.8,.3,1) both}
+
+/* ══ le portefeuille publicitaire ═════════════════════════════════════════
+   La barre n'est pas décorative : « 25 568 dépensés sur 200 000 » se lit
+   d'un coup d'œil en proportion, et en chiffres seulement quand on veut le
+   détail. C'est la question que le marchand se pose avant de lancer. */
+.wallet{margin-bottom:16px}
+.wtop{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.wl{font:600 10.5px var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+.wn{font-size:15px;font-weight:680;letter-spacing:-.015em}
+.wtop .chip{margin-inline-start:auto}
+.wtop .chip + .chip{margin-inline-start:0}
+.wbar{height:7px;border-radius:99px;background:var(--sunk);overflow:hidden;border:1px solid var(--line)}
+.wbar span{display:block;height:100%;background:var(--acc-fill);border-radius:99px;transition:width .5s}
+.wnums{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:11px}
+.wnums span{display:flex;flex-direction:column;gap:1px;font-size:14px;font-weight:680}
+.wnums em{font:600 9.5px/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;
+  color:var(--faint);font-style:normal}
+
 /* ══ la cloche et son panneau ═════════════════════════════════════════════
    Dans l'appareil, pas dans la fenêtre : `#device` est le bloc conteneur
    des descendants fixes, donc le panneau tombe sous la barre du téléphone
@@ -1269,6 +1350,7 @@ input.f.sm{padding:8px 11px;font-size:13px}
 
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001s !important;transition-duration:.001s !important}
+  .horb span{animation:none}
   html{scroll-behavior:auto}
   .step:not(.done)::after,.msg.bot.live::before{animation:none}
 }

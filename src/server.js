@@ -534,7 +534,17 @@ const server = createServer(async (req, res) => {
     }
 
     /* ── campaigns ──────────────────────────────────────────────────────── */
-    if (reading && p === '/api/campaigns') return json(res, 200, { campaigns: camp.list(sid), placements: camp.PLACEMENTS })
+    if (reading && p === '/api/campaigns') {
+      // Le portefeuille vient avec la liste : un tableau de dépenses sans
+      // le solde en face oblige le marchand à additionner de tête pour
+      // savoir s'il peut encore lancer quelque chose.
+      const ad = meta.connection(sid)?.assets?.find((x) => x.kind === 'adaccount') ?? null
+      return json(res, 200, {
+        campaigns: camp.list(sid), placements: camp.PLACEMENTS,
+        wallet: ad ? camp.wallet(sid, ad) : null,
+        account: ad ? { name: ad.name, external_id: ad.external_id } : null,
+      })
+    }
     if (reading && seg[1] === 'campaigns' && seg[2]) {
       const c = camp.get(Number(seg[2]))
       if (!c) return json(res, 404, { error: 'introuvable' })

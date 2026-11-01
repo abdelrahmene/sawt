@@ -102,6 +102,21 @@ export async function mount(root) {
 
     ${simbar(`<b>${t('campaigns.sim.title')}</b> ${t('campaigns.sim.body')}`)}
 
+    ${d.wallet ? `<div class="card wallet"><div class="body">
+      <div class="wtop">
+        <div><div class="wl">${t('campaigns.wallet.title')}</div>
+          <div class="wn">${esc(d.account?.name ?? '')}</div></div>
+        <span class="chip mono">${esc(d.wallet.funding ?? '')}</span>
+        <span class="chip ${d.wallet.status === 'ACTIVE' ? 'ok' : ''}">${esc(d.wallet.status ?? '')}</span>
+      </div>
+      <div class="wbar"><span style="width:${Math.min(100, d.wallet.cap ? (d.wallet.spent * 100) / d.wallet.cap : 0)}%"></span></div>
+      <div class="wnums">
+        <span><em>${t('campaigns.wallet.left')}</em>${dzd(d.wallet.left)}</span>
+        <span><em>${t('campaigns.wallet.spent')}</em>${dzd(d.wallet.spent)}</span>
+        <span><em>${t('campaigns.wallet.cap')}</em>${dzd(d.wallet.cap)}</span>
+      </div>
+    </div></div>` : ''}
+
     <div class="kpis">
       ${kpi(t('campaigns.kpi.spent'), dzd(totals.spend))}
       ${kpi(t('campaigns.kpi.orders'), String(totals.orders))}

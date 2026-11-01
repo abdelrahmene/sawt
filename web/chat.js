@@ -80,6 +80,9 @@ function linkify(node, text) {
 }
 
 function say(who, text, cls) {
+  // L'accueil disparaît dès le premier mot : il explique comment commencer,
+  // il n'a plus rien à dire une fois qu'on a commencé.
+  log.querySelector('.hello')?.remove()
   const n = el('div', `msg ${cls || who}`)
   linkify(n, String(text ?? ''))
   if (isArabic(text)) n.dir = 'rtl'
@@ -959,9 +962,54 @@ $('#reset').onclick = async () => {
 }
 
 /* ── restore ─────────────────────────────────────────────────────────────── */
+/* ── l'accueil d'une conversation neuve ───────────────────────────────────
+   Une zone de saisie vide avec « parle-moi en darija » ne dit pas ce qu'on
+   peut demander. Le marchand regarde le micro et ne sait pas par où
+   commencer — et la première chose qu'il tape décide s'il reste.
+
+   Quatre cartes, pas douze : ce sont les quatre choses que l'app fait
+   vraiment de bout en bout. Chacune porte UNE phrase d'exemple, et taper
+   dessus l'envoie telle quelle — donc on apprend en faisant, pas en lisant
+   un mode d'emploi. Les illustrations sont dessinées en SVG dans le code :
+   aucune image à charger, l'écran est complet avant le premier octet du
+   réseau, et ça marche sans connexion.
+
+   L'animation est décalée carte par carte. Ce n'est pas de la décoration :
+   quatre blocs qui apparaissent ensemble se lisent comme un mur, quatre qui
+   arrivent l'un après l'autre se lisent comme une liste. 60 ms d'écart
+   suffisent, et `prefers-reduced-motion` les supprime toutes. */
+const CARTES = [
+  { ic: 'grid', k: 'sell' },
+  { ic: 'bolt', k: 'page' },
+  { ic: 'mega', k: 'ads' },
+  { ic: 'inbox', k: 'answer' },
+]
+
+export function accueil() {
+  if (log.querySelector('.hello')) return
+  const h = el('div', 'hello')
+  h.innerHTML = `
+    <div class="horb"><span></span></div>
+    <h2>${esc(t('chat.hello.title'))}</h2>
+    <p>${esc(t('chat.hello.lede'))}</p>
+    <div class="hgrid">
+      ${CARTES.map((c, i) => `
+        <button class="hcard" data-say="${esc(t(`chat.hello.${c.k}.say`))}" style="animation-delay:${60 * i}ms">
+          <span class="hic">${icon(c.ic, 22)}</span>
+          <b>${esc(t(`chat.hello.${c.k}.title`))}</b>
+          <span class="hw">${esc(t(`chat.hello.${c.k}.what`))}</span>
+          <span class="hsay">${esc(t(`chat.hello.${c.k}.say`))}</span>
+        </button>`).join('')}
+    </div>
+    <p class="hfoot">${esc(t('chat.hello.foot'))}</p>`
+  for (const b of h.querySelectorAll('[data-say]')) b.onclick = () => send(b.dataset.say)
+  log.append(h)
+}
+
 export function hydrate(state) {
   const timeline = state?.timeline
-  if (!timeline?.length) return
+  // Conversation neuve : on explique au lieu de laisser un écran blanc.
+  if (!timeline?.length) return accueil()
   clearEmpty()
   // Only the most recent menu is still live; the earlier ones were answered.
   const lastChoices = timeline.map((e) => e.k).lastIndexOf('choices')

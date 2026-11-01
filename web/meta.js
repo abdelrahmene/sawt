@@ -309,8 +309,13 @@ function connected(root, c) {
 
     ${simbar(`<b>${t('meta.sim.env.lead')}</b> ${t('meta.sim.env.body')}`)}
 
-    <div class="card">
-      <h3>${icon('user', 15)} ${t('meta.card.account')}<span class="sim" style="margin-inline-start:auto">${t('meta.sim')}</span></h3>
+    <!-- Le compte tenait une carte entière pour trois lignes dont deux
+         identifiants. Replié : on voit qui on est, et le jeton — la seule
+         chose qu'on vient vraiment vérifier — s'ouvre d'un clic. -->
+    <details class="fold">
+      <summary>${icon('user', 15)} ${t('meta.card.account')}
+        <span class="who">${esc(c.user_name)} · ${esc(biz.name ?? '')}</span>
+        <span class="sim">${t('meta.sim')}</span></summary>
       <div class="body">
         <dl class="kv">
           <dt>${t('meta.kv.user')}</dt><dd>${esc(c.user_name)} · <span class="chip mono">${esc(c.user_id)}</span></dd>
@@ -319,7 +324,7 @@ function connected(root, c) {
         </dl>
         <div class="why">${t('meta.token.why')}</div>
       </div>
-    </div>
+    </details>
 
     <h2 class="sec">${t('meta.sec.assets')}</h2>
     <div class="assets">
@@ -335,16 +340,17 @@ function connected(root, c) {
         </div>`).join('')}
     </div>
 
-    <h2 class="sec">${t('meta.sec.perms')}</h2>
-    <div class="card"><div class="body">
-      <div style="display:flex;flex-wrap:wrap;gap:7px">
-        ${c.scopes.map((s) => `<span class="chip ok mono">${icon('check', 12)}${esc(s)}</span>`).join('')}
+    ${declined.length ? `<div class="why warn" style="margin-top:18px">
+      <b>${t('meta.declined.label')}</b> ${esc(declined.join(', '))}.<br>
+      ${t('meta.declined.why')}</div>` : ''}
+    <details class="fold">
+      <summary>${icon('check', 15)} ${t('meta.sec.perms')}
+        <span class="who">${t('meta.grantedCount', { n: c.scopes.length })}</span></summary>
+      <div class="body"><div style="display:flex;flex-wrap:wrap;gap:7px">
+        ${c.scopes.map((s) => `<span class="chip ok mono">${esc(s)}</span>`).join('')}
         ${declined.map((s) => `<span class="chip bad mono">${esc(s)}</span>`).join('')}
-      </div>
-      ${declined.length ? `<div class="why warn" style="margin-top:14px">
-        <b>${t('meta.declined.label')}</b> ${esc(declined.join(', '))}.<br>
-        ${t('meta.declined.why')}</div>` : ''}
-    </div></div>
+      </div></div>
+    </details>
 
     <h2 class="sec">${t('meta.sec.surfaces')}</h2>
     <div class="grid-3">
