@@ -1078,6 +1078,10 @@ input.f.sm{padding:8px 11px;font-size:13px}
 .prod.got{border-color:var(--accent-line)}
 .prod .shot{position:relative;aspect-ratio:1;background:var(--sunk);overflow:hidden}
 .prod .shot img{width:100%;height:100%;object-fit:cover;display:block}
+/* Produit disparu du catalogue : on retire le cadre au lieu de laisser un
+   carré gris de la taille d'une photo. Un vide franc vaut mieux qu'une
+   promesse d'image qui n'arrivera jamais. */
+.prod .shot.vide{display:none}
 .prod .shot .low{
   position:absolute;top:8px;inset-inline-start:8px;background:var(--bad);color:#fff;
   font:700 10px var(--sans);padding:3px 7px;border-radius:99px;

@@ -288,6 +288,26 @@ function ligneCout(cost) {
     `<span>${detail}</span>`)
 }
 
+/* id -> photo, lu dans le catalogue. Une seule requête pour toute la
+   session : la promesse est mise en cache, pas le résultat, donc dix cartes
+   rendues en rafale partagent le même appel. */
+let catalogue = null
+const photos = () => (catalogue ??= api('/catalog')
+  .then((d) => new Map((d.products ?? []).map((p) => [p.id, p.image])))
+  .catch(() => new Map()))
+
+function remplirPhotos(racine) {
+  const vides = [...racine.querySelectorAll('img[data-pid]')]
+  if (!vides.length) return
+  photos().then((m) => {
+    for (const img of vides) {
+      const u = m.get(img.dataset.pid)
+      if (u) { img.src = u; img.removeAttribute('data-pid') }
+      else img.closest('.shot')?.classList.add('vide')
+    }
+  })
+}
+
 function renderArtifact(a) {
   try { renderArtifactInner(a) } catch (e) {
     console.error('[artifact]', a?.name, e)
@@ -324,6 +344,14 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
      sur une ligne de JSON — il le choisit en le voyant, et il décide sur
      la marge. Les deux manquaient à l'écran alors que le serveur les
      envoyait déjà. */
+  /* Les photos manquantes d'un artefact ancien.
+     Un artefact est enregistré tel quel et rejoué des semaines plus tard.
+     Ceux d'avant le 01/11/2026 n'ont pas de champ `image` — l'outil ne le
+     renvoyait pas — donc la conversation se rouvrait avec des cadres gris
+     là où il y avait eu des produits. Le catalogue est de toute façon la
+     source de vérité pour les photos : on va la chercher là, une seule fois
+     pour toute la page, et on remplit après coup. Si le produit a disparu
+     du catalogue, le cadre reste vide et c'est honnête. */
   if (name === 'browse_catalog') {
     const b = card(t('chat.card.catalog', { n: result.count ?? 0 }), { sim: simulated })
     // La MÊME carte que l'écran Catalogue, pas une deuxième à entretenir :
@@ -332,7 +360,9 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
     for (const p of result.products ?? []) {
       const c = el('article', 'prod')
       c.innerHTML = `
-        <div class="shot">${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">` : ''}</div>
+        <div class="shot">${p.image
+          ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">`
+          : `<img data-pid="${esc(p.id)}" alt="${esc(p.name)}" loading="lazy">`}</div>
         <div class="body">
           <h3>${esc(p.name)}</h3>
           <div class="by">${esc(p.supplier ?? '')}</div>
@@ -353,6 +383,7 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
       g.append(c)
     }
     b.append(g)
+    remplirPhotos(g)
     if (result.say) b.append(el('div', 'why', esc(result.say)))
     return
   }
@@ -362,6 +393,12 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
     const g = el('div', 'thumbs')
     for (const u of (result.images ?? []).slice(0, 3)) g.append(thumb(u, ''))
     if (g.childElementCount) b.append(g)
+    else if (result.product_id) {
+      // Artefact ancien : la photo se retrouve par l'identifiant.
+      const seul = el('div', 'thumbs')
+      seul.innerHTML = `<figure><img data-pid="${esc(result.product_id)}" alt="" loading="lazy"></figure>`
+      b.append(seul); remplirPhotos(seul)
+    }
     b.append(el('div', 'why',
       t('chat.imported.money', {
         price: `<b>${dinars(result.selling)}</b>`,
