@@ -23,6 +23,20 @@ import { t, num, pick } from './i18n.js'
 let D = null          // the catalogue + current options, from the server
 let O = {}            // what is selected right now
 let form = { product: '', price_dzd: '', angle: '', notes: '' }
+
+/* ── la vitrine ───────────────────────────────────────────────────────────
+   On choisit un produit, on ne tape plus son nom.
+   Taper « doudoune » à la main, c'est repartir sans la photo, sans le prix
+   et sans la marge : la page se construisait alors sur un produit qui ne
+   correspondait à rien de la boutique, et les scènes partaient d'une
+   description au lieu d'une vraie image. Le choix remplit les trois champs
+   d'un coup.
+   « Plusieurs » construit une page par produit, à la suite — c'est le cas
+   réel d'un marchand qui vient d'importer six articles d'un fournisseur. */
+let several = false   // une page, ou une par produit
+let caches = false    // vitrine repliée, pour dégager les réglages
+let cherche = ''      // le filtre de recherche
+const choisis = new Set()
 let device = 'desk'
 let preview = null    // url of the last page built
 let building = false
@@ -88,6 +102,47 @@ function paintBar(root) {
 }
 
 /* ── the panel ───────────────────────────────────────────────────────────── */
+/* Toutes les fiches de la vitrine, les miennes d'abord. Celles que le
+   marchand a importées portent SON prix de vente ; les autres portent le
+   prix conseillé du fournisseur, et le disent. */
+const fiches = () => [...(D.showcase?.mine ?? []), ...(D.showcase?.offer ?? [])]
+
+const fiche = (id) => fiches().find((p) => p.id === id)
+
+function vitrine() {
+  const tout = fiches()
+  if (!tout.length) return ''
+  const n = cherche.trim().toLowerCase()
+  const vus = n ? tout.filter((p) => `${p.name} ${p.supplier ?? ''} ${p.category ?? ''}`.toLowerCase().includes(n)) : tout
+
+  return `<div class="vitrine" id="vitrine">
+    <div class="vt">
+      <h2 class="sec" style="margin:0">${t('studio.showcase')}</h2>
+      <div class="seg sm">
+        <button data-mode="one" class="${several ? '' : 'on'}">${t('studio.showcase.one')}</button>
+        <button data-mode="many" class="${several ? 'on' : ''}">${t('studio.showcase.many')}</button>
+      </div>
+      <button class="btn ghost sm" id="vt-hide">${caches ? t('studio.showcase.show') : t('studio.showcase.hide')}</button>
+    </div>
+    ${caches ? '' : `
+      <input class="f sm" id="vt-q" placeholder="${esc(t('studio.showcase.search'))}" value="${esc(cherche)}">
+      <div class="help">${t('studio.showcase.count', { n: num(vus.length), total: num(tout.length) })}</div>
+      <div class="prodpick">
+        ${vus.map((p) => {
+          const on = several ? choisis.has(p.id) : form.product === p.name
+          return `<button data-pid="${esc(p.id)}" class="${on ? 'on' : ''}" title="${esc(p.name)}">
+            ${p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy">` : '<span class="noimg"></span>'}
+            <span class="nm">${esc(p.name)}</span>
+            <span class="pz"><bdi dir="ltr">${num(p.price)} DA</bdi></span>
+            <span class="mg ${p.mine ? 'own' : ''}">${p.mine
+              ? t('studio.showcase.mine', { m: num(p.margin) })
+              : t('studio.showcase.offer', { m: num(p.margin) })}</span>
+          </button>`
+        }).join('')}
+      </div>`}
+  </div>`
+}
+
 function paintPanel() {
   const sl = $('#sl')
   sl.innerHTML = `
@@ -95,6 +150,8 @@ function paintPanel() {
       <h1 style="font-size:19px;font-weight:700;letter-spacing:-.02em;margin:0">${t('studio.title')}</h1>
       <p style="color:var(--dim);font-size:13px;margin:5px 0 0">${t('studio.lede')}</p>
     </div>
+
+    ${vitrine()}
 
     <div class="fset">
       <div class="lbl">${t('studio.product')}</div>
@@ -168,7 +225,9 @@ function paintPanel() {
 
     <div id="cost" class="help cost" style="margin:16px 0 10px"></div>
     <button class="btn p" id="build" style="width:100%;justify-content:center;padding:13px">
-      ${icon('bolt', 16)} ${t('studio.build')}
+      ${icon('bolt', 16)} ${several && choisis.size > 1
+        ? t('studio.build.many', { n: num(choisis.size) })
+        : t('studio.build')}
     </button>
     <label class="tog" style="margin-top:8px" id="fresh-wrap">
       <span class="sw"></span>
@@ -202,6 +261,28 @@ function paintPanel() {
     }
   }
 
+  /* ── la vitrine ──────────────────────────────────────────────────────── */
+  for (const b of sl.querySelectorAll('[data-mode]')) {
+    b.onclick = () => { several = b.dataset.mode === 'many'; choisis.clear(); paintPanel() }
+  }
+  if ($('#vt-hide')) $('#vt-hide').onclick = () => { caches = !caches; paintPanel() }
+  {
+    // La recherche ne repeint que la grille : repeindre tout le panneau
+    // ferait perdre le curseur à chaque lettre tapée.
+    const q = $('#vt-q')
+    if (q) q.oninput = () => {
+      cherche = q.value
+      const g = $('.prodpick')
+      if (!g) return
+      const tmp = document.createElement('div')
+      tmp.innerHTML = vitrine()
+      g.replaceWith(tmp.querySelector('.prodpick'))
+      brancherFiches()
+      $('#vt-q').focus()
+    }
+  }
+  brancherFiches()
+
   for (const b of sl.querySelectorAll('#phpick button')) {
     b.onclick = () => {
       const u = b.dataset.u
@@ -222,6 +303,35 @@ function paintPanel() {
   let fresh = false
   $('#fresh-wrap').onclick = () => { fresh = !fresh; $('#fresh-wrap').classList.toggle('on', fresh) }
   $('#build').onclick = () => build(fresh)
+}
+
+/* Choisir une fiche remplit le formulaire : le nom, le prix de vente, et
+   surtout LA PHOTO. C'est elle qui compte — les quatre scènes de la page
+   partent d'elle, pas d'une description. Sans ce rattachement, le Studio
+   demandait au marchand de retrouver sa propre photo dans une grille juste
+   en dessous, et une page sur deux repartait avec celle du voisin. */
+function choisir(p) {
+  form.product = p.name
+  form.price_dzd = String(p.price ?? '')
+  if (p.images?.length) O.photos = p.images.slice(0, 4)
+  else if (p.image) O.photos = [p.image]
+  save()
+}
+
+function brancherFiches() {
+  for (const b of document.querySelectorAll('#sl [data-pid]')) {
+    b.onclick = () => {
+      const p = fiche(b.dataset.pid)
+      if (!p) return
+      if (several) {
+        if (choisis.has(p.id)) choisis.delete(p.id); else choisis.add(p.id)
+        if (choisis.size === 1) choisir(p)
+      } else {
+        choisis.clear(); choisis.add(p.id); choisir(p)
+      }
+      paintPanel()
+    }
+  }
 }
 
 function paintKnobs() {
@@ -265,10 +375,14 @@ function paintKnobs() {
 function paintCost() {
   const n = $('#cost'); if (!n) return
   const imgs = O.scenes === 0 ? 0 : O.scenes === 2 ? 2 : 4
+  // En lot, le coût est celui d'UNE page multiplié par le nombre de
+  // produits. L'afficher par page quand on en lance six, c'est annoncer le
+  // sixième du prix à quelqu'un qui compte ses crédits.
+  const lot = several && choisis.size ? choisis.size : 1
   // `imgs` ne vaut jamais 1 (0, 2 ou 4), donc le pluriel du français n'avait
   // qu'une seule issue : la clé le porte déjà, et l'arabe n'accorde pas pareil.
   n.textContent = imgs
-    ? t('studio.cost.images', { n: num(imgs), s: num(30 + imgs * 11) })
+    ? t('studio.cost.images', { n: num(imgs * lot), s: num((30 + imgs * 11) * lot) })
     : t('studio.cost.text')
 }
 
@@ -281,24 +395,50 @@ function save() {
 /* ── building ────────────────────────────────────────────────────────────── */
 async function build(fresh) {
   if (building) return
-  if (!form.product.trim()) return toast(t('studio.need.product'), true)
+  // Une page, ou une par produit choisi. La boucle est SÉQUENTIELLE : quatre
+  // pages lancées ensemble, c'est seize appels d'image en parallèle, et la
+  // liaison vers api.meta.ai lâche déjà une fois sur trois toute seule.
+  const cibles = several && choisis.size
+    ? [...choisis].map(fiche).filter(Boolean).map((p) => ({ product: p.name, price_dzd: String(p.price ?? '') }))
+    : [{ product: form.product, price_dzd: form.price_dzd }]
+  if (!cibles.length || !cibles[0].product.trim()) return toast(t('studio.need.product'), true)
+
   building = true
   const btn = $('#build')
   btn.disabled = true
   const prog = $('#prog')
+  prog.innerHTML = '<div class="progress"></div>'
   const lines = []
   const step = (txt, state = 'now') => {
     lines.forEach((l) => l.classList.replace('now', 'done'))
     const n = el('div', `ln ${state}`, `<span class="dot"></span><span>${esc(txt)}</span>`)
     lines.push(n); prog.firstElementChild.append(n)
   }
-  prog.innerHTML = '<div class="progress"></div>'
 
+  let fait = 0
+  for (const cible of cibles) {
+    if (cibles.length > 1) step(t('studio.batch.now', { name: cible.product, i: num(++fait), n: num(cibles.length) }))
+    await lancer(cible, fresh, step)
+  }
+  if (cibles.length > 1) {
+    step(t('studio.batch.done', { n: num(cibles.length) }), 'done')
+    toast(t('studio.batch.done', { n: num(cibles.length) }))
+  }
+  btn.disabled = false
+  building = false
+}
+
+/* Un produit, une page. Le flux de progression arrive en SSE, donc on lit le
+   corps au fur et à mesure plutôt que d'attendre la fin : sur une page à
+   quatre scènes, l'attente dépasse la minute et un écran figé pendant une
+   minute passe pour une panne. */
+async function lancer(cible, fresh, step) {
+  const prog = $('#prog')
   try {
-    const res = await fetch(`/api/landing/build?session=${SESSION}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, shop: $('#f-shop').value.trim(), options: O, fresh }),
-    })
+      const res = await fetch(`/api/landing/build?session=${SESSION}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, ...cible, shop: $('#f-shop').value.trim(), options: O, fresh }),
+      })
     const reader = res.body.getReader(), dec = new TextDecoder()
     let buf = ''
     for (;;) {
@@ -317,7 +457,7 @@ async function build(fresh) {
           else if (e.phase === 'scene') step(t('studio.step.scene', { label: e.label, step: num(e.step), total: num(e.total) }))
         }
         if (e.type === 'done') {
-          lines.forEach((l) => l.classList.replace('now', 'done'))
+          for (const l of prog.querySelectorAll('.ln.now')) l.classList.replace('now', 'done')
           const r = e.result
           const bits = [t('studio.done.size', { n: num(Math.round(r.bytes / 1024)) })]
           if (r.scenes?.length) bits.push(t('studio.done.scenes', { n: num(r.scenes.length) }))
@@ -341,8 +481,6 @@ async function build(fresh) {
   } catch (err) {
     toast(err.message, true)
   }
-  btn.disabled = false
-  building = false
 }
 
 function paintPreview() {

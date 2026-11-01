@@ -11,6 +11,30 @@
 //     `#v-studio` se retourne, et le panneau des réglages est à DROITE.
 //     Traduire « gauche » par « gauche » enverrait le marchand du mauvais côté.
 export const studio = {
+  /* ── la vitrine ───────────────────────────────────────────────────────
+     « Ma marge » / « Marge » : la nuance compte. Un produit déjà importé
+     porte le prix que LE MARCHAND a fixé, donc sa marge à lui. Un produit
+     encore chez le fournisseur porte le prix conseillé — la marge annoncée
+     n'est qu'une proposition, et l'écrire pareil serait mentir. */
+  'studio.showcase': { en: 'Product showcase', ar: 'فيترينة المنتجات', fr: 'Vitrine produits' },
+  'studio.showcase.one': { en: 'One', ar: 'واحد', fr: 'Un' },
+  'studio.showcase.many': { en: 'Several', ar: 'بزاف', fr: 'Plusieurs' },
+  'studio.showcase.hide': { en: 'Hide', ar: 'خبّي', fr: 'Replier' },
+  'studio.showcase.show': { en: 'Show', ar: 'ورّي', fr: 'Déplier' },
+  'studio.showcase.search': { en: 'Search your products…', ar: 'قلّب على منتج…', fr: 'Chercher un produit…' },
+  'studio.showcase.count': {
+    en: '{n} of {total} products. Pick one and the name, the price and the photos fill themselves.',
+    ar: '{n} من {total} منتج. اختار واحد وراه يعمّر وحدو: الاسم، الثمن، والتصاور.',
+    fr: '{n} produits sur {total}. Choisis-en un : le nom, le prix et les photos se remplissent seuls.',
+  },
+  'studio.showcase.mine': { en: 'in your shop · +{m} DA', ar: 'في حانوتك · +{m} دج', fr: 'dans ta boutique · +{m} DA' },
+  'studio.showcase.offer': { en: 'supplier · +{m} DA', ar: 'فورنيسور · +{m} دج', fr: 'fournisseur · +{m} DA' },
+
+  /* ── le lot ───────────────────────────────────────────────────────────── */
+  'studio.build.many': { en: 'Build {n} landing pages', ar: 'إبني {n} صفحات', fr: 'Construire {n} pages' },
+  'studio.batch.now': { en: '{name} — {i} of {n}', ar: '{name} — {i} من {n}', fr: '{name} — {i} sur {n}' },
+  'studio.batch.done': { en: '{n} pages built', ar: '{n} صفحات جاهزين', fr: '{n} pages construites' },
+
   /* ── l'en-tête du panneau ─────────────────────────────────────────────── */
   'studio.title': { en: 'Landing studio', ar: 'ستوديو اللاندينڨ', fr: 'Studio landing' },
   'studio.lede': {

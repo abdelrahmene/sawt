@@ -833,6 +833,39 @@ body.listening #photo{opacity:.25}
 .studio-r iframe.desk{width:100%;max-width:1100px}
 .studio-r iframe.phone{width:392px;max-width:100%;border:9px solid #16130f;border-radius:34px}
 
+/* ── la vitrine du Studio ─────────────────────────────────────────────────
+   Avant, le Studio demandait de TAPER le nom du produit et son prix. Le
+   marchand repartait donc sans sa photo — et les quatre scènes de la page
+   étaient générées à partir d'une description au lieu de son article. La
+   grille rattache la page à un vrai produit, avec son prix et sa marge.
+
+   Des cartes de 96 px : à 412 px de large il en tient trois par rangée, sur
+   un écran de bureau une dizaine. La même grille, sans règle de bascule. */
+.vitrine{margin:0 0 22px;padding:14px;background:var(--sunk);
+  border:1px solid var(--line);border-radius:var(--r-l)}
+.vt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.vt .sec{flex:1 1 auto;margin:0;white-space:nowrap}
+.vt .sec::after{display:none}
+.seg.sm{padding:2px}
+.seg.sm button{padding:5px 10px;font-size:11.5px}
+input.f.sm{padding:8px 11px;font-size:13px}
+.prodpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;
+  max-height:270px;overflow-y:auto;margin-top:9px;padding-inline-end:2px}
+.prodpick button{display:flex;flex-direction:column;gap:3px;padding:0 0 7px;cursor:pointer;
+  background:var(--panel);border:1.5px solid var(--line);border-radius:12px;overflow:hidden;
+  text-align:start;transition:.14s;color:inherit;font:inherit}
+.prodpick button:hover{border-color:var(--line-2);transform:translateY(-1px)}
+.prodpick button.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.prodpick img,.prodpick .noimg{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:var(--sunk)}
+.prodpick .nm{font-size:11px;font-weight:650;line-height:1.25;padding:5px 7px 0;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.prodpick .pz{font:700 12px var(--mono);padding:0 7px}
+/* La marge est la seule chose que le dropshippeur regarde vraiment. En vert
+   quand le produit est déjà à lui, en gris quand ce n'est qu'un conseil. */
+.prodpick .mg{font-size:9.5px;font-weight:600;color:var(--faint);padding:0 7px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prodpick .mg.own{color:var(--ink-ok)}
+
 .fset{margin-bottom:18px}
 .fset > .lbl{display:flex;align-items:baseline;gap:8px;font-size:12.5px;font-weight:650;
   color:var(--ink-2);margin-bottom:7px}

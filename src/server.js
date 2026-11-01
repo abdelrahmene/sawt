@@ -530,6 +530,29 @@ const server = createServer(async (req, res) => {
         ],
         pages: all(`SELECT id,product,url,price_dzd,angle,bytes,at FROM pages WHERE session=? ORDER BY id DESC LIMIT 12`, sid),
         products: [...new Set(all('SELECT DISTINCT product FROM pages WHERE session=?', sid).map((x) => x.product))],
+        /* La vitrine du Studio. On choisit un produit, on ne tape plus son
+           nom : taper « doudoune » à la main, c'est repartir sans la photo,
+           sans le prix et sans la marge — donc une page dont le produit ne
+           correspond à rien de la boutique. Deux rayons :
+             · `mine`  ce que le marchand a déjà importé, avec SON prix ;
+             · `offer` le reste du catalogue fournisseur, à importer.
+           Le prix de vente conseillé accompagne chaque fiche, pour que le
+           formulaire se remplisse seul. */
+        showcase: {
+          mine: catalog.shopProducts(sid).map((p) => ({
+            id: p.id, name: p.name, price: p.price, margin: p.margin,
+            image: p.image, images: p.images, supplier: p.supplier,
+            sizes: p.variants, mine: true,
+          })),
+          offer: catalog.list({ limit: 40 })
+            .filter((p) => !catalog.shopProducts(sid).some((m) => m.id === p.id))
+            .map((p) => ({
+              id: p.id, name: p.name.en || p.name.fr || p.id,
+              price: p.min_selling, margin: p.min_selling - p.supplier_cost,
+              image: p.image, images: p.images, supplier: p.supplier,
+              category: p.category, mine: false,
+            })),
+        },
       })
     }
 
