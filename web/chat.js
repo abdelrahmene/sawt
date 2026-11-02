@@ -985,6 +985,89 @@ const CARTES = [
   { ic: 'inbox', k: 'answer' },
 ]
 
+/* ── LE TABLEAU DU MATIN ──────────────────────────────────────────────────
+   L'app s'ouvrait sur une zone de saisie. Toutes les réponses étaient
+   dedans — l'argent dans le Studio, les campagnes dans Ads, les clients
+   dans Messages — mais il fallait savoir où cliquer. Un marchand qui ouvre
+   son commerce le matin ne veut pas naviguer : il veut savoir ce qu'il a
+   dépensé hier, ce qui tourne, ce que ça rapporte, et qui attend.
+
+   Deux colonnes et une règle qui ne bouge pas : à gauche ce qui est COMPTÉ
+   pour de vrai (les crédits, appel de modèle par appel de modèle), à droite
+   ce qui est MIS EN SCÈNE (la régie publicitaire). Les additionner dans un
+   même « total dépensé » serait exactement le chiffre simulé qui ressemble
+   à une mesure — et ce tableau est le premier écran, donc l'endroit où la
+   confusion coûterait le plus cher.
+
+   Il est en tête de la conversation, pas en barre fixe : on le lit en
+   arrivant, puis il remonte quand on parle. Une barre qui ne part jamais
+   vole de la place à ce pour quoi on est venu. */
+export async function tableau() {
+  let b
+  try { b = await api('/board') } catch { return }
+  const rien = !b.simulated.campaigns && !b.real.credits_spent && !b.yesterday
+  if (rien) return                       // boutique neuve : l'accueil suffit
+
+  log.querySelector('.board')?.remove()
+  const n = el('div', 'board')
+  const a = b.simulated.top[0]?.analysis
+  const sens = a?.trend == null ? '' : a.trend > 0 ? 'up' : 'down'
+
+  n.innerHTML = `
+    <div class="bhead">
+      <span class="bt">${esc(t('chat.board.title'))}</span>
+      ${b.yesterday ? `<span class="bago">${esc(t('chat.board.yesterday', {
+        spend: num(b.yesterday.spend_dzd), orders: num(b.yesterday.orders) }))}</span>` : ''}
+    </div>
+
+    <div class="bcols">
+      <div class="bcol">
+        <div class="bl">${esc(t('chat.board.real'))}</div>
+        <div class="bv">${num(b.real.credits_left)}<small> ${esc(t('chat.board.credits'))}</small></div>
+        <div class="bs">${esc(t('chat.board.usd', { spent: b.real.usd_spent, pack: b.real.usd_pack }))}</div>
+      </div>
+      <div class="bcol ads">
+        <div class="bl">${esc(t('chat.board.ads'))} <span class="sim">${esc(t('chat.badge.sim'))}</span></div>
+        <div class="bv">${num(b.simulated.spend_dzd)}<small> DA</small></div>
+        <div class="bs">${esc(t('chat.board.orders', {
+          n: num(b.simulated.orders),
+          cpo: b.simulated.cost_per_order ? num(b.simulated.cost_per_order) : '—' }))}</div>
+      </div>
+    </div>
+
+    ${b.simulated.campaigns ? `<div class="bcamps">
+      ${b.simulated.top.map((c) => `
+        <button class="bcamp" data-go="campaigns">
+          <span class="st ${esc(c.status.toLowerCase())}"></span>
+          <span class="nm">${esc(c.name)}</span>
+          <span class="cp">${c.analysis?.cost_per_order ? num(c.analysis.cost_per_order) + ' DA' : '—'}</span>
+          ${c.analysis?.trend != null ? `<span class="tr ${c.analysis.trend > 0 ? 'up' : 'down'}">${c.analysis.trend > 0 ? '+' : ''}${num(c.analysis.trend)}%</span>` : ''}
+        </button>`).join('')}
+    </div>` : ''}
+
+    ${a?.verdict ? `<div class="bverdict ${esc(sens)}">${esc(t('chat.board.verdict.' + a.verdict, {
+      name: b.simulated.top[0].name,
+      cpo: num(a.cost_per_order),
+      trend: Math.abs(a.trend ?? 0),
+      best: a.best?.placement ?? '—', bestCost: a.best ? num(a.best.per_order) : '—',
+      worst: a.worst?.placement ?? '—', worstCost: a.worst?.per_order ? num(a.worst.per_order) : '—',
+    }))}</div>` : ''}
+
+    ${a?.verdict === 'wearing' ? `<button class="btn p sm bfix" data-say="${esc(t('chat.board.fix.say', { name: b.simulated.top[0].name }))}">${esc(t('chat.board.fix'))}</button>` : ''}`
+
+  for (const x of n.querySelectorAll('[data-go]')) x.onclick = () => go(x.dataset.go)
+  for (const x of n.querySelectorAll('[data-say]')) x.onclick = () => send(x.dataset.say)
+  log.prepend(n)
+
+  /* Le navigateur ANCRE le défilement : insérer du contenu au-dessus de la
+     zone visible décale `scrollTop` d'autant, pour que ce qu'on lisait ne
+     bouge pas. C'est le bon comportement au milieu d'une conversation — et
+     le mauvais à l'ouverture, où ça coupait le haut du tableau de 205 px
+     alors que c'est justement la première chose à voir.
+     Donc : on remonte, mais SEULEMENT si rien n'a encore été dit. */
+  if (!log.querySelector('.msg')) log.scrollTop = 0
+}
+
 export function accueil() {
   if (log.querySelector('.hello')) return
   const h = el('div', 'hello')
@@ -1008,6 +1091,9 @@ export function accueil() {
 
 export function hydrate(state) {
   const timeline = state?.timeline
+  // Le tableau d'abord, dans les deux cas : c'est le premier écran, qu'il y
+  // ait une conversation en cours ou pas.
+  tableau()
   // Conversation neuve : on explique au lieu de laisser un écran blanc.
   if (!timeline?.length) return accueil()
   clearEmpty()

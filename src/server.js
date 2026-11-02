@@ -29,6 +29,7 @@ import * as opts from './creative/landing-options.js'
 import { buildLandingPage } from './creative/landing.js'
 import * as catalog from './catalog.js'
 import * as credits from './credits.js'
+import { board } from './board.js'
 import * as page from './meta-sim/posts.js'
 import * as notify from './meta-sim/notify.js'
 
@@ -456,6 +457,16 @@ const server = createServer(async (req, res) => {
 
     /* ── the inbox ──────────────────────────────────────────────────────── */
     /* ── la Page : son mur et ses commentaires ─────────────────────────── */
+    /* Le tableau du matin : un seul appel, parce que l'écran d'accueil ne
+       doit pas attendre cinq allers-retours avant d'afficher un chiffre. */
+    if (reading && p === '/api/board') {
+      const ad = meta.connection(sid)?.assets?.find((x) => x.kind === 'adaccount') ?? null
+      return json(res, 200, {
+        ...board(sid, { wallet: ad ? camp.wallet(sid, ad) : null }),
+        counts: counts(sid),
+      })
+    }
+
     if (reading && p === '/api/page') {
       const a = surfaces(sid).find((x) => x.kind === 'page')
       if (!a) return json(res, 200, { connected: false })

@@ -293,10 +293,28 @@ export function decide(id, { action, target, because }) {
     run('UPDATE campaigns SET placements=? WHERE id=?', J(c.placements.filter((p) => p !== target)), id)
   } else if (action === 'narrow_geo') {
     run('UPDATE campaigns SET geo=? WHERE id=?', J(c.geo.filter((g) => g !== target)), id)
-  } else if (action === 'shift_budget') {
-    run('UPDATE campaigns SET daily_budget_dzd=? WHERE id=?', Math.round(c.daily_budget_dzd * 1.2), id)
+  } else if (action === 'shift_budget' || action === 'scale') {
+    /* Monter, c'est multiplier — et le facteur se CHOISIT.
+       Avant, toute hausse valait ×1,2 en dur : un agent qui voit un coût
+       par commande divisé par deux ne pouvait pas doubler, et un autre qui
+       voit un début prometteur ne pouvait pas monter de 10 %. Le facteur
+       est borné entre ×0,25 et ×3 par pas : au-delà, Meta ré-apprend la
+       campagne depuis zéro et les trois jours de données acquises sont
+       perdus. C'est le piège classique du passage à l'échelle. */
+    const f = Math.min(3, Math.max(0.25, Number(target) || 1.2))
+    const neuf = Math.max(200, Math.round((c.daily_budget_dzd ?? 0) * f))
+    run('UPDATE campaigns SET daily_budget_dzd=? WHERE id=?', neuf, id)
   } else if (action === 'pause_campaign') {
     run('UPDATE campaigns SET status=? WHERE id=?', 'PAUSED', id)
+  } else if (action === 'resume_campaign') {
+    // On REPREND là où on s'était arrêté : `launched` n'est pas retouché,
+    // donc l'historique reste continu et la fatigue ne repart pas à zéro.
+    run('UPDATE campaigns SET status=? WHERE id=?', 'ACTIVE', id)
+  } else if (action === 'stop_campaign') {
+    /* Arrêter n'est pas mettre en pause, et confondre les deux coûte cher :
+       une pause se reprend avec son apprentissage, un arrêt est définitif.
+       L'agent doit pouvoir dire lequel il fait, et le marchand le voir. */
+    run('UPDATE campaigns SET status=? WHERE id=?', 'ARCHIVED', id)
   }
 
   insert('INSERT INTO decisions(campaign,action,target,because,at) VALUES(?,?,?,?,?)',
@@ -365,4 +383,72 @@ export function wallet(sessionId, adAccount) {
     cap, spent, left: Math.max(0, cap - spent),
     simulated: true,
   }
+}
+
+/**
+ * Remplace les visuels fatigués par des neufs, sans toucher au reste.
+ *
+ * Les anciennes annonces passent en PAUSE, pas à la poubelle : leur
+ * historique reste attaché à la campagne, donc on peut comparer le coût par
+ * commande AVANT et APRÈS le changement d'image. C'est la seule façon de
+ * savoir si le renouvellement a servi à quelque chose — supprimer les
+ * anciennes rendrait la comparaison impossible et l'agent dirait « ça va
+ * mieux » sans pouvoir le prouver.
+ *
+ * Le budget n'est pas touché. Quand le coût monte à cause de l'usure,
+ * monter la mise accélère la perte ; changer l'image la répare.
+ */
+export function swapCreatives(id, creatives = [], because = 'usure des visuels') {
+  const c = get(id)
+  if (!c) throw new Error(`Campagne ${id} introuvable.`)
+  const avant = c.ads.filter((a) => a.status === 'ACTIVE')
+  for (const a of avant) run('UPDATE ads SET status=? WHERE id=?', 'PAUSED', a.id)
+
+  const ajoutes = []
+  for (const cr of creatives) {
+    const adId = insert(
+      'INSERT INTO ads(campaign,ext_id,angle,creative,headline,status,at) VALUES(?,?,?,?,?,?,?)',
+      id, null, cr.angle ?? null, cr.url ?? null, cr.headline ?? null, 'ACTIVE', now())
+    run('UPDATE ads SET ext_id=? WHERE id=?', `SIM-AD-${900000 + adId}`, adId)
+    ajoutes.push({ id: adId, angle: cr.angle ?? null, url: cr.url ?? null })
+  }
+
+  insert('INSERT INTO decisions(campaign,action,target,because,at) VALUES(?,?,?,?,?)',
+    id, 'refresh_creatives', `${avant.length} → ${ajoutes.length}`, because, now())
+
+  return {
+    simulated: true, campaign_id: id, name: c.name,
+    paused: avant.map((a) => ({ id: a.id, angle: a.angle })),
+    added: ajoutes,
+    daily_budget_dzd: c.daily_budget_dzd,
+  }
+}
+
+/**
+ * Une campagne ACTIVE continue de tourner, même quand l'app est fermée.
+ *
+ * POURQUOI. L'historique était écrit une fois, au lancement, pour N jours.
+ * On revenait le lendemain et la campagne « en cours » n'avait rien dépensé
+ * depuis la veille : le statut disait ACTIVE, les chiffres disaient arrêtée,
+ * et « hier » était vide sur le tableau du matin. Mesuré le 02/11/2026 —
+ * une campagne semée la veille s'arrêtait à l'avant-veille.
+ *
+ * Même principe que les publications programmées : on rattrape À LA LECTURE
+ * plutôt qu'avec une minuterie. Une app qui doit tourner en continu pour que
+ * ses données soient justes a des données fausses dès qu'on la ferme.
+ *
+ * `generate()` saute les jours déjà écrits, donc appeler ceci dix fois dans
+ * la même seconde ne crée rien de plus.
+ */
+export function catchUp(sessionId) {
+  const actives = all(
+    "SELECT id, launched FROM campaigns WHERE session=? AND status='ACTIVE' AND launched IS NOT NULL", sessionId)
+  let ecrits = 0
+  for (const c of actives) {
+    const jours = Math.floor((now() - c.launched) / 86400_000) + 1
+    // 60 jours de garde : une campagne oubliée trois mois ne doit pas
+    // écrire quatre-vingt-dix jours d'un coup au prochain affichage.
+    if (jours > 0) ecrits += generate(c.id, Math.min(60, jours))
+  }
+  return ecrits
 }

@@ -104,6 +104,54 @@ export const chat = {
 
   /* ── les titres des cartes ────────────────────────────────────────────── */
   'chat.card.photos':      { en: 'Product photos',       ar: 'تصاور المنتج',      fr: 'Photos produit' },
+  /* ── le tableau du matin ──────────────────────────────────────────────
+     Deux colonnes, et la séparation est dans les MOTS, pas seulement dans
+     la couleur : « crédits » d'un côté, « publicité (simulé) » de l'autre.
+     Un seul « total dépensé » qui mélangerait les deux serait le chiffre
+     simulé qui ressemble à une mesure — et c'est le premier écran.
+
+     Les verdicts ne sont pas des phrases toutes faites côté serveur : le
+     serveur renvoie une étiquette, l'écran la traduit. Sinon une interface
+     en darija recevrait un verdict en français. */
+  'chat.board.title': { en: 'Where you stand', ar: 'وين راك', fr: 'Où tu en es' },
+  'chat.board.yesterday': {
+    en: 'yesterday: {spend} DA spent, {orders} order(s)',
+    ar: 'البارح: صرفت {spend} دج، {orders} طلب',
+    fr: 'hier : {spend} DA dépensés, {orders} commande(s)',
+  },
+  'chat.board.real': { en: 'Your credits', ar: 'الكريدي تاعك', fr: 'Tes crédits' },
+  'chat.board.credits': { en: 'left', ar: 'باقي', fr: 'restants' },
+  'chat.board.usd': { en: '${spent} of ${pack} used', ar: 'صرفت {spent}$ من {pack}$', fr: '{spent} $ utilisés sur {pack} $' },
+  'chat.board.ads': { en: 'Ad spend', ar: 'مصروف الإشهار', fr: 'Dépense publicitaire' },
+  'chat.board.orders': {
+    en: '{n} orders · {cpo} DA each',
+    ar: '{n} طلب · {cpo} دج للواحد',
+    fr: '{n} commandes · {cpo} DA pièce',
+  },
+
+  'chat.board.verdict.wearing': {
+    en: '{name} is wearing out: {cpo} DA per order, up {trend}% since it started. {best} is your cheapest at {bestCost} DA, {worst} your dearest at {worstCost} DA.',
+    ar: '{name} راهي تتعب: {cpo} دج للطلب، زادت {trend}% من البداية. {best} هي الرخيصة بـ {bestCost} دج، و{worst} هي الغالية بـ {worstCost} دج.',
+    fr: "{name} s'essouffle : {cpo} DA par commande, soit {trend} % de plus qu'au départ. {best} est le moins cher à {bestCost} DA, {worst} le plus cher à {worstCost} DA.",
+  },
+  'chat.board.verdict.improving': {
+    en: '{name} is getting cheaper: {cpo} DA per order, down {trend}%. {best} carries it at {bestCost} DA.',
+    ar: '{name} راهي ترخص: {cpo} دج للطلب، نقصت {trend}%. {best} هي لي داهيها بـ {bestCost} دج.',
+    fr: '{name} coûte de moins en moins : {cpo} DA par commande, {trend} % de moins. {best} la porte à {bestCost} DA.',
+  },
+  'chat.board.verdict.steady': {
+    en: '{name} holds at {cpo} DA per order. {best} at {bestCost} DA, {worst} at {worstCost} DA.',
+    ar: '{name} ثابتة على {cpo} دج للطلب. {best} بـ {bestCost} دج، و{worst} بـ {worstCost} دج.',
+    fr: '{name} tient à {cpo} DA par commande. {best} à {bestCost} DA, {worst} à {worstCost} DA.',
+  },
+
+  'chat.board.fix': { en: 'Fix it', ar: 'صلّحها', fr: 'Corrige ça' },
+  'chat.board.fix.say': {
+    en: 'The cost per order on {name} keeps climbing. Look at it and tell me what to change.',
+    ar: 'سومة الطلب في {name} راهي تطلع. شوفها وقولي واش نبدل.',
+    fr: 'Le coût par commande de {name} ne fait que monter. Regarde et dis-moi quoi changer.',
+  },
+
   /* ── l'accueil d'une conversation neuve ───────────────────────────────
      Quatre cartes, pas douze : ce sont les quatre choses que l'app fait
      vraiment de bout en bout. Chaque phrase d'exemple est écrite comme un

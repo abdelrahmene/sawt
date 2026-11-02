@@ -282,16 +282,33 @@ export const TOOLS = [
     function: {
       name: 'adjust_campaign',
       description:
-        'Act on results: pause a creative, shift budget, narrow geo, change placement. Say which number made you decide. SIMULATED.',
+        "Act on the results. `scale` multiplies the daily budget — put the factor in `target` (1.5 raises by half, 0.5 halves it). Going above about 1.5 in one step makes Meta relearn the campaign and throws away the days of data already bought, so step up rather than jump. `pause_campaign` stops the spend but keeps the learning and can be resumed; `stop_campaign` ends it for good — say which one you mean. Always name the number that made you decide.",
       parameters: {
         type: 'object',
         properties: {
           campaign_id: { type: 'string' },
-          action: { type: 'string', enum: ['pause_creative', 'shift_budget', 'narrow_geo', 'change_placement', 'pause_campaign'] },
-          target: { type: 'string', description: 'Which creative, wilaya or placement.' },
+          action: { type: 'string', enum: ['scale', 'pause_creative', 'narrow_geo', 'change_placement', 'pause_campaign', 'resume_campaign', 'stop_campaign'] },
+          target: { type: 'string', description: 'For scale: the multiplier, e.g. "1.5". Otherwise which creative, wilaya or placement.' },
           because: { type: 'string', description: 'The metric that justified it, with its value.' },
         },
         required: ['campaign_id', 'action', 'because'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'refresh_creatives',
+      description:
+        "Replace a campaign's tired images with fresh ones, drawn from the same product photo so it is the same object under another angle. Use it when the cost per order has been CLIMBING day after day while reach per dinar falls — that is wear, not bad targeting, and raising the budget on a worn creative only spends faster. The old ads are paused, not deleted, so the cost before and after stays comparable. The budget is left alone.",
+      parameters: {
+        type: 'object',
+        properties: {
+          campaign_id: { type: 'string' },
+          angles: { type: 'array', items: { type: 'string' }, description: 'One or two new angles, in the merchant language. Default: another light, in use.' },
+          because: { type: 'string', description: 'The number that showed the wear, with its value.' },
+        },
+        required: ['campaign_id'],
       },
     },
   },

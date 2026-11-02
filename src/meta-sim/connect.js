@@ -17,7 +17,7 @@
 // messages are Platform Data, and they do not belong in a public repository.
 import { createHash } from 'node:crypto'
 import { all, one, run, insert, now, J, unJ } from '../db.js'
-import { seedCampaigns } from './campaigns.js'
+import { seedCampaigns, catchUp } from './campaigns.js'
 
 /**
  * The permissions this product actually needs, with the real Graph API scope
@@ -111,7 +111,7 @@ export function connection(sessionId) {
      réception, corrigé de la même façon : une seule porte, idempotente,
      sur le chemin que tout le monde emprunte.
      Un COUNT par appel, et rien d'autre tant qu'il n'est pas à zéro. */
-  if (c.status === 'connected') seedCampaigns(sessionId)
+  if (c.status === 'connected') { seedCampaigns(sessionId); catchUp(sessionId) }
   return {
     ...c,
     scopes: unJ(c.scopes, []),

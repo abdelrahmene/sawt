@@ -206,6 +206,7 @@ function consomme(name, r) {
         { kind: 'image', n: (r.pages ?? []).reduce((s, p) => s + (p.scenes ?? 0), 0) },
       ]
     case 'generate_creatives':
+    case 'refresh_creatives':
       return [{ kind: 'segment', n: iso }, { kind: 'image', n: r.creatives?.length ?? 0 }]
     case 'restyle_photo':
       return [{ kind: 'segment', n: iso }, { kind: 'image', n: r.photos?.length ?? 0 }]
@@ -347,6 +348,61 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
           ? { model: 'sam-3.1', url: cut.url, coverage: cut.found.coverage, gain: cut.gain,
               from: 'le produit a été détouré de la photo, puis la créative part de CE produit' }
           : cut ? { model: 'sam-3.1', failed: cut.why, from: 'créative générée depuis la description, pas depuis la photo' } : null,
+      }
+    }
+
+    /* ── renouveler les visuels d'une campagne qui s'essouffle ──────────
+       Une campagne ne meurt pas d'un mauvais ciblage, elle meurt d'usure :
+       les mêmes gens voient la même image, le coût par commande monte
+       chaque jour. C'est visible dans les chiffres — la portée par dinar
+       baisse et le prix d'un résultat grimpe — et la réponse n'est PAS de
+       monter le budget, c'est de changer l'image.
+
+       Ce qui se passe ici : les anciennes annonces passent en pause, de
+       nouvelles créatives sont générées depuis la même photo produit (donc
+       le même objet, sous d'autres angles), et elles entrent dans la
+       campagne. L'historique n'est pas touché : on voit le coût avant et
+       après, sur la même campagne. */
+    case 'refresh_creatives': {
+      const id = Number(args.campaign_id)
+      const c = camp.get(id)
+      if (!c) return { error: `Campagne ${id} introuvable.` }
+
+      const photos = ctx.photos ?? []
+      const prod = produitBoutique(ctx, c.name) ?? ctx.products?.[0] ?? null
+      const source = photos.at(-1)?.path ?? null
+      const sujet = prod?.name || photos.at(-1)?.described?.product || c.payload?.product || 'the product'
+
+      let cut = null
+      if (source) {
+        onEvent({ type: 'progress', tool: 'refresh_creatives', phase: 'isolate', label: sujet })
+        cut = await isolate(source, sujet).catch(() => null)
+      }
+
+      const angles = (args.angles ?? ['une autre lumière', 'en situation']).slice(0, 3)
+      const neufs = []
+      for (const angle of angles) {
+        onEvent({ type: 'progress', tool: 'refresh_creatives', phase: 'creative', step: neufs.length + 1, total: angles.length, label: angle })
+        try {
+          const prompt = headlinePrompt(sujet, angle)
+          const b64 = cut?.ok
+            ? await edit(cut.path, `Keep this exact product, unchanged. ${prompt} ${GARDE_MARQUE}`)
+            : await generate(prompt)
+          if (!b64) continue
+          mkdirSync(OUT_DIR, { recursive: true })
+          const file = `creative-${Date.now().toString(36)}-${neufs.length}.png`
+          save(b64, join(OUT_DIR, file))
+          neufs.push({ angle, url: `/out/${file}` })
+        } catch (e) { /* une créative ratée ne doit pas annuler les autres */ }
+      }
+      if (!neufs.length) return { error: "Aucune créative n'est revenue. La campagne n'a pas été touchée." }
+
+      const r = camp.swapCreatives(id, neufs, args.because ?? 'usure des visuels')
+      ;(ctx.creatives ??= []).push(...neufs)
+      return {
+        ...r, creatives: neufs, subject: sujet,
+        isolated: cut?.ok ? { model: 'sam-3.1', coverage: cut.found?.coverage } : null,
+        say: "Le budget n'a pas bougé : quand le coût monte à cause de l'usure, changer l'image coûte moins cher que monter la mise.",
       }
     }
 
