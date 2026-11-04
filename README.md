@@ -144,7 +144,8 @@ app itself — no mock-ups, no slides, no narration over a storyboard.
 
 | | Length | What it covers |
 |---|---|---|
-| **`out/sawt-3min.mp4`** | 2:47 | The submission cut. One photo in, a paid order out. |
+| **`out/sawt-mobile-3min.mp4`** | 3:04 | **The submission cut.** Portrait, 1080×1920, filmed on the phone shell — the whole business run live from the agent chat, nothing but the conversation. |
+| `out/sawt-3min.mp4` | 2:47 | The same story on the desktop shell, landscape. |
 | **`out/sawt-complet.mp4`** | 7:32 | The whole walkthrough, nothing skipped. |
 
 What the short cut shows, in order: the board already running · connecting to a **real Meta
