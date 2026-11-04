@@ -13,6 +13,51 @@ You talk to it. By voice, in Algerian darija, if that is how you talk.
 
 **You never open Ads Manager. You never learn what a lookalike audience is.**
 
+```sh
+git clone https://github.com/abdelrahmene/sawt && cd sawt && npm start
+```
+
+Zero dependencies, no key, no account. It opens on `localhost:7070` with a working shop, a
+connected Meta account, nine customers waiting and a campaign six days old. Open source,
+MIT — the whole thing is in this repository.
+
+---
+
+## For the judges: where to look, in four minutes
+
+| Judged on | Where it is |
+|---|---|
+| **Impact — 30%** | [Who this is for](#who-this-is-for-and-why-it-is-not-a-niche). Advertising is a trade, and that trade is the only thing standing between a person with savings and a business. This agent *is* the trade. Not a niche: the same wall stops a beginner in Algiers and a shop owner in Lagos, Karachi or Lima. |
+| **Use of Meta tools — 25%** | [The Meta tools, one by one](#the-meta-tools-one-by-one) below — five Meta models and the Graph + Marketing APIs, each with the file that calls it. Click through the consent screen yourself: refuse `instagram_manage_messages` and the Instagram inbox really comes back empty, naming the scope. |
+| **Demonstration — 25%** | [`out/sawt-3min.mp4`](#the-demo-video), and the app itself — `npm start` and it is already running, not an empty state you have to fill before anything happens. |
+| **Technical depth — 20%** | [Why `sam-3.1` earns its place](#why-sam-31-earns-its-place), [the benchmark](#darija-and-what-the-benchmark-actually-measures), [the one rule](#the-one-rule). Twenty-three agent tools, a measured darija benchmark, and a real/simulated boundary enforced in code rather than promised in prose. |
+| **Open source — mandatory** | This repository, MIT, public. No key is committed; `.env.example` holds only public endpoints. |
+
+---
+
+## The Meta tools, one by one
+
+Everything the agent thinks with is a Meta model. Nothing here calls another provider.
+
+| Meta tool | What it does in Sawt | Where |
+|---|---|---|
+| **Llama — `muse-spark-1.3`** (Meta Model API, `/chat/completions`) | The agent itself: reads darija, decides, calls tools, writes the sales copy, drafts every customer reply. | [`src/models/llm.js:6`](src/models/llm.js) |
+| **Meta image generation — `muse-image-1.0`** (`/images/generations`, `/images/edits`) | Draws the ad creatives. `edits` is the one that matters: it re-shoots *your* cut-out product instead of inventing a lookalike from a description. | [`src/models/image.js:32`](src/models/image.js), [`:42`](src/models/image.js) |
+| **SAM 3.1 — `sam-3.1`** | Finds the product inside the merchant's phone photo and cuts it out, before anything is generated. If it cannot find it, the agent says so instead of advertising the wrong object. | [`src/models/segment.js`](src/models/segment.js) |
+| **Meta vision** | Looks at the photo and says what it is — and what the photo gets wrong: glare, clutter, product too small in frame. | [`src/models/vision.js:48`](src/models/vision.js) |
+| **Meta speech-to-text — `muse-voice-transcribe-1.0`** | The voice note, in darija, straight to intent and entities. No translation step. | [`src/models/voice.js:72`](src/models/voice.js) |
+| **Meta Graph API** | Pages and Instagram: read comments and conversations, publish replies. Five endpoints, live in `real` mode. | [`src/meta-graph/index.js`](src/meta-graph/index.js) |
+| **Meta Marketing API** | Create campaigns and ads, read insights per placement per day. Campaign creation is forced to `PAUSED`. | [`src/meta-graph/index.js`](src/meta-graph/index.js) |
+| **Thirteen Graph permissions** | The real scope strings, with real consequences when you decline one. | [`src/meta-sim/connect.js:27`](src/meta-sim/connect.js) |
+
+The agent has **23 tools** ([`src/agent/tools.js:9`](src/agent/tools.js)) — from `browse_catalog`
+and `restyle_photo` to `configure_campaign`, `adjust_campaign`, `answer_inbox` and
+`refresh_creatives`. The loop that runs them is [`src/agent/loop.js`](src/agent/loop.js).
+
+**And the honest part.** Model calls are real whenever you give it a key. The Facebook side is
+*staged* unless you plug in your own Meta app — and every staged surface says so on screen, in
+the badge, not in a footnote. [How that boundary works](#the-meta-side-live-recorded-or-staged--and-the-badge-says-which).
+
 ---
 
 ## Who this is for, and why it is not a niche
