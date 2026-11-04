@@ -90,7 +90,13 @@
 }
 
 /* ══ NUIT ═══════════════════════════════════════════════════════════════════
- * Le thème par défaut. Un instrument, pas un tableau de bord : du contraste,
+ * Le second thème, pas celui du démarrage — l'app ouvre en JOUR, parce que le
+ * marchand est debout dans sa boutique en plein jour. Ce commentaire a
+ * longtemps annoncé le contraire pendant qu'index.html ouvrait en clair, et
+ * un commentaire qui ment coûte plus cher que pas de commentaire : il a
+ * suffi à me faire changer le défaut sans que personne l'ait demandé.
+ *
+ * Un instrument, pas un tableau de bord : du contraste,
  * de la profondeur par empilement de surfaces, et la lumière réservée à ce
  * qui a un état.
  *
