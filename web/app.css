@@ -656,7 +656,10 @@ input.f:focus,select.f:focus,textarea.f:focus{border-color:var(--accent);box-sha
   letter-spacing:.06em;text-transform:uppercase}
 .heard .tag.a{background:var(--bad-soft);color:var(--bad)}
 .heard .tag.p{background:var(--accent-soft);color:var(--accent)}
-.heard .txt{flex:1;direction:rtl;text-align:right;font-family:var(--arabic);line-height:1.95}
+/* Le mémo est en darija, mais ce bloc affiche aussi sa traduction : même
+   règle, le texte décide. */
+.heard .txt{flex:1;unicode-bidi:plaintext;text-align:start;font-family:var(--sans),var(--arabic);
+  line-height:1.95}
 .heard .gap{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line-2);color:var(--warn);
   font-size:12px;display:flex;gap:7px;align-items:flex-start}
 
@@ -908,8 +911,19 @@ body.listening #photo{opacity:.25}
 .tlist .t .top{display:flex;align-items:baseline;gap:8px;min-width:0}
 .tlist .t .who{font-weight:650;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tlist .t .when{margin-inline-start:auto;font-size:11px;color:var(--faint);flex:0 0 auto}
+/* ⚠️ CHAQUE MESSAGE DÉCIDE DE SON SENS, PAS LA FEUILLE DE STYLE.
+   Ces quatre règles disaient `direction:rtl`, écrites quand tout était en
+   darija. Depuis que les clients écrivent en anglais, elles affichaient
+   « .Hello, it's $40.00 cash on delivery » — le point passé devant la
+   phrase — et tronquaient l'aperçu par le DÉBUT. `unicode-bidi:plaintext`
+   est l'équivalent CSS de `dir="auto"` : le sens vient du premier caractère
+   fort du texte lui-même. Une boîte de réception contient les deux langues
+   à la fois ; aucune valeur fixe ne peut être juste pour les deux.
+   Et `var(--sans)` passe devant `var(--arabic)` parce que --arabic commence
+   par Segoe UI, qui a des glyphes latins : l'anglais sortait dans la mauvaise
+   police. L'arabe, lui, retombe dessus caractère par caractère. */
 .tlist .t .txt{font-size:13px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  direction:rtl;text-align:right;font-family:var(--arabic)}
+  unicode-bidi:plaintext;text-align:start;font-family:var(--sans),var(--arabic)}
 .tlist .t .meta{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
 
 .tview{display:flex;flex-direction:column;min-height:0;background:var(--bg)}
@@ -922,12 +936,13 @@ body.listening #photo{opacity:.25}
 .tview .h .right{margin-inline-start:auto;display:flex;gap:7px;align-items:center}
 .tbody{flex:1;overflow-y:auto;min-height:0;padding:20px;display:flex;flex-direction:column;gap:10px}
 .post{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;
-  font-size:13.5px;direction:rtl;text-align:right;font-family:var(--arabic);line-height:1.9;flex:0 0 auto}
+  font-size:13.5px;unicode-bidi:plaintext;text-align:start;font-family:var(--sans),var(--arabic);
+  line-height:1.9;flex:0 0 auto}
 .post::before{content:var(--s-publishing,"the post");display:block;font:600 9.5px/1 var(--mono);letter-spacing:.11em;
   text-transform:uppercase;color:var(--faint);margin-bottom:7px;direction:ltr;text-align:left;
   font-family:var(--mono)}
 .bub{flex:0 0 auto;max-width:78%;padding:11px 15px;border-radius:16px;font-size:14.5px;line-height:1.85;
-  direction:rtl;text-align:right;font-family:var(--arabic);animation:rise .24s both}
+  unicode-bidi:plaintext;text-align:start;font-family:var(--sans),var(--arabic);animation:rise .24s both}
 .bub.customer{align-self:flex-start;background:var(--panel);border:1px solid var(--line);
   border-bottom-left-radius:5px}
 .bub.agent{align-self:flex-end;background:var(--acc-fill);color:var(--acc-on);border-bottom-right-radius:5px}
