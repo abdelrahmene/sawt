@@ -248,7 +248,27 @@ function inline(name, result) {
 }
 
 /* ── cards on the canvas ─────────────────────────────────────────────────── */
-function card(title, { real, sim, note } = {}) {
+/* ── la coche qui se trace ────────────────────────────────────────────────
+   POURQUOI. L'agent travaillait en silence : une page mettait soixante
+   secondes à se construire, puis une carte apparaissait d'un coup. Rien ne
+   disait « c'est fait », et sur une démonstration comme devant un marchand,
+   une étape franchie sans marque laisse croire que rien ne s'est passé.
+
+   Une coche qui se DESSINE, pas une icône qui s'allume : le tracé dit qu'un
+   travail vient de s'achever, là où un symbole statique dit seulement qu'il
+   existe. Elle part après deux secondes — une marque de réussite permanente
+   cesse d'être lue au troisième usage. */
+function reussite(titre) {
+  const n = el('div', 'done')
+  n.innerHTML =
+    `<svg viewBox="0 0 24 24" aria-hidden="true">
+       <circle cx="12" cy="12" r="10"/>
+       <path d="M7.5 12.4l3 3 6-6.4"/>
+     </svg><span>${esc(titre)}</span>`
+  return n
+}
+
+function card(title, { real, sim, note, fait = true } = {}) {
   const c = el('div', 'card')
   const h = el('h3', null, esc(title))
   if (real) h.append(el('span', 'sim real', t('chat.badge.real')))
@@ -258,6 +278,14 @@ function card(title, { real, sim, note } = {}) {
   c.append(h, b)
   clearEmpty()
   canvas.append(c); bottom(canvas)
+
+  if (fait) {
+    c.classList.add('landed')
+    const marque = reussite(title)
+    c.append(marque)
+    setTimeout(() => marque.classList.add('off'), 2400)
+    setTimeout(() => marque.remove(), 3100)
+  }
   return b
 }
 const clearEmpty = () => $('#canvas-empty')?.remove()
@@ -446,6 +474,45 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
     const g = el('div', 'thumbs')
     for (const c of result.creatives ?? []) g.append(thumb(c.url, c.angle))
     b.append(g)
+
+    /* ── de la photo à la PUBLICITÉ ────────────────────────────────────
+       Le modèle rend une scène dont le haut est volontairement vide :
+       `headlinePrompt()` le lui demande, pour qu'une accroche puisse y être
+       posée. Personne ne la posait. On compose donc l'annonce ici, sur un
+       canvas — accroche, prix, mention de paiement, bouton.
+
+       ⚠️ Côté navigateur et non côté serveur, et ce n'est pas un détour :
+       le texte ne doit JAMAIS être dessiné par le modèle, qui réordonne les
+       chiffres (« 15 900 » revient « 19 500 »), et un prix faux sur une
+       annonce finit en colis refusé à la livraison. `drawtext` de ffmpeg ne
+       sait pas faire de crénage et ffmpeg n'a pas de décodeur SVG ici : le
+       canvas est le seul endroit qui donne un vrai dégradé, un vrai crénage
+       et la police du produit, sans ajouter une dépendance. */
+    const pour = result.subject || result.product || ''
+    const prix = result.price_dzd ?? result.price ?? null
+    if ((result.creatives ?? []).length && pour) {
+      const pub = el('div', 'thumbs ads')
+      b.append(el('div', 'sec', t('chat.creatives.ads')), pub)
+      // En tâche de fond : composer trois affiches prend un instant, et la
+      // carte ne doit pas attendre pour s'afficher. Elles arrivent ensuite,
+      // une par une — ce qui se regarde mieux qu'un bloc qui surgit.
+      ;(async () => {
+        const { composerEtEnregistrer } = await import('./affiche.js')
+        for (const c of result.creatives) {
+          try {
+            const a = await composerEtEnregistrer(c.url, {
+              shop: result.shop ?? null,
+              headline: c.angle || pour,
+              price: prix ? money(prix) : null,
+              badge: t('chat.creatives.cod'),
+              cta: t('chat.creatives.cta'),
+              session: SESSION,
+            })
+            pub.append(thumb(a.url, c.angle))
+          } catch (e) { console.error('[affiche]', e.message) }
+        }
+      })()
+    }
     if (result.subject) b.append(el('div', 'why', t('chat.creatives.subject', { subject: `<b>${esc(result.subject)}</b>` })))
     // Le détourage est la partie que le marchand ne devine pas tout seul :
     // on lui dit quelle part de SA photo était du décor.

@@ -293,6 +293,28 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { url: `/out/uploads/${file}`, described, count: photosOf(sid).length })
     }
 
+    /* ── une affiche publicitaire, composée par le navigateur ───────────
+       Le visuel sort du modèle sans un mot dessus — `headlinePrompt()` lui
+       demande expressément de laisser la place. L'accroche et le prix sont
+       posés ensuite sur un canvas (`web/affiche.js`), parce qu'un modèle
+       d'image réordonne les chiffres et qu'un prix faux sur une annonce
+       finit en colis refusé. Le fichier arrive ici pour EXISTER : une image
+       qui ne vit que dans un onglet n'est pas une publicité, elle ne peut
+       ni s'ouvrir demain ni partir chez Meta. */
+    if (req.method === 'POST' && p === '/api/affiche') {
+      const ext = (url.searchParams.get('ext') ?? 'png').replace(/[^a-z0-9]/gi, '').slice(0, 5)
+      const buf = await body(req)
+      if (!buf?.length) return json(res, 400, { error: 'affiche vide' })
+      const dossier = join(ROOT, 'out')
+      await mkdir(dossier, { recursive: true })
+      const file = `ad-${Date.now().toString(36)}.${ext}`
+      await writeFile(join(dossier, file), buf)
+      const u = `/out/${file}`
+      insert('INSERT INTO creatives(session,url,angle,model,at) VALUES(?,?,?,?,?)',
+        sid, u, url.searchParams.get('angle') ?? null, 'canvas+muse-image', now())
+      return json(res, 200, { url: u, bytes: buf.length })
+    }
+
     /* ── a voice note ───────────────────────────────────────────────────── */
     if (req.method === 'POST' && p === '/api/voice') {
       const ext = (url.searchParams.get('ext') ?? 'webm').replace(/[^a-z0-9]/gi, '').slice(0, 5)

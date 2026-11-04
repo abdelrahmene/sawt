@@ -426,4 +426,11 @@ export const chat = {
     ar: 'تمحي هذي المحادثة وتبدا من الصفر؟',
     fr: 'Effacer cette conversation et repartir de zéro ?',
   },
+  /* ── de la photo à la publicité ──────────────────────────────────────
+     Le visuel sort du modèle sans un mot dessus : l'accroche et le prix
+     sont posés ensuite sur un canvas, jamais par le modèle, qui réordonne
+     les chiffres. */
+  'chat.creatives.ads': { en: 'Ready to run', ar: 'جاهزة للإشهار', fr: 'Prêtes à diffuser' },
+  'chat.creatives.cod': { en: 'Pay on delivery', ar: 'الدفع عند الاستلام', fr: 'Paiement à la livraison' },
+  'chat.creatives.cta': { en: 'Order now', ar: 'اطلب الآن', fr: 'Commander' },
 }

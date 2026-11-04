@@ -187,3 +187,47 @@
   .jline { font-size: 13.5px; }
   .jwhy { font-size: 12.5px; }
 }
+
+/* ══ la réussite d'une étape ════════════════════════════════════════════════
+   L'agent travaillait en silence : soixante secondes de construction, puis
+   une carte qui apparaît d'un coup. Rien ne disait « c'est fait ».
+
+   La coche se DESSINE au lieu de s'allumer — un tracé dit qu'un travail vient
+   de s'achever, un symbole statique dit seulement qu'il existe. Et elle s'en
+   va : une marque de réussite permanente cesse d'être lue au troisième usage.
+   Posé ici plutôt que dans app.css pour la même raison que le reste de cette
+   feuille — elle a été écrite pendant que d'autres mains tenaient l'autre. */
+.card.landed{ animation: cardIn .42s cubic-bezier(.2,.8,.3,1); }
+@keyframes cardIn{
+  from{ opacity:0; transform:translateY(10px) scale(.994); }
+  to  { opacity:1; transform:none; }
+}
+
+.card{ position:relative; }
+.done{
+  position:absolute; inset-inline-end:14px; top:12px;
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 12px 6px 8px; border-radius:999px;
+  background:var(--accent-soft); border:1px solid var(--accent-line);
+  color:var(--accent); font:650 11.5px var(--sans); letter-spacing:.01em;
+  animation: donePop .34s cubic-bezier(.2,.8,.3,1);
+  transition: opacity .55s ease, transform .55s ease;
+  max-width:min(58%,260px); overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+.done.off{ opacity:0; transform:translateY(-6px); }
+@keyframes donePop{ from{ opacity:0; transform:scale(.88) translateY(-4px); } to{ opacity:1; transform:none; } }
+
+.done svg{ width:17px; height:17px; flex:none; fill:none; stroke:currentColor;
+  stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+/* Le cercle puis la coche, l'un après l'autre : dessinés ensemble, on ne lit
+   ni l'un ni l'autre. */
+.done svg circle{ stroke-dasharray:64; stroke-dashoffset:64; opacity:.45;
+  animation: trace .5s ease forwards; }
+.done svg path{ stroke-dasharray:22; stroke-dashoffset:22;
+  animation: trace .34s cubic-bezier(.65,0,.35,1) .34s forwards; }
+@keyframes trace{ to{ stroke-dashoffset:0; } }
+
+@media (prefers-reduced-motion:reduce){
+  .card.landed,.done,.done svg circle,.done svg path{ animation:none }
+  .done svg circle,.done svg path{ stroke-dashoffset:0 }
+}
