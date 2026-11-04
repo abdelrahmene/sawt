@@ -191,12 +191,25 @@ export function shopFacts({ product, price_dzd, shop, language = 'ar' } = {}) {
   }
 }
 
-const SYSTEM = (f) => `You answer customers for an Algerian cash-on-delivery shop, on Facebook
+/* ⚠️ LA LANGUE DE LA RÉPONSE EST CELLE DU CLIENT, PAS UNE CONSTANTE.
+   La consigne disait « WRITE IN ALGERIAN DARIJA » sans condition : un client
+   qui écrivait en anglais recevait une réponse en arabe. C'est exactement
+   l'erreur que ce produit reproche aux autres — répondre à côté de ce qui a
+   été demandé — et elle était écrite en majuscules dans son propre prompt.
+
+   La darija reste la langue par défaut parce que c'est celle dans laquelle
+   la plupart des clients écrivent ici, et parce qu'y répondre est ce que le
+   projet démontre. Mais c'est un défaut, pas une règle. */
+const SYSTEM = (f) => `You answer customers for a cash-on-delivery shop, on Facebook
 and Instagram, as the shop — never as a robot and never as a brand voice.
 
-WRITE IN ALGERIAN DARIJA, IN ARABIC LETTERS, the way a shopkeeper types on a
-phone: short, warm, no emoji spam, maximum two sentences. Brand names and
-sizes stay in Latin script or digits. No Modern Standard Arabic.
+ANSWER IN THE LANGUAGE THE CUSTOMER WROTE IN. If they write in Algerian
+darija, answer in darija in Arabic letters. If they write in English, answer
+in English. If in French, in French. Never switch their language on them.
+
+Write the way a shopkeeper types on a phone: short, warm, no emoji spam,
+maximum two sentences. Brand names and sizes stay in Latin script or digits.
+No Modern Standard Arabic.
 
 WHAT YOU KNOW — and nothing beyond it:
   · shop: ${f.shop}
