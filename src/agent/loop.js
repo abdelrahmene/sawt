@@ -14,7 +14,7 @@ import { isolate } from '../models/segment.js'
 import * as camp from '../meta-sim/campaigns.js'
 import { connection } from '../meta-sim/connect.js'
 import { threads, thread, draftReply, sendReply, shopFacts, surfacesOf,
-  draftComment, sendCommentReply } from '../meta-sim/inbox.js'
+  draftComment, sendCommentReply, langueDu } from '../meta-sim/inbox.js'
 import * as page from '../meta-sim/posts.js'
 import * as notify from '../meta-sim/notify.js'
 import { addDomain } from '../sites.js'
@@ -859,8 +859,23 @@ export async function runTurn({ history = [], input, ctx = {}, onEvent = () => {
   // Rebuilt on every turn, not cached: the state board is only useful if it
   // is current, and between two turns the merchant may have connected
   // Facebook, answered a customer or verified a domain in another tab.
+  /* ⚠️ LA LANGUE DU MARCHAND EST DÉCIDÉE ICI, PAS DEVINÉE LÀ-BAS.
+     La consigne n° 7 dit « if the merchant writes in darija, answer in
+     darija », et c'est vrai — mais c'est une ligne au milieu d'un prompt de
+     cent cinquante, et le modèle s'en souvient inégalement. Le même oubli a
+     fait répondre en arabe à des clientes anglaises pendant tout un tournage.
+     Le code sait lire un message ; il n'a aucune raison de laisser ça à
+     l'inférence.
+
+     Et la consigne va dans le message SYSTÈME, pas devant le texte du
+     marchand : le tour est enregistré tel quel et réaffiché, donc un préfixe
+     collé à l'entrée finirait dans sa propre bulle, à l'écran. */
+  const langue = langueDu(input)
   const messages = [
-    { role: 'system', content: systemPrompt({ ...ctx, state: ctx.sessionId ? briefing(ctx.sessionId) : '' }) },
+    { role: 'system',
+      content: systemPrompt({ ...ctx, state: ctx.sessionId ? briefing(ctx.sessionId) : '' })
+        + `\n\nTHIS TURN: the merchant is writing to you in ${langue.nom}.`
+        + ` Answer in ${langue.nom}. Nothing else about your reply changes.` },
     ...history,
     { role: 'user', content: input },
   ]

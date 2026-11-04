@@ -18,8 +18,16 @@ import { adopt } from '../sites.js'
 import { PLACEMENTS } from '../meta-sim/campaigns.js'
 import * as page from '../meta-sim/posts.js'
 import * as notify from '../meta-sim/notify.js'
+import { priceLabel } from '../money.js'
 
-const money = (n) => `${Number(n || 0).toLocaleString('fr-FR').replace(/[  ]/g, ' ')} DZD`
+/* ⚠️ LE BRIEFING COMPTE DANS LA MONNAIE QUE LE MARCHAND VOIT À L'ÉCRAN.
+   Il était figé en dinars. L'agent annonçait « صرفنا 1953 دج اليوم » pendant
+   que chaque écran derrière lui affichait des dollars — même produit, même
+   minute. Ce n'est pas une approximation, c'est deux comptabilités : un
+   marchand qui lit 1953 ici et 14.47 là ne sait plus ce qu'il a dépensé.
+   Le briefing passe devant CHAQUE requête, donc toute la voix de l'agent en
+   dépend — et c'est pour ça que l'écart s'entendait dans sa réponse. */
+const moneyFor = (langue) => (n) => priceLabel(n, langue)
 const ago = (ms) => {
   const h = (Date.now() - ms) / 3600_000
   if (h < 1) return `${Math.max(1, Math.round(h * 60))} min ago`
@@ -29,6 +37,8 @@ const ago = (ms) => {
 
 export function briefing(sessionId) {
   const lines = []
+  // La monnaie d'affichage de CETTE session, pas une constante du fichier.
+  const money = moneyFor(one('SELECT language FROM sessions WHERE id=?', sessionId)?.language ?? 'en')
 
   /* Même rattrapage que l'écran Sites, par la même porte.
      Si seul l'écran adoptait les pages orphelines, l'agent et le marchand

@@ -307,7 +307,7 @@ export const TOOLS = [
           campaign_id: { type: 'string' },
           action: { type: 'string', enum: ['scale', 'pause_creative', 'narrow_geo', 'change_placement', 'pause_campaign', 'resume_campaign', 'stop_campaign'] },
           target: { type: 'string', description: 'For scale: the multiplier, e.g. "1.5". Otherwise which creative, wilaya or placement.' },
-          because: { type: 'string', description: 'The metric that justified it, with its value.' },
+          because: { type: 'string', description: 'The metric that justified it, with its value. Write every amount in the SAME currency the state board above uses, because that is the one on the screen in front of the merchant. Quoting dinars under a dollar interface hands them two sets of books.' },
         },
         required: ['campaign_id', 'action', 'because'],
       },
@@ -324,7 +324,7 @@ export const TOOLS = [
         properties: {
           campaign_id: { type: 'string' },
           angles: { type: 'array', items: { type: 'string' }, description: 'One or two new angles, in the merchant language. Default: another light, in use.' },
-          because: { type: 'string', description: 'The number that showed the wear, with its value.' },
+          because: { type: 'string', description: 'The number that showed the wear, with its value, in the currency the state board uses.' },
         },
         required: ['campaign_id'],
       },

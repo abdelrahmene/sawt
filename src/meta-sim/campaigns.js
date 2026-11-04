@@ -32,11 +32,11 @@ const rnd = (...parts) =>
 // soit 2 à 4 personnes par dinar. Une campagne à 2 000 DA/jour touchait donc
 // 840 personnes au lieu de 5 000, et ne pouvait produire aucune commande.
 export const PLACEMENTS = {
-  facebook_feed:        { label: 'Facebook · fil',         reachPerDzd: 2.5, cvr: 1.00 },
+  facebook_feed:        { label: 'Facebook · feed',        reachPerDzd: 2.5, cvr: 1.00 },
   facebook_marketplace: { label: 'Facebook · Marketplace', reachPerDzd: 1.9, cvr: 1.18 },
-  instagram_feed:       { label: 'Instagram · fil',        reachPerDzd: 3.1, cvr: 0.80 },
+  instagram_feed:       { label: 'Instagram · feed',       reachPerDzd: 3.1, cvr: 0.80 },
   instagram_reels:      { label: 'Instagram · Reels',      reachPerDzd: 4.2, cvr: 0.45 },
-  instagram_stories:    { label: 'Instagram · stories',    reachPerDzd: 3.6, cvr: 0.58 },
+  instagram_stories:    { label: 'Instagram · Stories',    reachPerDzd: 3.6, cvr: 0.58 },
   messenger_inbox:      { label: 'Messenger',              reachPerDzd: 2.3, cvr: 0.92 },
 }
 
