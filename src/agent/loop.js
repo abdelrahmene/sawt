@@ -956,7 +956,8 @@ export async function runTurn({ history = [], input, ctx = {}, onEvent = () => {
   const langue = langueDu(input)
   const messages = [
     { role: 'system',
-      content: systemPrompt({ ...ctx, state: ctx.sessionId ? briefing(ctx.sessionId) : '' })
+      content: systemPrompt({ ...ctx, state: ctx.sessionId ? briefing(ctx.sessionId) : '',
+          language: ctx.sessionId ? (one('SELECT language FROM sessions WHERE id=?', ctx.sessionId)?.language ?? 'en') : 'en' })
         + `\n\nTHIS TURN: the merchant is writing to you in ${langue.nom}.`
         + ` Answer in ${langue.nom}. Nothing else about your reply changes.` },
     ...history,
