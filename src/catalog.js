@@ -29,34 +29,54 @@ export const margePct = (p) =>
   p.min_selling > 0 ? Math.round((marge(p) * 100) / p.min_selling) : 0
 
 /**
- * Semé une fois, au démarrage.
+ * Le catalogue fournisseur, RÉCONCILIÉ avec la fixture à chaque démarrage.
  *
- * On ne réécrit pas un catalogue déjà en base : le marchand a pu y attacher
- * des imports, et les écraser à chaque redémarrage casserait les liens.
+ * ⚠️ Il s'arrêtait sur `if (have) return 0` : semé une fois, jamais revu.
+ * Le jour où la fixture a gagné quatre produits et une troisième photo par
+ * article, aucune base existante ne les a vus — un juré qui clone les avait,
+ * et la machine sur laquelle la démonstration est filmée ne les avait pas.
+ * C'est la divergence la plus discrète qui soit : rien ne casse, l'écran est
+ * seulement en retard, et personne ne sait de combien.
+ *
+ * On réconcilie donc, produit par produit. C'est sans danger parce que cette
+ * table est le catalogue DU FOURNISSEUR : ce que le marchand a choisi vit
+ * dans `imports`, qui n'est pas touchée. Les variantes sont réécrites, car
+ * un stock qui a bougé chez le fournisseur doit bouger ici — et un import
+ * référence un produit par son identifiant, pas par la ligne d'une variante.
  */
 export function seed() {
   if (!existsSync(FIXTURE)) return 0
-  const have = one('SELECT COUNT(*) n FROM catalog_products')?.n ?? 0
-  if (have) return 0
 
   let data
   try { data = JSON.parse(readFileSync(FIXTURE, 'utf8')) } catch { return 0 }
   const suppliers = data.suppliers ?? {}
   const t = now()
-  let n = 0
+  let neufs = 0, revus = 0
 
   for (const p of data.products ?? []) {
     const sup = suppliers[p.supplier]?.name ?? p.supplier
-    run(`INSERT INTO catalog_products(id,supplier,category,name,blurb,record,supplier_cost,min_selling,images,at)
-         VALUES(?,?,?,?,?,?,?,?,?,?)`,
-      p.id, sup, p.category, J(p.name), J(p.blurb), p.record ?? null,
-      Math.round(p.supplier_cost), Math.round(p.min_selling), J(p.images ?? []), t)
+    const deja = one('SELECT id FROM catalog_products WHERE id=?', p.id)
+    if (deja) {
+      run(`UPDATE catalog_products SET supplier=?, category=?, name=?, blurb=?, record=?,
+             supplier_cost=?, min_selling=?, images=? WHERE id=?`,
+        sup, p.category, J(p.name), J(p.blurb), p.record ?? null,
+        Math.round(p.supplier_cost), Math.round(p.min_selling), J(p.images ?? []), p.id)
+      revus++
+    } else {
+      run(`INSERT INTO catalog_products(id,supplier,category,name,blurb,record,supplier_cost,min_selling,images,at)
+           VALUES(?,?,?,?,?,?,?,?,?,?)`,
+        p.id, sup, p.category, J(p.name), J(p.blurb), p.record ?? null,
+        Math.round(p.supplier_cost), Math.round(p.min_selling), J(p.images ?? []), t)
+      neufs++
+    }
+    run('DELETE FROM catalog_variants WHERE product=?', p.id)
     for (const v of p.variants ?? []) {
       insert('INSERT INTO catalog_variants(product,size,stock) VALUES(?,?,?)', p.id, String(v.size), Number(v.stock) || 0)
     }
-    n++
   }
-  return n
+  // On ne rend que les nouveautés : le message de démarrage dit « 4 produits
+  // semés », pas « 14 produits relus », qui ne veut rien dire pour personne.
+  return neufs
 }
 
 const hydrate = (row) => {

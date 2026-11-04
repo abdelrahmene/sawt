@@ -268,9 +268,15 @@ whitespace, rounded corners (16px), soft shadows and a hover lift.
 
 Each card MUST show the photo at the URL given for that product — exactly as
 written, no prefix, no placeholder — then the name, the price in DZD, and a
-link to that product's landing page at the href given. A card with no photo is
-a dead card. Prices stay readable in right-to-left text: wrap each one in
-<bdi dir="ltr">.`
+link to that product's landing page at the href given.
+
+When a product's photo reads "none", that card gets a plain coloured block in
+place of the image. Never invent a URL, never guess a filename, and never reuse
+another product's photo to fill the gap: a card with no photo is a card the
+merchant can fix, while a card showing the wrong article is a parcel refused at
+the door, and the shop pays the return.
+
+Prices stay readable in right-to-left text: wrap each one in <bdi dir="ltr">.`
 
 /**
  * La vitrine n'existait nulle part.

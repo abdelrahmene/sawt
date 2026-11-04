@@ -303,14 +303,39 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         }
       }
 
+      /* ⚠️ L'APPARIEMENT PRODUIT → PHOTO SE FAIT PAR LE CODE, JAMAIS PAR LE
+         MODÈLE. C'est le cœur du projet : la publicité doit montrer LEUR
+         produit, et une photo attribuée au hasard détruit exactement ce que
+         `sam-3.1` et l'édition d'image servent à garantir.
+
+         L'ordre était inversé. `image: p.image || mien?.image || pool[i] ||
+         pool[0]` faisait passer la chaîne écrite par le modèle AVANT la fiche
+         réelle du marchand. Mesuré dans `out/storefront-nour-store.html` : la
+         carte « صباط سبور للرجال » — des chaussures de sport — portait
+         `gourde-isotherme-1.webp`, la photo d'une gourde isotherme. Le modèle
+         n'avait pas menti, on lui avait demandé un nom de fichier.
+
+         Et `pool[0]` en dernier recours donnait la MÊME photo à tous les
+         produits non appariés. Une carte sans photo se répare ; une carte
+         avec la photo d'un autre article se répare au retour du colis. */
       const products = demandes.map((p, i) => {
-        // Le produit de la boutique AVANT la position dans le tableau : ses
-        // photos et ses tailles sont les siennes, pas celles de son voisin.
         const mien = produitBoutique(ctx, p.name)
+
+        // 1. Les photos de SA fiche produit. Elles lui appartiennent.
+        const siennes = mien?.images?.length ? mien.images
+          : mien?.image ? [mien.image] : []
+
+        // 2. Une url donnée par le modèle, mais seulement si elle désigne un
+        //    fichier qui existe VRAIMENT dans cette session. Le modèle peut
+        //    repasser une photo que le marchand vient d'envoyer ; il ne peut
+        //    pas inventer un chemin de catalogue.
+        const duModele = isUrl(p.image) && pool.includes(p.image) ? [p.image] : []
+
+        const images = siennes.length ? siennes : duModele
         return {
           ...p,
-          images: mien?.images?.length ? mien.images : p.image ? [p.image] : (pool[i] ? [pool[i]] : []),
-          image: p.image || mien?.image || pool[i] || pool[0] || null,
+          images,
+          image: images[0] ?? null,
           variants: (mien?.sizes ?? []).length > 1 ? mien.sizes : [],
         }
       })
