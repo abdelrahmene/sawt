@@ -19,6 +19,7 @@
 // Le seul import de ce fichier, et il ne coûte rien quand le marchand n'a
 // pas de pixel : pixelSnippet rend une chaîne vide.
 import { pixelSnippet } from './pixel.js'
+import { priceLabel, RATE_DZD_PER_USD } from '../money.js'
 import { WILAYAS_AR, WILAYAS_FR } from '../dz/wilayas.js'
 
 const esc = (s) =>
@@ -60,10 +61,12 @@ const FACE = {
 // algorithm: "4 500 DA" renders as "DA 500 4", which is not a price. The
 // isolate is not decoration — on a sales page this is the one string that must
 // never be wrong, and it is wrong by default in Arabic.
-const money = (n) => {
-  const s = Number(n || 0).toLocaleString('fr-FR').replace(/[  ]/g, ' ')
-  return `<bdi dir="ltr">${s} DA</bdi>`
-}
+/* ⚠️ LA PAGE DIT LE MÊME PRIX QUE LA VITRINE QUI Y MÈNE.
+   Celle-ci était figée en « DA ». Résultat visible en un clic : la carte de
+   la vitrine annonçait $31.11, la page produit « 4 200 DA », et la cliente
+   devait deviner lequel des deux était le vrai. Sur une page de vente c'est
+   la seule chaîne qui n'a pas le droit d'être ambiguë. */
+const money = (n, langue) => `<bdi dir="ltr">${priceLabel(n, langue)}</bdi>`
 
 /* Une image de section, déclarée correctement.
    `width`/`height` ne sont pas décoratifs : sans eux le navigateur ne connaît
@@ -460,7 +463,7 @@ html.js .rv.in{opacity:1;transform:none}
   ${heroBg ? `<div class="sec-media">${shotTag(heroBg, c.product, true)}</div>` : ''}
   <div class="buy">
     <div class="prix-ligne">
-      <span class="price">${money(c.price_dzd)}</span>
+      <span class="price">${money(c.price_dzd, c.language)}</span>
       <span class="cod">${icon('cash', 18)}${esc(L.cod)}</span>
     </div>
     <a class="cta" href="#order">${esc(c.hero.cta || L.order)}${icon('check', 18)}</a>
@@ -551,14 +554,14 @@ ${show('faq') && c.faq.length ? `<section class="s alt rv"><div class="w">
         <button type="button" data-step="1" aria-label="+">+</button>
       </div>
     </div>
-    <div class="tot"><span>${esc(L.total)}</span><b id="tot">${money(c.price_dzd)}</b></div>
+    <div class="tot"><span>${esc(L.total)}</span><b id="tot">${money(c.price_dzd, c.language)}</b></div>
     <button class="send" type="submit">${esc(L.send)}</button>
   </form>
   ${c.guarantee ? `<p class="note">${esc(c.guarantee)}</p>` : ''}
 </div></div></section>
 
 <div class="sticky" id="sticky">
-  <span class="p">${money(c.price_dzd)}<small>${esc(L.cod)}</small></span>
+  <span class="p">${money(c.price_dzd, c.language)}<small>${esc(L.cod)}</small></span>
   <a class="cta" href="#order">${esc(c.hero.cta || L.order)}</a>
 </div>
 
@@ -594,7 +597,8 @@ ${show('faq') && c.faq.length ? `<section class="s alt rv"><div class="w">
   // their head before trusting a courier does not order.
   try{
     var unit=${Number(c.price_dzd) || 0}, q=document.getElementById('q'), tot=document.getElementById('tot');
-    function fmt(n){ return new Intl.NumberFormat('fr-FR').format(n).replace(/[\\u202f\\u00a0]/g,' ')+' DA' }
+    function fmt(n){ return ${en ? 'true' : 'false'} ? '$' + (n/${RATE_DZD_PER_USD}).toFixed(2)
+      : new Intl.NumberFormat('fr-FR').format(n).replace(/[\u202f\u00a0]/g,' ')+' DA' }
     function paint(){ var n=Math.max(1,Math.min(20,parseInt(q.value||'1',10)||1)); q.value=n;
       tot.innerHTML='<bdi dir="ltr">'+fmt(unit*n)+'</bdi>' }
     document.querySelectorAll('.qty button').forEach(function(b){

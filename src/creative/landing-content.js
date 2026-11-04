@@ -11,6 +11,7 @@
 // specifications, they are deciding whether to open the door to a courier, and
 // what moves them is recognising their own frustration on the page before they
 // are told what fixes it.
+import { priceLabel } from '../money.js'
 import { chat, visibleAnswer } from '../models/llm.js'
 import { dataUrl } from '../models/vision.js'
 
@@ -49,7 +50,7 @@ stay in English — they are read by an image model.`
 // « free returns within 30 days » mentirait sur ce que fait le marchand.
 const RULES_EN = `LANGUAGE: every value in the JSON is written in plain English.
 Keep the voice of an Algerian shopkeeper writing to a customer — direct,
-concrete, no international marketing register, no slogans. Prices stay in DZD
+concrete, no international marketing register, no slogans. Quote the price EXACTLY as given to you, symbol and all; never convert it and never add a second currency
 and delivery stays cash on delivery. The "scenes" values are already English;
 they are read by an image model.`
 
@@ -137,7 +138,7 @@ export async function landingContent({ product, price_dzd, angle, language = 'ar
       type: 'text',
       text: [
         `Product: ${product}`,
-        `Price: ${price_dzd} DZD`,
+        `Price: ${priceLabel(price_dzd, language)} — write it EXACTLY like that wherever you mention it`,
         shop ? `Shop: ${shop}` : '',
         angle ? `Lead with this angle, the whole page argues it: ${angle}` : '',
         notes ? `The merchant said: ${notes}` : '',

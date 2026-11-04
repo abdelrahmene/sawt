@@ -73,13 +73,24 @@ for (const f of fichiers) {
   const src = join(BRUT, f)
   const marques = await noirs(src)
 
-  if (marques.length < 2) {
-    console.log(`  ⚠️  ${f.padEnd(22)} ${marques.length} repère(s) — à couper à la main`)
+  if (!marques.length) {
+    console.log(`  ⚠️  ${f.padEnd(22)} aucun repère — à couper à la main`)
+    continue
+  }
+
+  /* UN SEUL REPÈRE, ET IL EST À LA FIN. C'est le cas quand l'enregistreur
+     n'a pas encore capté d'image au moment où le repère d'ouverture est posé :
+     il dure 0,8 s, la mise en route du screencast peut être plus longue. On
+     garde alors tout depuis le début et on coupe sur la fermeture. Le plan a
+     un peu de battement en tête, ce qui vaut mieux que de refaire la prise. */
+  const seulEtTardif = marques.length === 1 && marques[0].debut > 2
+  if (marques.length < 2 && !seulEtTardif) {
+    console.log(`  ⚠️  ${f.padEnd(22)} 1 repère, et il est au début — à couper à la main`)
     continue
   }
   // Le premier et le DERNIER : un plan peut contenir du noir au milieu (une
   // transition de l'app), et on ne veut surtout pas couper là-dessus.
-  const debut = marques[0].fin
+  const debut = seulEtTardif ? 0 : marques[0].fin
   const fin = marques[marques.length - 1].debut
   const duree = fin - debut
   if (duree <= 0.5) {
