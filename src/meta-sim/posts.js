@@ -63,16 +63,21 @@ run(`CREATE TABLE IF NOT EXISTS post_comments (
    feed en touche une fraction. Inventer 400 000 vues ferait joli et ne
    ressemblerait à rien. */
 const MUR = [
-  { kind: 'reel', ago: 1.5, caption: 'الدودون الطويلة وصلات 🧥 ديري كومند و خلص كي توصلك',
-    reach: 41280, likes: 1934, shares: 212, saves: 388 },
-  { kind: 'post', ago: 2.2, caption: 'صباط رياضي رجالي — من 40 حتى 45. الدفع عند الاستلام، 58 ولاية.',
-    reach: 9120, likes: 318, shares: 41, saves: 66 },
-  { kind: 'story', ago: 0.4, caption: 'آخر القياسات اللي باقية — سوايعات و تسالي',
-    reach: 6240, likes: 102, shares: 0, saves: 0 },
-  { kind: 'reel', ago: 4.1, caption: 'العباية الكروازي 🖤 قماش كريب، ما يتكرمشش',
-    reach: 27640, likes: 1216, shares: 143, saves: 501 },
-  { kind: 'post', ago: 6.0, caption: 'تاپي الصلاة المبطن — خفيف و يتطوى. هدية مليحة.',
-    reach: 7430, likes: 254, shares: 77, saves: 92 },
+  { kind: 'reel', ago: 1.5, reach: 41280, likes: 1934, shares: 212, saves: 388,
+    caption: { ar: 'الدودون الطويلة وصلات 🧥 ديري كومند و خلص كي توصلك',
+               en: 'The long puffer just landed 🧥 order now, pay when it arrives' } },
+  { kind: 'post', ago: 2.2, reach: 9120, likes: 318, shares: 41, saves: 66,
+    caption: { ar: 'صباط رياضي رجالي — من 40 حتى 45. الدفع عند الاستلام، 58 ولاية.',
+               en: 'Leather crossbody — one size, fits the essentials. Cash on delivery, all 58 wilayas.' } },
+  { kind: 'story', ago: 0.4, reach: 6240, likes: 102, shares: 0, saves: 0,
+    caption: { ar: 'آخر القياسات اللي باقية — سوايعات و تسالي',
+               en: 'Last pieces left — a few hours and it is gone' } },
+  { kind: 'reel', ago: 4.1, reach: 27640, likes: 1216, shares: 143, saves: 501,
+    caption: { ar: 'العباية الكروازي 🖤 قماش كريب، ما يتكرمشش',
+               en: 'The wrap abaya 🖤 heavy crepe, it does not crease' } },
+  { kind: 'post', ago: 6.0, reach: 7430, likes: 254, shares: 77, saves: 92,
+    caption: { ar: 'تاپي الصلاة المبطن — خفيف و يتطوى. هدية مليحة.',
+               en: 'The padded prayer mat — light, folds flat. A good gift.' } },
 ]
 
 /* Ce que les gens écrivent sous une publication, pour de vrai.
@@ -80,15 +85,34 @@ const MUR = [
    derniers ne s'y trouvent pas, et c'est voulu : une démonstration où l'agent
    répond à tout est une démonstration qui ment sur ce qu'il est. */
 const SOUS = [
-  { i: 0, person: 'Lamia B.', ago: 1.1, text: 'سومة ؟', intent: 'price', can: true },
-  { i: 0, person: 'Nawal Z.', ago: 0.9, text: 'كاين لون بيج ؟', intent: 'variant', can: false, needs: 'Les couleurs disponibles — la fiche ne donne que les tailles.' },
-  { i: 0, person: 'Soumia K.', ago: 0.6, text: 'ليفريزون وهران بشحال ؟', intent: 'shipping', can: false, needs: 'Le tarif exact vers Oran — il dépend du transporteur et de la commune.' },
-  { i: 1, person: 'Yacine M.', ago: 1.8, text: 'كاين 43 ؟', intent: 'stock', can: false, needs: 'Le stock restant en pointure 43, en temps réel.' },
-  { i: 1, person: 'Riad T.', ago: 1.4, text: 'الدفع كيفاش ؟', intent: 'payment', can: true },
-  { i: 3, person: 'Hadjer A.', ago: 3.0, text: 'شحال الطول تاعها ؟', intent: 'size', can: true },
-  { i: 3, person: 'Meriem S.', ago: 2.1, text: 'نقدر نبدلها إذا ما جاتنيش ؟', intent: 'returns', can: false, needs: "La politique d'échange de cette boutique — le marchand ne l'a jamais écrite." },
-  { i: 4, person: 'Bilal R.', ago: 5.2, text: 'واش راه يغسل في الماشينة ؟', intent: 'care', can: false, needs: "L'entretien du tissu — rien dans la fiche fournisseur." },
-  { i: 4, person: 'Sarah D.', ago: 4.4, text: 'توصلو لبسكرة ؟', intent: 'shipping', can: true },
+  { i: 0, person: 'Lamia B.', ago: 1.1, intent: 'price', can: true,
+    text: { ar: 'سومة ؟', en: 'price?' } },
+  { i: 0, person: 'Nawal Z.', ago: 0.9, intent: 'variant', can: false,
+    text: { ar: 'كاين لون بيج ؟', en: 'do you have it in beige?' },
+    needs: { fr: 'Les couleurs disponibles — la fiche ne donne que les tailles.',
+             en: 'Which colours are in stock — the product sheet only lists sizes.' } },
+  { i: 0, person: 'Soumia K.', ago: 0.6, intent: 'shipping', can: false,
+    text: { ar: 'ليفريزون وهران بشحال ؟', en: 'how much is delivery to Oran?' },
+    needs: { fr: 'Le tarif exact vers Oran — il dépend du transporteur et de la commune.',
+             en: 'The exact fee to Oran — it depends on the carrier and the commune.' } },
+  { i: 1, person: 'Yacine M.', ago: 1.8, intent: 'stock', can: false,
+    text: { ar: 'كاين 43 ؟', en: 'is size 43 in stock?' },
+    needs: { fr: 'Le stock restant en pointure 43, en temps réel.',
+             en: 'How many size 43 are left, right now.' } },
+  { i: 1, person: 'Riad T.', ago: 1.4, intent: 'payment', can: true,
+    text: { ar: 'الدفع كيفاش ؟', en: 'how do I pay?' } },
+  { i: 3, person: 'Hadjer A.', ago: 3.0, intent: 'size', can: true,
+    text: { ar: 'شحال الطول تاعها ؟', en: 'how long is it?' } },
+  { i: 3, person: 'Meriem S.', ago: 2.1, intent: 'returns', can: false,
+    text: { ar: 'نقدر نبدلها إذا ما جاتنيش ؟', en: 'can I exchange it if it does not fit?' },
+    needs: { fr: "La politique d'échange de cette boutique — le marchand ne l'a jamais écrite.",
+             en: 'This shop exchange policy — the merchant has never written one.' } },
+  { i: 4, person: 'Bilal R.', ago: 5.2, intent: 'care', can: false,
+    text: { ar: 'واش راه يغسل في الماشينة ؟', en: 'is it machine washable?' },
+    needs: { fr: "L'entretien du tissu — rien dans la fiche fournisseur.",
+             en: 'How the material should be cared for — nothing in the supplier sheet.' } },
+  { i: 4, person: 'Sarah D.', ago: 4.4, intent: 'shipping', can: true,
+    text: { ar: 'توصلو لبسكرة ؟', en: 'do you deliver to Biskra?' } },
 ]
 
 /**
@@ -101,19 +125,33 @@ export function seedPosts(assetId, sessionId = null) {
   if (deja?.n) return deja.n
 
   const t = now()
+
+  /* La langue de la boutique, lue une fois et valable pour tout le mur : les
+     légendes, puis les commentaires en dessous. */
+  const langue = (sessionId
+    ? one('SELECT language FROM sessions WHERE id=?', sessionId)?.language
+    : null) === 'en' ? 'en' : 'ar'
+  const dit = (v, repli = 'fr') =>
+    (v && typeof v === 'object' ? (v[langue] ?? v[repli] ?? v.ar ?? v.en) : v)
+
   const ids = MUR.map((p) => insert(
     `INSERT INTO posts(asset,session,kind,caption,media,status,published_at,reach,likes,shares,saves,at)
      VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
-    assetId, sessionId, p.kind, p.caption, null, 'published',
+    assetId, sessionId, p.kind, dit(p.caption, 'ar'), null, 'published',
     t - Math.round(p.ago * D), p.reach, p.likes, p.shares, p.saves, t - Math.round(p.ago * D)
   ))
 
+  /* Les commentaires. C'est ici que
+     se joue la meilleure démonstration du produit — les questions auxquelles
+     l'agent REFUSE de répondre, avec la raison — et un jury qui ne lit ni la
+     darija ni le français ne verrait qu'un écran de signes. */
   for (const c of SOUS) {
     const post = ids[c.i]
     if (!post) continue
     insert(
       `INSERT INTO post_comments(post,person,text,intent,status,needs,at) VALUES(?,?,?,?,?,?,?)`,
-      post, c.person, c.text, c.intent, 'open', c.can ? null : c.needs, t - Math.round(c.ago * D)
+      post, c.person, dit(c.text, 'ar'), c.intent, 'open',
+      c.can ? null : dit(c.needs, 'fr'), t - Math.round(c.ago * D)
     )
   }
   return ids.length

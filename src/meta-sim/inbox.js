@@ -24,42 +24,60 @@ import { chat, visibleAnswer } from '../models/llm.js'
    demo of a liar. */
 
 const H = 3600_000
+/* ⚠️ DEUX LANGUES, ET LA LANGUE EST CELLE DE LA BOUTIQUE.
+   Ces conversations étaient en darija seulement, et les raisons de refus en
+   français. Un marchand anglophone ouvrait donc une boîte de réception qu'il
+   ne pouvait pas lire — et c'est l'écran censé démontrer que l'agent répond
+   DANS LA LANGUE DU CLIENT. Une démonstration qu'on ne peut pas lire ne
+   démontre rien.
+
+   L'intention, elle, ne change pas de langue : c'est un code, et c'est lui
+   qui décide si l'agent peut répondre ou doit rendre la main. */
 const SEED = [
   {
     channel: 'comment', person: 'Amine Kh.', intent: 'price',
-    post_text: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
-    msgs: ['بشحال؟'], ago: 0.4,
+    post: { ar: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
+            en: 'New leather crossbody · 4 200 DA · delivery to all 58 wilayas' },
+    msgs: { ar: ['بشحال؟'], en: ['how much?'] }, ago: 0.4,
   },
   {
     channel: 'comment', person: 'Sofiane M.', intent: 'price_objection',
-    post_text: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
-    msgs: ['غالي بزاف خويا، ما تنقصش شي حاجة؟'], ago: 1.2,
+    post: { ar: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
+            en: 'New leather crossbody · 4 200 DA · delivery to all 58 wilayas' },
+    msgs: { ar: ['غالي بزاف خويا، ما تنقصش شي حاجة؟'],
+            en: ['too expensive bro, can you do better?'] }, ago: 1.2,
   },
   {
     channel: 'comment', person: 'Nadir B.', intent: 'delivery_zone',
-    post_text: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
-    msgs: ['كاين توصيل لتيزي وزو؟'], ago: 2.1,
+    post: { ar: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
+            en: 'New leather crossbody · 4 200 DA · delivery to all 58 wilayas' },
+    msgs: { ar: ['كاين توصيل لتيزي وزو؟'], en: ['do you deliver to Tizi Ouzou?'] }, ago: 2.1,
   },
   {
     channel: 'messenger', person: 'Rania S.', intent: 'stock_size',
-    msgs: ['السلام عليكم', 'بغيت نعرف البوانتير 43 كاين؟'], ago: 0.2,
+    msgs: { ar: ['السلام عليكم', 'بغيت نعرف البوانتير 43 كاين؟'],
+            en: ['hello', 'is the black one still in stock?'] }, ago: 0.2,
   },
   {
     channel: 'messenger', person: 'Walid T.', intent: 'shipping_fee',
-    msgs: ['شحال التوصيل لوهران؟'], ago: 3.5,
+    msgs: { ar: ['شحال التوصيل لوهران؟'], en: ['how much is delivery to Oran?'] }, ago: 3.5,
   },
   {
     channel: 'messenger', person: 'Hichem A.', intent: 'order_status',
-    msgs: ['خويا راني طلبت نهار الخميس و مانيش عارف وين وصل الكولي'], ago: 5,
+    msgs: { ar: ['خويا راني طلبت نهار الخميس و مانيش عارف وين وصل الكولي'],
+            en: ['I ordered on Thursday and I have no idea where my parcel is'] }, ago: 5,
   },
   {
     channel: 'instagram_dm', person: 'sara.dz', intent: 'authenticity',
-    msgs: ['واش هاد الصباط أصلي ولا ريبليكا؟'], ago: 1.8,
+    msgs: { ar: ['واش هاد الصباط أصلي ولا ريبليكا؟'],
+            en: ['is this genuine leather or synthetic?'] }, ago: 1.8,
   },
   {
     channel: 'comment', person: 'Karim L.', intent: 'visit_shop',
-    post_text: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
-    msgs: ['نقدر نجي نشوفو في المحل قبل ما نشري؟'], ago: 4.4,
+    post: { ar: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
+            en: 'New leather crossbody · 4 200 DA · delivery to all 58 wilayas' },
+    msgs: { ar: ['نقدر نجي نشوفو في المحل قبل ما نشري؟'],
+            en: ['can I come see it in the shop before I buy?'] }, ago: 4.4,
   },
 ]
 
@@ -72,6 +90,19 @@ export function seedInbox(assetId, channel) {
   const existing = one('SELECT COUNT(*) n FROM threads WHERE asset=?', assetId)
   if (existing?.n) return existing.n
 
+  /* La langue de la boutique décide de celle des clients. On la lit sur la
+     session propriétaire de la connexion : un marchand qui travaille en
+     anglais doit pouvoir LIRE sa boîte de réception — c'est l'écran censé
+     montrer que l'agent répond dans la langue du client, et une
+     démonstration illisible ne démontre rien. */
+  const sess = one(
+    `SELECT s.language FROM sessions s
+     JOIN meta_connections c ON c.session = s.id
+     JOIN meta_assets a ON a.connection = c.id
+     WHERE a.id = ?`, assetId)?.language
+  const langue = sess === 'en' ? 'en' : 'ar'
+  const dit = (v) => (v && typeof v === 'object' ? (v[langue] ?? v.ar ?? v.en) : v)
+
   const t = now()
   let n = 0
   for (const s of SEED) {
@@ -81,9 +112,9 @@ export function seedInbox(assetId, channel) {
     const id = insert(
       `INSERT INTO threads(asset,channel,person,avatar,post_text,status,intent,last_at,at)
        VALUES(?,?,?,?,?,?,?,?,?)`,
-      assetId, s.channel, s.person, initials(s.person), s.post_text ?? null, 'open', s.intent, at, at
+      assetId, s.channel, s.person, initials(s.person), dit(s.post) ?? null, 'open', s.intent, at, at
     )
-    s.msgs.forEach((text, i) => {
+    ;(dit(s.msgs) ?? []).forEach((text, i) => {
       run('INSERT INTO thread_messages(thread,author,text,by_ai,at) VALUES(?,?,?,0,?)',
         id, 'customer', text, at + i * 40_000)
     })
