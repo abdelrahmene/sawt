@@ -509,6 +509,17 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
     for (const f of result.scenes_failed ?? []) {
       b.append(el('div', 'why warn', t('chat.landing.sceneFailed', { slot: esc(f.slot), error: esc(f.error) })))
     }
+    /* La page est entrée dans une boutique : on le dit ici, et on y emmène.
+       Le marchand voyait sa page dans le chat et un écran Sites vide juste
+       à côté — il n'avait aucune raison d'aller l'y chercher. */
+    if (result.site_id && result.shop) {
+      b.append(el('div', 'why', t('chat.landing.inShop', { shop: `<b>${esc(result.shop)}</b>` })))
+      const vers = el('div')
+      const btn = el('button', 'btn sm', `${icon('globe', 14)} ${t('chat.landing.seeShop')}`)
+      btn.onclick = () => go('sites')
+      vers.append(btn)
+      b.append(vers)
+    }
     return
   }
 

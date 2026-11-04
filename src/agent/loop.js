@@ -281,7 +281,29 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
     // It reports each page as it lands so the screen never goes quiet.
     case 'build_site': {
       const pool = assetsFor(ctx)
-      const products = (args.products ?? []).map((p, i) => {
+
+      /* Une boutique sans produit n'est pas une boutique.
+         Le schéma réclame `products`, et le modèle l'omet quand même quand
+         le marchand dit juste « ديرلي موقع » : `args.products` arrivait
+         `undefined`, la vitrine partait avec zéro carte, et le marchand
+         recevait une page d'accueil vide appelée boutique. Ce qu'il vend est
+         pourtant en base — c'est la table `imports` — donc on la prend, avec
+         SON prix de vente, plutôt que de rendre une coquille. */
+      let demandes = args.products ?? []
+      if (!demandes.length) {
+        demandes = (ctx.products ?? [])
+          .filter((p) => p.price)
+          .map((p) => ({ name: p.name, price_dzd: p.price }))
+      }
+      if (!demandes.length) {
+        return {
+          error: "Rien à mettre dans la boutique : le marchand n'a aucun produit avec un prix.",
+          needs: 'browse_catalog',
+          say: "Dis-le-lui franchement et propose-lui de choisir un produit dans le catalogue fournisseur — tu ne peux pas ouvrir une boutique vide.",
+        }
+      }
+
+      const products = demandes.map((p, i) => {
         // Le produit de la boutique AVANT la position dans le tableau : ses
         // photos et ses tailles sont les siennes, pas celles de son voisin.
         const mien = produitBoutique(ctx, p.name)
@@ -294,6 +316,11 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       })
       return buildSite({
         ...args, products, sessionId: ctx.sessionId,
+        // Le nom de la boutique est obligatoire dans le schéma et manque
+        // quand même : plutôt que d'en inventer un — ce que la règle 1
+        // interdit — on reprend celui que le marchand a déjà donné, et
+        // `siteFor` retombe sur le produit en dernier recours.
+        shop_name: args.shop_name?.trim() || ctx.shop || null,
         options: { ...(setting(`landing:${ctx.sessionId}`) ?? {}), photos: [] },
         onProgress: (p) => onEvent({ type: 'progress', tool: 'build_site', ...p }),
       })
@@ -570,6 +597,8 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       })
       notify.push(ctx.sessionId, {
         kind: 'post', ref: r.id, goto: 'meta',
+        key: r.status === 'scheduled' ? 'notif.post.scheduled' : 'notif.post.published',
+        vars: { kind: r.kind, h: Math.round(h) },
         title: r.status === 'scheduled'
           ? `${r.kind} programmé dans ${Math.round(h)} h`
           : `${r.kind} publié sur la Page`,
@@ -606,6 +635,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       if (escalated.length) {
         notify.push(ctx.sessionId, {
           kind: 'comment', goto: 'meta',
+          key: 'notif.comments.waiting', vars: { n: escalated.length },
           title: `${escalated.length} commentaire(s) attendent une réponse de toi`,
           body: escalated.map((x) => x.needs).filter(Boolean)[0] ?? null,
         })

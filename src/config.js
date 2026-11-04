@@ -53,8 +53,16 @@ export const BASETEN = {
   model: 'meta-models/muse-spark-open-1026',
 }
 
+// L'app Meta du marchand. `appId` et `appSecret` ne partent dans AUCUNE
+// requête de ce dépôt : ils identifient l'app que le marchand a créée dans
+// Meta for Developers, et c'est là qu'ils servent à frapper le jeton de Page.
+// Ils sont lus ici pour que l'écran Meta puisse dire « configurée » ou
+// « manquante » sans jamais afficher leur valeur — et pour que la table de
+// SETUP.md soit vérifiable : une variable documentée est une variable lue.
 export const GRAPH = {
   version: process.env.META_GRAPH_VERSION || 'v21.0',
+  appId: process.env.META_APP_ID || '',
+  appSecret: process.env.META_APP_SECRET || '',
   pageId: process.env.META_PAGE_ID || '',
   pageToken: process.env.META_PAGE_TOKEN || '',
   adAccountId: process.env.META_AD_ACCOUNT_ID || '',

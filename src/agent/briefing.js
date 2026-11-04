@@ -14,6 +14,7 @@
 // waiting, and which way the numbers are moving. Kept short on purpose — this
 // goes in front of every single request, so it is a status board, not a dump.
 import { all, one, unJ, setting } from '../db.js'
+import { adopt } from '../sites.js'
 import { PLACEMENTS } from '../meta-sim/campaigns.js'
 import * as page from '../meta-sim/posts.js'
 import * as notify from '../meta-sim/notify.js'
@@ -28,6 +29,14 @@ const ago = (ms) => {
 
 export function briefing(sessionId) {
   const lines = []
+
+  /* Même rattrapage que l'écran Sites, par la même porte.
+     Si seul l'écran adoptait les pages orphelines, l'agent et le marchand
+     liraient deux états différents de la même boutique — c'est exactement la
+     panne qu'avait `surfacesOf()` : huit clients visibles dans l'onglet et
+     « rien d'ouvert » dans la bouche de l'agent. Idempotent, donc sans frais
+     quand il n'y a rien à rattraper. */
+  adopt(sessionId)
 
   /* ── a-t-il seulement quelque chose à vendre ? ─────────────────────────
      La question qui vient avant toutes les autres, et que l'agent ne posait
@@ -71,12 +80,21 @@ export function briefing(sessionId) {
     lines.push('  they mean these. Never ask them to send you a creative you made yourself.')
   }
 
+  /* Les boutiques, sous un intitulé.
+     Les puces étaient poussées sans en-tête : collées sous la liste des
+     pages, elles se lisaient comme une page de plus, et quand il n'y avait
+     aucune page elles flottaient sous le bloc d'avant. L'agent proposait
+     alors « on crée ta boutique ? » à un marchand qui en avait une. */
   if (sites.length) {
+    lines.push('THE SHOP ALREADY EXISTS — never offer to create it, build INTO it:')
     for (const s of sites) {
       const doms = all('SELECT host,status FROM domains WHERE site=?', s.id)
-      lines.push(`  · site "${s.shop}" → ${s.home_url ?? '(no home page)'}${
+      const n = one('SELECT COUNT(*) n FROM pages WHERE site=?', s.id)?.n ?? 0
+      lines.push(`  · site #${s.id} "${s.shop}" — ${n} page(s) — ${s.home_url ?? 'no home page yet'}${
         doms.length ? ` — domain(s): ${doms.map((d) => `${d.host} [${d.status}]`).join(', ')}` : ' — no domain yet'}`)
     }
+    lines.push('  Every page you build goes into it automatically. build_site adds the missing product')
+    lines.push('  pages and writes the home page; add_domain takes its site_id from the line above.')
   }
 
   /* ── the Meta side ───────────────────────────────────────────────────── */

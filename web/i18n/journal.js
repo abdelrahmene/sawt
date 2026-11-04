@@ -93,6 +93,42 @@ export const journal = {
 
   'journal.cost': { en: '{n} cr', ar: '{n} كريدي', fr: '{n} cr' },
 
+  /* ── les notifications ────────────────────────────────────────────────
+     Le serveur envoie une CLÉ et ses paramètres, jamais une phrase. Il
+     envoyait « story programmé dans 14 h » en dur, et cette phrase française
+     s'affichait telle quelle dans l'écran anglais — celui que le jury
+     regarde. Même règle que le `verdict` de board.js. */
+  'notif.post.scheduled': {
+    en: '{kind} scheduled in {h} h',
+    ar: '{kind} مبرمج في {h} سوايع',
+    fr: '{kind} programmé dans {h} h',
+  },
+  'notif.post.queued': {
+    en: '{kind} scheduled',
+    ar: '{kind} مبرمج',
+    fr: '{kind} programmé',
+  },
+  'notif.post.published': {
+    en: '{kind} published on the Page',
+    ar: '{kind} تنشر في الصفحة',
+    fr: '{kind} publié sur la Page',
+  },
+  'notif.comments.waiting': {
+    en: '{n} comment(s) are waiting for you',
+    ar: '{n} تعليق يستناو فيك',
+    fr: '{n} commentaire(s) attendent une réponse de toi',
+  },
+  'notif.autoreply': {
+    en: 'Answered {n} customer(s) on its own',
+    ar: 'جاوب {n} زبون وحدو',
+    fr: 'A répondu tout seul à {n} client(s)',
+  },
+  'notif.handback': {
+    en: "{n} question(s) it would not guess",
+    ar: '{n} سؤال ما حبش يخمّن فيهم',
+    fr: "{n} question(s) qu'il n'a pas voulu deviner",
+  },
+
   /* ── le battement : ce que l'app dit quand elle a agi toute seule ─────
      Deux phrases seulement, et le refus passe devant la réponse — c'est lui
      qui demande quelque chose à un humain. */

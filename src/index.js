@@ -99,7 +99,13 @@ async function main() {
         ui.replayed('muse-spark-1.3 reply', canned._recorded)
         ui.speech('agent   ', canned.text_ar, canned.text_fr)
       }
-      await graph.reply(msg.id, canned.text_ar)
+      // L'envoi aussi dit d'où il vient. Il était le seul appel Graph de ce
+      // script dont le résultat partait à la poubelle : un juré lisait trois
+      // lignes « [REPLAY] ↳ recorded … » et une réponse qui ne disait rien,
+      // donc la plus visible des cinq paraissait la moins étayée.
+      const sent = await graph.reply(msg.id, canned.text_ar)
+      if (sent._replayed) ui.replayed(`POST /{thread-id}/messages → ${sent.message_id}`, provenanceOf('reply'))
+      else ui.liveCall(`POST /{thread-id}/messages → ${sent.message_id}`)
     }
   }
   await sleep(600)

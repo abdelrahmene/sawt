@@ -169,6 +169,7 @@ export async function tick(sessionId, { max = PAR_BATTEMENT, force = false } = {
   if (repondus.length) {
     push(sessionId, {
       kind: 'autoreply',
+      key: 'notif.autoreply', vars: { n: repondus.length },
       title: `${repondus.length} réponse(s) envoyée(s) automatiquement`,
       body: repondus[0].reply?.slice(0, 120) ?? null,
       goto: 'inbox', ref: null,
@@ -177,6 +178,7 @@ export async function tick(sessionId, { max = PAR_BATTEMENT, force = false } = {
   if (rendus.length) {
     push(sessionId, {
       kind: 'handback',
+      key: 'notif.handback', vars: { n: rendus.length },
       title: `${rendus.length} question(s) qu'il n'a pas voulu deviner`,
       body: rendus[0].missing ?? null,
       goto: 'inbox', ref: null,

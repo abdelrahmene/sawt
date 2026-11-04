@@ -102,7 +102,7 @@ export const TOOLS = [
     function: {
       name: 'build_site',
       description:
-        'REAL, not simulated: generate a whole multi-page shop — one landing page per product, then a home page linking them. This is the ONLY way to build a site or a storefront. Use it as soon as the merchant has given you a product and a price.',
+        'REAL, not simulated: generate a whole multi-page shop — one landing page per product, then a home page linking them, and the shop gets a live subdomain. This is the ONLY way to build a site, a shop or a storefront: call it whenever the merchant asks for any of those, in any language, instead of explaining what one would involve. It does not open a second shop — it builds into the one on the state board, naming it if it has no name yet. Use it as soon as the merchant has a product and a price; if you leave `products` out, every priced product in their shop goes in.',
       parameters: {
         type: 'object',
         properties: {
@@ -203,7 +203,7 @@ export const TOOLS = [
     function: {
       name: 'build_landing_page',
       description:
-        'REAL, not simulated: generate a complete landing page for one product. Returns a URL the merchant can open immediately.',
+        "REAL, not simulated: generate a complete landing page for one product. Returns a URL the merchant can open immediately. The page is filed in their shop — it appears on the Sites screen with the others, and the shop is created on the spot if this is their first page — so the result carries `site_id` and `shop`: say which shop the page went into, and never ask the merchant to create one first.",
       parameters: {
         type: 'object',
         properties: {

@@ -59,6 +59,145 @@ export async function mount(root) {
   return disconnected(root, c)
 }
 
+/* ── « branche ta propre app Meta » ───────────────────────────────────────
+   Le panneau que le jury doit lire AVANT de voir « SIMULÉ » partout. Il
+   existe parce que la conclusion inverse se tire toute seule : des surfaces
+   mises en scène, donc la plateforme jamais touchée. Elle l'est — par
+   src/meta-graph/index.js, depuis la ligne de commande — et ce panneau le dit
+   sans qu'il faille ouvrir le README.
+
+   Rien ici n'est recopié à la main. Tout vient de `platform` dans /api/meta,
+   c'est-à-dire de la table dont le code construit ses chemins : un point de
+   terminaison ne peut donc pas s'afficher ici sans être appelé, et le
+   `status=PAUSED` montré est littéralement l'objet que le code fusionne.
+
+   Aucun identifiant nouveau : tout est statique et `<details>` s'ouvre sans
+   JavaScript. $() cherche dans le document entier, et cet écran en partage un
+   avec sept autres. */
+
+const mono = (s) => `<span class="chip mono" dir="ltr">${esc(s)}</span>`
+
+// `live` / `replay` / `staged` arrivent en valeurs techniques du serveur : le
+// code les compare, seul le libellé se traduit. Même règle que KIND_KEY.
+const VAL_KEY = { live: 'meta.own.v.live', replay: 'meta.own.v.replay', staged: 'meta.own.v.staged' }
+const val = (v) =>
+  `<span class="chip ${v === 'live' ? 'ok' : v === 'staged' ? 'warn' : ''}">${esc(t(VAL_KEY[v] ?? v))}</span>`
+
+const USE_KEY = {
+  you: 'meta.own.use.you', path: 'meta.own.use.path',
+  header: 'meta.own.use.header', url: 'meta.own.use.url',
+}
+
+const carteMode = (m, actif) => `
+  <div class="card"><div class="body">
+    <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <b class="mono" dir="ltr" style="font-size:14px">${esc(m.id)}</b>
+      ${actif ? `<span class="chip ok">${t('meta.own.modeNow')}</span>` : ''}
+      ${m.default ? `<span class="chip info">${t('meta.own.isDefault')}</span>` : ''}
+    </div>
+    <dl class="kv">
+      <dt>${t('meta.own.kv.models')}</dt><dd>${val(m.models)}</dd>
+      <dt>${t('meta.own.kv.graph')}</dt><dd>${val(m.graph)}</dd>
+      <dt>${t('meta.own.kv.screens')}</dt><dd>${val(m.screens)}</dd>
+      <dt>${t('meta.own.kv.env')}</dt><dd>${m.env.length ? m.env.map(mono).join(' ') : t('meta.own.v.none')}</dd>
+      <dt>${t('meta.own.kv.how')}</dt><dd>${mono(m.how)}</dd>
+    </dl>
+  </div></div>`
+
+const ligneAppel = (c) => `
+  <div class="card" style="margin-bottom:10px"><div class="body">
+    <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:9px">
+      ${mono(c.method)}
+      <b style="font-size:13.5px">${esc(t(`meta.call.${c.key}`))}</b>
+      ${c.forces ? `<span class="chip warn mono" dir="ltr">status=${esc(c.forces.status)}</span>` : ''}
+    </div>
+    <pre dir="ltr">${esc(c.real)}</pre>
+    <dl class="kv" style="margin-top:11px">
+      <dt>${t('meta.own.kv.perms')}</dt><dd>${c.scopes.map(mono).join(' ')}</dd>
+      <dt>${t('meta.own.kv.needs')}</dt><dd>${c.env.map(mono).join(' ')}</dd>
+      ${c.body ? `<dt>${t('meta.own.kv.body')}</dt><dd><pre dir="ltr">${esc(JSON.stringify(c.body))}</pre></dd>` : ''}
+      <dt>${t('meta.own.kv.replay')}</dt>
+      <dd>${mono(c.replay)}<div class="tiny">${esc(t('meta.own.recordedOn', { when: c.recorded }))}</div></dd>
+    </dl>
+    ${c.forces ? `<div class="why warn">${esc(t('meta.own.forcedWhy'))}</div>` : ''}
+  </div></div>`
+
+const ligneEnv = (e) => `
+  <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;padding:9px 0;border-block-end:1px solid var(--line)">
+    ${mono(e.name)}
+    <span class="chip ${e.set ? 'ok' : ''}">${t(e.set ? 'meta.own.envSet' : 'meta.own.envMissing')}</span>
+    <span class="tiny" style="flex:1 1 190px;min-width:0">${esc(t(USE_KEY[e.used_by] ?? e.used_by))}
+      · ${t('meta.own.envRead')} <span class="mono" dir="ltr">${esc(e.read_by)}</span></span>
+  </div>`
+
+const ligneEnr = (r) => `
+  <div style="padding:9px 0;border-block-end:1px solid var(--line)">
+    <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
+      ${mono(r.key)}
+      ${r.endpoint ? `<span class="mono tiny" dir="ltr">${esc(r.endpoint)}</span>` : ''}
+    </div>
+    <div class="tiny">${esc(t('meta.own.recordedOn', { when: r.recorded }))}${
+      r.replayed_by ? ` · ${t('meta.own.recBy')} <span class="mono" dir="ltr">${esc(r.replayed_by)}</span>` : ''}</div>
+  </div>`
+
+/** @param replie  replie les trois modes : l'écran déconnecté garde le bouton
+ *  bleu atteignable, l'écran connecté a la place de tout montrer. */
+function panneauApp(pf, { replie = false } = {}) {
+  if (!pf) return ''
+  const modes = `<div class="grid-3">${pf.modes.map((m) => carteMode(m, m.id === pf.mode)).join('')}</div>`
+  return `
+  <h2 class="sec">${t('meta.own.title')}</h2>
+  <div class="card metaown">
+    <h3>${icon('link', 15)} ${t('meta.own.title')}
+      <span class="chip ok mono" dir="ltr">mode: ${esc(pf.mode)}</span></h3>
+    <div class="body">
+      <p class="lead" style="margin:0 0 4px">${esc(t('meta.own.lead'))}</p>
+      <div class="why warn">${esc(t('meta.own.warn'))}</div>
+
+      ${replie
+        ? `<details class="fold" style="margin-top:14px"><summary>${icon('grid', 15)} ${t('meta.own.modesTitle')}
+             <span class="who mono" dir="ltr">${esc(pf.modes.map((m) => m.id).join(' · '))}</span></summary>
+             <div class="body">${modes}</div></details>`
+        : `<div style="margin-top:14px">${modes}</div>`}
+
+      <details class="fold">
+        <summary>${icon('eye', 15)} ${t('meta.own.callsTitle')}
+          <span class="who mono" dir="ltr">${esc(pf.base)}/${esc(pf.graph_version)}</span></summary>
+        <div class="body">
+          <p class="tiny" style="margin:0 0 12px">${esc(t('meta.own.callsLead'))}</p>
+          ${pf.calls.map(ligneAppel).join('')}
+          <div class="why">${esc(t('meta.own.setupFoot'))}</div>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>${icon('gear', 15)} ${t('meta.own.envTitle')}
+          <span class="who">${pf.env.filter((e) => e.set).length}/${pf.env.length}</span></summary>
+        <div class="body">
+          ${pf.env.map(ligneEnv).join('')}
+          <div class="why">${esc(t('meta.own.envFoot'))}</div>
+        </div>
+      </details>
+
+      <details class="fold">
+        <summary>${icon('clock', 15)} ${t('meta.own.recTitle')}
+          <span class="who mono" dir="ltr">${esc(pf.fixtures)}</span></summary>
+        <div class="body">
+          <p class="tiny" style="margin:0 0 10px">${esc(t('meta.own.recLead'))}</p>
+          ${pf.recordings.map(ligneEnr).join('')}
+        </div>
+      </details>
+
+      <div class="why warn" style="margin-top:16px">
+        <b>${esc(t('meta.own.gapTitle'))}</b><br>
+        ${esc(t('meta.own.gap1'))}<br>
+        ${esc(t('meta.own.gap2'))}<br>
+        ${esc(t('meta.own.gap3'))}
+      </div>
+    </div>
+  </div>`
+}
+
 /* ── step 0 ──────────────────────────────────────────────────────────────── */
 function disconnected(root, c) {
   root.innerHTML = `<div class="page">
@@ -67,6 +206,8 @@ function disconnected(root, c) {
       <p>${t('meta.intro')}</p></div>
     </header>
     ${simbar(`<b>${t('meta.sim.flow.lead')}</b> ${t('meta.sim.flow.body')}`)}
+    ${panneauApp(c.platform, { replie: true })}
+    <h2 class="sec">${t('meta.sim.flow.lead')}</h2>
     <div class="consent">
       <div class="ch"><span class="logo">f</span><b>${t('meta.login.header')}</b><span class="sim" style="margin-inline-start:auto">${t('meta.sim')}</span></div>
       <div class="cb" style="text-align:center;padding:34px 24px">
@@ -308,6 +449,10 @@ function connected(root, c) {
     </header>
 
     ${simbar(`<b>${t('meta.sim.env.lead')}</b> ${t('meta.sim.env.body')}`)}
+
+    <!-- Juste sous la bande « SIMULÉ », et pas en bas de page : c'est la
+         réponse à la question que cette bande vient de poser. -->
+    ${panneauApp(c.platform)}
 
     <!-- Le compte tenait une carte entière pour trois lignes dont deux
          identifiants. Replié : on voit qui on est, et le jeton — la seule

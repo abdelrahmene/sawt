@@ -15,6 +15,7 @@ import { join } from 'node:path'
 import { ROOT } from '../config.js'
 import { chat, visibleAnswer } from '../models/llm.js'
 import { insert, run, one, now, J } from '../db.js'
+import { siteFor } from '../sites.js'
 import { landingContent } from './landing-content.js'
 import { renderLanding } from './landing-render.js'
 import { renderScenes } from './scenes.js'
@@ -41,6 +42,10 @@ export const OUT_DIR = join(ROOT, 'out')
    identifiant (le banc d'essai, la ligne de commande) garde l'ancien nom. */
 const marque = (sessionId) =>
   sessionId ? '-' + createHash('sha1').update(String(sessionId)).digest('hex').slice(0, 4) : ''
+
+// `sites.shop` est NOT NULL : un appel hors session, sans nom, doit quand
+// même pouvoir ouvrir une enseigne plutôt que de faire échouer l'INSERT.
+const txtOuBoutique = (v) => String(v ?? '').trim() || 'Boutique'
 
 export function slugify(name) {
   const ascii = String(name ?? '')
@@ -119,13 +124,25 @@ export async function buildLandingPage({
   const file = `lp-${slug}${marque(sessionId)}.html`
   const url = `/out/${file}`
 
+  /* La page appartient à une boutique.
+     Elle sortait avec `site=NULL` : l'agent annonçait « ta page est prête »,
+     le marchand ouvrait l'écran Sites et n'y trouvait rien. La boutique de la
+     session est donc créée ici si elle n'existe pas encore — nommée d'après
+     elle quand on la connaît, d'après le produit sinon, et renommée le jour
+     où le marchand la nomme. `buildSite` passe la sienne : on ne la redérive
+     pas, sinon la page du deuxième produit fonderait une deuxième enseigne. */
+  const site = siteId
+    ? { id: siteId, shop }
+    : siteFor(sessionId, { shop, fallback: product, language: o.language })
+  const monSite = site?.id ?? null
+
   // The row goes in before the render so the form can carry its id, which is
   // what connects an order on the page back to the page that sold it.
   const existing = one('SELECT id FROM pages WHERE url=?', url)
   const pageId = existing?.id ?? insert(
     `INSERT INTO pages(site,session,product,slug,url,price_dzd,angle,bytes,theme,content,at)
      VALUES(?,?,?,?,?,?,?,0,?,?,?)`,
-    siteId, sessionId, product, slug, url, Math.round(price_dzd ?? 0), angle ?? null,
+    monSite, sessionId, product, slug, url, Math.round(price_dzd ?? 0), angle ?? null,
     J(content.theme), J(content), now()
   )
 
@@ -133,11 +150,16 @@ export async function buildLandingPage({
   mkdirSync(OUT_DIR, { recursive: true })
   writeFileSync(join(OUT_DIR, file), html, 'utf8')
 
+  // `COALESCE` : une page reconstruite garde sa boutique si celle du tour est
+  // inconnue — rebâtir une page ne doit pas la détacher de l'enseigne.
   run('UPDATE pages SET site=COALESCE(?,site), bytes=?, theme=?, content=?, price_dzd=?, angle=? WHERE id=?',
-    siteId, html.length, J(content.theme), J(content), Math.round(price_dzd ?? 0), angle ?? null, pageId)
+    monSite, html.length, J(content.theme), J(content), Math.round(price_dzd ?? 0), angle ?? null, pageId)
 
   return {
     id: pageId, file, url, bytes: html.length,
+    // La boutique remonte avec la page : l'écran du chat peut dire dans
+    // laquelle elle est entrée, et l'agent n'a pas à le deviner.
+    site_id: monSite, shop: site?.shop ?? shop ?? null,
     product, price_dzd, angle, language: o.language, options: o,
     images: images.length,
     scenes: Object.keys(scenes),
@@ -162,11 +184,31 @@ export async function buildLandingPage({
  * instead of inventing them — a model asked to link pages it has not seen
  * writes plausible paths that 404.
  */
-export async function buildSite({ shop_name, tagline, products, language = 'ar', sessionId = null, options = {}, onProgress = () => {} }) {
-  const siteId = insert(
+/* ⚠️ `language` vaut `null` par défaut, et NON `'ar'`.
+   Mesuré le 04/11 : une boutique bâtie en français revenait en arabe RTL dès
+   que le marchand demandait à la renommer. La cause n'était pas le renommage
+   mais cette valeur par défaut : `siteFor()` recevait toujours « ar », donc
+   ne pouvait pas distinguer « le marchand veut de l'arabe » de « personne n'a
+   rien demandé » — et écrasait la langue enregistrée à chaque passage.
+   Une valeur par défaut posée ici devient une intention là-bas. */
+export async function buildSite({ shop_name, tagline, products, language = null, sessionId = null, options = {}, onProgress = () => {} }) {
+  // Ce qui sert à ÉCRIRE la page a besoin d'une langue ; ce qui sert à
+  // décider de la boutique a besoin de savoir qu'on n'en a pas demandé.
+  const langue = language ?? 'ar'
+  /* La boutique de la session, créée OU renommée — pas une deuxième à côté.
+     L'INSERT sec d'avant en ouvrait une par appel : deux « fais-moi un site »
+     dans la même conversation laissaient deux cartes sur l'écran Sites, dont
+     une sans page. Hors session (ligne de commande), la boutique existe quand
+     même : c'est l'outil « fais-moi une boutique », pas une page seule. */
+  const repli = shop_name ?? products?.[0]?.name
+  const site = siteFor(sessionId, { shop: shop_name, fallback: repli, language, tagline })
+  const siteId = site?.id ?? insert(
     'INSERT INTO sites(session,shop,tagline,language,at) VALUES(?,?,?,?,?)',
-    sessionId, shop_name, tagline ?? null, language, now()
+    sessionId, txtOuBoutique(repli), tagline ?? null, langue, now()
   )
+  // Le nom retenu, et plus celui reçu : « Shop: null » en tête du prompt de
+  // la vitrine donnait une page d'accueil sans enseigne.
+  const enseigne = site?.shop ?? txtOuBoutique(repli)
 
   const pages = []
   const total = products.length + 1
@@ -174,14 +216,14 @@ export async function buildSite({ shop_name, tagline, products, language = 'ar',
     onProgress({ step: i + 1, total, label: p.name, phase: 'page' })
     try {
       const lp = await buildLandingPage({
-        product: p.name, price_dzd: p.price_dzd, angle: p.angle, language,
+        product: p.name, price_dzd: p.price_dzd, angle: p.angle, language: langue,
         images: p.images?.length ? p.images : p.image ? [p.image] : [],
         variants: p.variants ?? [],
         // The studio's settings apply to every page of the shop, minus the
         // photo pick — that one is per product, and reusing it would put the
         // casquette's photo on the sandal's page.
         options: { ...options, photos: [] },
-        shop: shop_name, sessionId, siteId,
+        shop: enseigne, sessionId, siteId,
         onProgress: (e) => onProgress({ ...e, step: i + 1, total }),
       })
       pages.push({ ...p, ...lp })
@@ -191,24 +233,23 @@ export async function buildSite({ shop_name, tagline, products, language = 'ar',
   }
 
   const ok = pages.filter((p) => !p.error)
-  onProgress({ step: total, total, label: shop_name, phase: 'home' })
+  onProgress({ step: total, total, label: enseigne, phase: 'home' })
   const home = await buildStorefront({
-    shop_name, language, tagline, sessionId, siteId,
+    shop_name: enseigne, language: langue, tagline, sessionId, siteId,
     products: ok.map((p) => ({ name: p.name, price: p.price_dzd, image: p.image, href: p.url })),
   })
 
   run('UPDATE sites SET home_url=? WHERE id=?', home.url, siteId)
 
-  // Every shop gets a subdomain the moment it exists, the way a real platform
-  // hands you one before you own a domain.
-  const host = `${slugify(shop_name) || 'boutique'}.sawt.dz`
-  if (!one('SELECT 1 FROM domains WHERE host=?', host)) {
-    insert('INSERT INTO domains(site,host,kind,status,at) VALUES(?,?,?,?,?)',
-      siteId, host, 'subdomain', 'live', now())
-  }
+  // Le sous-domaine est remis par `siteFor` au moment où la boutique naît,
+  // comme le fait une vraie plateforme avant que le marchand possède un nom.
+  // Il n'est plus posé ici : deux endroits qui dérivent un hôte du nom de la
+  // boutique, c'est deux sous-domaines sur la même enseigne le jour où elle
+  // est renommée.
+  const host = one("SELECT host FROM domains WHERE site=? AND kind='subdomain' ORDER BY id LIMIT 1", siteId)?.host ?? null
 
   return {
-    site_id: siteId, shop_name, home: home.url, host,
+    site_id: siteId, shop_name: enseigne, home: home.url, host,
     pages: ok.map((p) => ({ id: p.id, product: p.name, url: p.url, price_dzd: p.price_dzd, scenes: p.scenes })),
     failed: pages.filter((p) => p.error).map((p) => ({ product: p.name, error: p.error })),
     count: ok.length,
@@ -271,13 +312,15 @@ export async function buildStorefront({ shop_name, products, language = 'ar', ta
   writeFileSync(join(OUT_DIR, file), html, 'utf8')
 
   // buildSite passe son siteId et met home_url à jour lui-même. Appelée
-  // seule, la vitrine se donne un site, pour exister sur l'écran Sites
-  // comme n'importe quelle autre page.
+  // seule, la vitrine prend la boutique de la session — par `siteFor`, comme
+  // tout le reste, et non plus par un `SELECT ... WHERE session IS ?` à elle
+  // qui ouvrait une enseigne par nom de boutique et attrapait les lignes à
+  // session NULL dès qu'on l'appelait hors session.
   let id = siteId
   if (!id) {
-    const deja = one('SELECT id FROM sites WHERE session IS ? AND shop=?', sessionId, shop_name)
-    id = deja?.id ?? insert('INSERT INTO sites(session,shop,tagline,language,home_url,at) VALUES(?,?,?,?,?,?)',
-      sessionId, shop_name, tagline ?? null, language, url, now())
+    id = siteFor(sessionId, { shop: shop_name, fallback: shop_name, language, tagline })?.id
+      ?? insert('INSERT INTO sites(session,shop,tagline,language,home_url,at) VALUES(?,?,?,?,?,?)',
+        sessionId, txtOuBoutique(shop_name), tagline ?? null, language, url, now())
     run('UPDATE sites SET home_url=?, tagline=COALESCE(?,tagline) WHERE id=?', url, tagline ?? null, id)
   }
 

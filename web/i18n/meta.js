@@ -263,4 +263,109 @@ export const meta = {
     fr: 'Ce que la vraie Graph API renverrait',
   },
   'meta.graph.sim': { en: 'real shape · simulated data', ar: 'الشكل حقيقي · المعطيات ديمو', fr: 'forme réelle · données simulées' },
+
+  /* ── « branche ta propre app Meta » ────────────────────────────────────────
+     Le panneau le plus important de l'écran, et le seul qui ne parle pas au
+     marchand mais au juré : il regardait des surfaces marquées « SIMULÉ » et
+     en concluait que la plateforme n'avait jamais été touchée. Elle l'est, par
+     src/meta-graph/index.js, et depuis la ligne de commande — ce panneau le
+     dit sans qu'il faille ouvrir le README.
+
+     Rien ici n'affirme que ces écrans deviennent vivants : ils restent mis en
+     scène dans les trois modes, et c'est écrit noir sur blanc. Un panneau qui
+     laisserait croire le contraire serait pire que pas de panneau. */
+  'meta.own.title': { en: 'Use your own Meta app', ar: 'استعمل الأپليكاسيون تاعك في Meta', fr: 'Utilise ta propre app Meta' },
+  'meta.own.lead': {
+    en: 'Sawt reaches the Graph API from one file — src/meta-graph/index.js — and makes exactly five calls. Replay is the default, so a judge needs no account at all. A merchant who already has an app in Meta for Developers fills six variables in .env and runs one command.',
+    ar: 'Sawt يوصل لـ Graph API من ملف واحد — src/meta-graph/index.js — ويدير بالضبط خمسة أپيلات. الـ replay هو الأصل، باش الجيري ما يحتاجش كونت. التاجر اللي عندو ديجا أپليكاسيون في Meta for Developers يعمّر ستة متغيرات في .env ويلانسي كوموند وحدة.',
+    fr: "Sawt atteint la Graph API depuis un seul fichier — src/meta-graph/index.js — et fait exactement cinq appels. Le mode replay est le défaut, pour qu'un juré n'ait besoin d'aucun compte. Un marchand qui possède déjà une app dans Meta for Developers remplit six variables dans .env et lance une commande.",
+  },
+  'meta.own.warn': {
+    en: 'The screens here are the staged console, in all three modes. That is how a judge clicks through the whole flow with no account. The real calls are made from the command line, by the file named above — and keeping the two apart is the only thing that makes the “simulated” mark mean anything.',
+    ar: 'الإيكرانات هذي هي الكونسول المسرحي، في التلاثة مودات. هكذا الجيري يقدر يدوز على الفلو كامل بلا كونت. الأپيلات الحقيقيين يتديرو من سطر الأوامر، بالملف اللي فوق — وفصل الزوج هو الوحيد اللي يخلي علامة « ديمو » عندها معنى.',
+    fr: "Les écrans ici sont la console mise en scène, dans les trois modes. C'est ce qui permet à un juré de dérouler tout le parcours sans compte. Les vrais appels se font depuis la ligne de commande, par le fichier nommé plus haut — et séparer les deux est la seule chose qui donne un sens à la marque « simulé ».",
+  },
+  'meta.own.modeNow': { en: 'running now', ar: 'يخدم دروك', fr: 'en cours' },
+  'meta.own.isDefault': { en: 'default', ar: 'الأصل', fr: 'par défaut' },
+  'meta.own.modesTitle': { en: 'The three modes', ar: 'التلاثة مودات', fr: 'Les trois modes' },
+  'meta.own.v.replay': { en: 'replayed', ar: 'معاود', fr: 'rejoué' },
+  'meta.own.v.live': { en: 'live', ar: 'حقيقي', fr: 'en direct' },
+  'meta.own.v.staged': { en: 'staged', ar: 'ديمو', fr: 'mis en scène' },
+  'meta.own.v.none': { en: 'nothing', ar: 'والو', fr: 'rien' },
+  'meta.own.kv.models': { en: 'Meta models', ar: 'موديلات Meta', fr: 'modèles Meta' },
+  'meta.own.kv.graph': { en: 'Graph API', ar: 'Graph API', fr: 'Graph API' },
+  'meta.own.kv.screens': { en: 'these screens', ar: 'هذ الإيكرانات', fr: 'ces écrans' },
+  'meta.own.kv.env': { en: 'needs in .env', ar: 'يحتاج في .env', fr: 'exige dans .env' },
+  'meta.own.kv.how': { en: 'command', ar: 'الكوموند', fr: 'commande' },
+
+  'meta.own.callsTitle': { en: 'The five Graph calls, field by field', ar: 'الخمسة أپيلات تاع Graph، حقل بحقل', fr: 'Les cinq appels Graph, champ par champ' },
+  'meta.own.callsLead': {
+    en: 'Endpoint, method, the permission Meta really requires, and what happens in replay. This list is not documentation sitting next to the code: it is the table the code builds its paths from, so an endpoint cannot be shown here without being called.',
+    ar: 'الـ endpoint، الميثود، الصلاحية اللي Meta تطلبها بالصح، وواش يصرا في الـ replay. هذ الليستة ماشي دوكيمونطاسيون محطوطة حدا الكود: هي الطابلو اللي الكود يبني منو الشمان تاعو، يعني endpoint ما يقدرش يبان هنا بلا ما يتعيّط.',
+    fr: "Point de terminaison, méthode, la permission que Meta exige réellement, et ce qui se passe en replay. Cette liste n'est pas une documentation posée à côté du code : c'est la table dont le code construit ses chemins, donc un point de terminaison ne peut pas apparaître ici sans être appelé.",
+  },
+  'meta.own.kv.perms': { en: 'permission', ar: 'الصلاحية', fr: 'permission' },
+  'meta.own.kv.needs': { en: 'needs', ar: 'يحتاج', fr: 'exige' },
+  'meta.own.kv.replay': { en: 'in replay', ar: 'في الـ replay', fr: 'en replay' },
+  'meta.own.kv.body': { en: 'body sent', ar: 'الـ body اللي يتبعث', fr: 'corps envoyé' },
+  'meta.own.forced': { en: 'status forced to PAUSED', ar: 'الـ status مفروض PAUSED', fr: 'status forcé à PAUSED' },
+  'meta.own.forcedWhy': {
+    en: 'Not a default the caller can override: the code merges this over whatever it was asked for. An agent that can start spending money without a human saying so is not a feature.',
+    ar: 'ماشي قيمة أصلية يقدر يبدلها اللي عيّط: الكود يحطها فوق كل ما طُلب. أجون يقدر يبدا يصرف دراهم بلا ما إنسان قالها، هذي ماشي ميزة.',
+    fr: "Pas une valeur par défaut que l'appelant peut écraser : le code la fusionne par-dessus ce qu'on lui a demandé. Un agent qui peut commencer à dépenser de l'argent sans qu'un humain l'ait dit n'est pas une fonctionnalité.",
+  },
+  'meta.call.inbox': { en: 'Read the Messenger conversations of the Page', ar: 'يقرا المحادثات تاع Messenger في الباج', fr: 'Lire les conversations Messenger de la Page' },
+  'meta.call.comments': { en: 'Read the comments under a post', ar: 'يقرا الكومنتيرات تحت بوست', fr: "Lire les commentaires sous une publication" },
+  'meta.call.reply': { en: 'Send the reply the model wrote', ar: 'يبعث الرد اللي كتبو الموديل', fr: 'Envoyer la réponse écrite par le modèle' },
+  'meta.call.createCampaign': { en: 'Create the campaign on the ad account', ar: 'يدير الكومپاني في كونت الإشهار', fr: 'Créer la campagne sur le compte publicitaire' },
+  'meta.call.createAd': { en: 'Create the ad inside the campaign', ar: 'يدير الإشهار داخل الكومپاني', fr: "Créer l'annonce dans la campagne" },
+
+  'meta.own.envTitle': { en: '.env — what real mode reads', ar: '.env — واش يقرا مود real', fr: '.env — ce que le mode real lit' },
+  'meta.own.envSet': { en: 'set', ar: 'معمّرة', fr: 'renseignée' },
+  'meta.own.envMissing': { en: 'missing', ar: 'خالية', fr: 'manquante' },
+  'meta.own.use.you': {
+    en: 'yours to use at developers.facebook.com, to mint the Page token — Sawt never sends it anywhere',
+    ar: 'تخدم بيها انت في developers.facebook.com باش تصنع التوكن تاع الباج — Sawt عمرو ما يبعثها',
+    fr: "à toi, sur developers.facebook.com, pour frapper le jeton de Page — Sawt ne l'envoie jamais nulle part",
+  },
+  'meta.own.use.path': { en: 'goes into the request path', ar: 'تدخل في شمان الطلب', fr: 'entre dans le chemin de la requête' },
+  'meta.own.use.header': { en: 'sent as the Authorization: Bearer header', ar: 'تتبعث في الهيدر Authorization: Bearer', fr: "envoyée dans l'en-tête Authorization: Bearer" },
+  'meta.own.use.url': { en: 'the API version in the URL', ar: 'فيرسيون الـ API في الـ URL', fr: "la version de l'API dans l'URL" },
+  'meta.own.envRead': { en: 'read by', ar: 'يقراها', fr: 'lue par' },
+  'meta.own.envFoot': {
+    en: 'Only presence is shown. No token value is ever served to this screen — one screenshot is one token to revoke.',
+    ar: 'غير الحضور يتبان. حتى قيمة تاع توكن ما توصل لهذ الإيكران — سكرينشوت وحدة تعني توكن لازم يتلغى.',
+    fr: "Seule la présence est affichée. Aucune valeur de jeton n'est servie à cet écran — une capture, c'est un jeton à révoquer.",
+  },
+
+  'meta.own.recTitle': { en: 'Replayed from recorded calls', ar: 'معاود من أپيلات مسجّلة', fr: "Rejoué depuis de vrais appels" },
+  'meta.own.recLead': {
+    en: 'Staged and replayed are not the same claim. The Page, the Business Manager and the inbox on this screen are invented for the demo and marked so. The exchanges below were recorded against a test Page, and each one carries the date it was recorded.',
+    ar: 'ديمو وماعاود ماشي نفس الحاجة. الباج، الـ Business Manager وصندوق الرسائل في هذ الإيكران مخترعين للديمو ومعلّمين هكذا. الأپيلات اللي تحت تسجلو على باج تاع تجريب، وكل واحد حامل النهار اللي تسجل فيه.',
+    fr: "Mis en scène et rejoué ne sont pas la même affirmation. La Page, le Business Manager et la boîte de réception de cet écran sont inventés pour la démonstration, et marqués comme tels. Les échanges ci-dessous ont été enregistrés contre une Page de test, et chacun porte sa date d'enregistrement.",
+  },
+  'meta.own.recordedOn': { en: 'recorded: {when}', ar: 'تسجل: {when}', fr: 'enregistré : {when}' },
+  'meta.own.recBy': { en: 'replayed by', ar: 'يعاودها', fr: 'rejoué par' },
+
+  'meta.own.gapTitle': { en: 'What this repo does NOT call', ar: 'واش ما يعيّطلوش هذ المشروع', fr: "Ce que ce dépôt n'appelle PAS" },
+  'meta.own.gap1': {
+    en: 'No OAuth code exchange, no appsecret_proof. META_APP_ID and META_APP_SECRET identify the app you created; the token is what Sawt sends.',
+    ar: 'ما كاين لا تبديل كود OAuth لا appsecret_proof. META_APP_ID و META_APP_SECRET يعرّفو الأپليكاسيون اللي درتها انت؛ التوكن هو اللي يبعثو Sawt.',
+    fr: "Aucun échange de code OAuth, aucun appsecret_proof. META_APP_ID et META_APP_SECRET identifient l'app que tu as créée ; ce que Sawt envoie, c'est le jeton.",
+  },
+  'meta.own.gap2': {
+    en: 'No insights read-back. Spend, reach and cost per order on the campaign screens are staged and labelled, and a staged number is never added to a measured one.',
+    ar: 'ما كاين قراية تاع insights. الدراهم، الوصول والتكلفة تاع الكومند في إيكرانات الكومپاني ديمو ومعلّمين، ورقم ديمو عمرو ما يتزاد مع رقم مقيس.',
+    fr: "Aucune relecture des insights. Dépense, portée et coût par commande des écrans campagnes sont mis en scène et étiquetés, et un chiffre simulé ne s'additionne jamais à un chiffre mesuré.",
+  },
+  'meta.own.gap3': {
+    en: 'Five endpoints and no others. SETUP.md lists them field by field, including what has not been exercised against production Graph.',
+    ar: 'خمسة endpoints وماشي أكثر. SETUP.md يعدّهم حقل بحقل، وحتى اللي ما تجربش على Graph الحقيقية.',
+    fr: "Cinq points de terminaison et pas un de plus. SETUP.md les énumère champ par champ, y compris ce qui n'a pas été éprouvé sur la Graph de production.",
+  },
+  'meta.own.setupFoot': {
+    en: 'The same table, with the request body of every call: SETUP.md at the root of the repo.',
+    ar: 'نفس الطابلو، بالـ body تاع كل أپيل: SETUP.md في جدر المشروع.',
+    fr: "La même table, avec le corps de requête de chaque appel : SETUP.md à la racine du dépôt.",
+  },
 }

@@ -32,8 +32,21 @@
 //      ressemble à une mesure.
 import { all } from './db.js'
 
-/** Fin de journée UTC pour une date « 2026-11-04 », afin de pouvoir trier. */
-const finDeJour = (jour) => Date.parse(jour + 'T23:59:59Z')
+/**
+ * L'instant qui représente une journée « 2026-11-04 », pour pouvoir trier.
+ *
+ * ⚠️ MIDI UTC, et surtout pas 23:59:59. Mesuré à l'écran le 04/11 : la
+ * dépense du 4 novembre s'affichait sous un séparateur « 5 NOVEMBER », une
+ * date qui n'existait pas encore. 23:59:59 UTC vaut 00:59 le lendemain à
+ * Alger (UTC+1), donc le libellé du jour sautait d'une journée.
+ *
+ * Midi UTC tombe sur la même date du calendrier dans tous les fuseaux de
+ * UTC−11 à UTC+12 : le libellé ne peut plus se tromper, où que tourne le
+ * serveur. Le prix est que la ligne de dépense d'un jour se place au milieu
+ * de ses événements plutôt qu'à la fin — c'est un résumé de journée entière,
+ * donc c'est même plus juste.
+ */
+const midiDe = (jour) => Date.parse(jour + 'T12:00:00Z')
 
 /** Un JSON de base qui peut être n'importe quoi : on ne fait jamais confiance. */
 function lire(texte) {
@@ -204,11 +217,16 @@ export function journal(sessionId, { since = 0, limit = 80, spendDays = 2, kinds
 
   /* ── ce qu'il a SIGNALÉ ──────────────────────────────────────────────── */
   for (const n of all(
-    `SELECT id, kind AS sort, title, body, goto, ref, at FROM notifications
+    `SELECT id, kind AS sort, title, tkey, vars, body, goto, ref, at FROM notifications
      WHERE session = ? AND at > ? ORDER BY at DESC LIMIT ?`, sessionId, apres, limit)) {
+    // La clé et ses paramètres passent jusqu'à l'écran, qui traduit. `title`
+    // n'est que le repli des lignes écrites avant que les notifications
+    // cessent d'être des phrases françaises figées.
+    let vars = null
+    try { vars = n.vars ? JSON.parse(n.vars) : null } catch { /* version d'avant */ }
     out.push({
       id: 'z' + n.id, at: n.at, kind: 'notified', action: n.sort,
-      title: n.title, text: n.body, goto: n.goto, ref: n.ref,
+      title: n.title, tkey: n.tkey ?? null, vars, text: n.body, goto: n.goto, ref: n.ref,
       simulated: true,
     })
   }
@@ -224,7 +242,7 @@ export function journal(sessionId, { since = 0, limit = 80, spendDays = 2, kinds
     const n = vus.get(j.campaign) ?? 0
     if (n >= spendDays) continue
     vus.set(j.campaign, n + 1)
-    const at = finDeJour(j.day)
+    const at = midiDe(j.day)
     if (!Number.isFinite(at) || at <= apres) continue
     out.push({
       id: 's' + j.campaign + '-' + j.day, at, kind: 'spent', action: 'day',

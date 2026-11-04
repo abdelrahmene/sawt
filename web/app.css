@@ -255,10 +255,19 @@ body.busy #appbar .orb::after{animation:breathe 1.9s cubic-bezier(.4,0,.2,1) inf
    (Ancienne version : masquait le modèle sous 420 px — exactement l'inverse
    de ce que demande une démonstration filmée sur un téléphone.) */
 @container device (max-width:430px){
-  #appbar{gap:6px;padding-inline:11px}
+  /* Mesuré en coque 412 px : le dernier bouton de la barre (#reset) dépassait
+     de 3 px et arrivait rogné au bord droit — visible à l'œil nu, et c'est le
+     premier pixel que voit quelqu'un qui ouvre l'app. Trois pixels se
+     récupèrent en resserrant l'écart et la marge, sans rien cacher : une
+     barre d'outils qui perd un bouton selon la largeur apprend à l'utilisateur
+     que ses boutons ne sont pas fiables. */
+  #appbar{gap:4px;padding-inline:8px}
   #appbar .ar{display:none}
   #appbar .mode{max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #appbar .icon.sm{width:28px;height:28px}
+  /* `min-width:0` sur les pastilles : sans lui elles refusent de rétrécir et
+     poussent la rangée d'icônes hors du cadre. */
+  #appbar .chip,#appbar .mode{min-width:0}
 }
 :lang(ar),[dir=rtl]{font-family:var(--arabic)}
 button,input,select,textarea{font-family:inherit}
@@ -303,11 +312,29 @@ button,input,select,textarea{font-family:inherit}
   scrollbar-width:none;scroll-snap-type:x proximity;
 }
 :root[data-shell=phone] #rail nav::-webkit-scrollbar{height:0}
+/* Les onglets se PARTAGENT la largeur au lieu d'imposer 62 px chacun.
+   Mesuré le 04/11, coque 412 px : à neuf onglets, le rail faisait 586 px et
+   trois d'entre eux tombaient hors écran — dont Messages, avec huit clients
+   qui attendaient. Le rail défile, mais sur un téléphone un onglet hors
+   écran n'existe pas : on ne cherche pas ce qu'on ne sait pas absent.
+   `min-width:0` est indispensable, sinon le contenu refuse de rétrécir —
+   c'est la valeur par défaut `auto` de `min-width` sur un élément flex. */
 :root[data-shell=phone] #rail button.tab{
-  width:auto;flex:0 0 auto;min-width:62px;padding:7px 8px 5px;scroll-snap-align:center;
-  font-size:9.5px;
+  width:auto;flex:1 1 0;min-width:0;padding:7px 2px 5px;scroll-snap-align:center;
+  font-size:9.5px;letter-spacing:-.01em;
 }
 :root[data-shell=phone] #rail button.tab svg{width:20px;height:20px}
+/* Le libellé ne doit jamais passer à la ligne : deux lignes sur un seul
+   onglet décalent la hauteur de tout le rail. */
+:root[data-shell=phone] #rail button.tab span:not(.pip){
+  display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+/* Sous 430 px de coque — la même coupure que l'appbar, pas un palier inventé
+   pour l'occasion — on descend d'un point plutôt que de couper un mot :
+   « Messag… » coûte plus en compréhension qu'il ne gagne en place. */
+@container device (max-width:430px){
+  :root[data-shell=phone] #rail button.tab{font-size:8.5px}
+}
 /* Le liseré de l'onglet actif passe du côté au-dessus : en bas d'écran, une
    barre verticale à gauche d'un bouton ne veut plus rien dire. */
 :root[data-shell=phone] #rail button.tab.on::before{
@@ -1394,6 +1421,25 @@ input.f.sm{padding:8px 11px;font-size:13px}
 /* Les tableaux de l'agent étaient les seuls non enveloppés, et `.card` les
    rognait. On les laisse défiler dans leur carte plutôt que de les couper. */
 .card > table,.card .tbl{display:block;max-width:100%;overflow-x:auto}
+
+/* ── le panneau « branche ta propre app Meta » ────────────────────────────
+   `.lead`, `.tiny` et `.mono` n'existaient QUE sous `.consent` : utilisées
+   ailleurs elles ne rendaient rien. Portées ici par `.metaown` plutôt que
+   déclarées globalement — huit écrans partagent cette feuille, et une classe
+   lâchée dans le vide se retrouve toujours sur un écran qu'on n'a pas relu.
+
+   Rien en `@media` : la coque téléphone est un conteneur nommé `device`, et
+   une règle `@media` ne s'y déclenche pas. Il n'y a ici que des valeurs qui
+   tiennent déjà à 390 px — `.grid-3` et `.kv` savent se replier seuls. */
+.metaown .lead{margin:0;font-size:13.5px;line-height:1.6;color:var(--ink-2)}
+.metaown .tiny{display:block;font-size:11.5px;line-height:1.5;color:var(--dim)}
+.metaown .mono{font-family:var(--mono);font-size:11.5px;letter-spacing:.02em}
+/* Une URL Graph complète dépasse 390 px : elle se coupe, elle ne défile pas —
+   un juré lit un chemin, il ne le fait pas glisser. */
+.metaown pre{font-size:11.5px;padding:10px 12px;overflow-wrap:anywhere}
+.metaown .fold{margin-top:12px}
+.metaown .grid-3{gap:10px}
+.metaown .grid-3 .card{box-shadow:none}
 
 /* Le geste du micro n'était pas sûr au doigt : pas de `touch-action`, donc un
    appui que le navigateur transforme en défilement laissait l'enregistrement

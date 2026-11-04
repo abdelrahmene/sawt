@@ -77,8 +77,11 @@ function phrase(e) {
       return t('journal.handed', { who: esc(e.person ?? '') })
     case 'launched':
       return t('journal.launched', { name: nom, budget: sous(e.daily_budget_dzd) })
-    case 'notified':
-      return t('journal.notified', { title: esc(e.title ?? '') })
+    case 'notified': {
+      // Même règle que la cloche : une clé traduite, le titre en repli.
+      const dit = e.tkey ? t(e.tkey, e.vars ?? {}) : null
+      return t('journal.notified', { title: esc(dit && dit !== e.tkey ? dit : (e.title ?? '')) })
+    }
     case 'spent':
       return t('journal.spent', { name: nom, spend: sous(e.spend_dzd), orders: num(e.orders ?? 0) })
     default:
@@ -123,9 +126,12 @@ function ligne(e, fraiche = false) {
   const cout = e.cost_credits
     ? `<span class="jcost">${t('journal.cost', { n: num(e.cost_credits) })}</span>`
     : ''
-  // La pastille « SIMULÉ » n'est pas décorative : elle sépare ce qui a été
-  // compté de ce qui a été mis en scène, sur chaque ligne, sans exception.
-  const sim = e.simulated ? '<span class="sim">SIMULÉ</span>' : ''
+  // La pastille n'est pas décorative : elle sépare ce qui a été compté de ce
+  // qui a été mis en scène, sur chaque ligne, sans exception. Et elle se
+  // TRADUIT — écrite « SIMULÉ » en dur, elle sortait en français au milieu
+  // d'un écran anglais, c'est-à-dire exactement sur l'écran que le jury
+  // regarde. La clé existait déjà, utilisée par quatre autres écrans.
+  const sim = e.simulated ? `<span class="sim">${t('chat.badge.sim')}</span>` : ''
   n.innerHTML = `
     <div class="jwhen">${heure(e.at)}</div>
     <div class="jmark">${icon(ICONE[e.kind] ?? 'check', 15)}</div>

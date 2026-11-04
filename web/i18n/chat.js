@@ -170,7 +170,7 @@ export const chat = {
   },
   'chat.hello.foot': {
     en: 'Everything it builds is a real file you can open. What is staged is labelled SIMULATED.',
-    ar: 'كلشي لي يبنيه راه فيشي حقيقي تقدر تحلّو. واللي ديمو راه مكتوب عليه SIMULÉ.',
+    ar: 'كلشي لي يبنيه راه فيشي حقيقي تقدر تحلّو. واللي ديمو راه مكتوب عليه « تجربة ».',
     fr: "Tout ce qu'il construit est un vrai fichier que tu peux ouvrir. Ce qui est mis en scène porte la mention SIMULÉ.",
   },
 
@@ -321,6 +321,15 @@ export const chat = {
     ar: 'التصويرة « {slot} » ما ترسمتش: {error} — القسم يبقى بلا تصويرة.',
     fr: 'visuel « {slot} » non généré : {error} — la section reste sans image.',
   },
+  /* La boutique dans laquelle la page est entrée. Sans cette ligne, l'écran
+     Sites était le seul endroit où elle apparaissait, et le marchand n'avait
+     aucune raison d'aller l'y chercher. */
+  'chat.landing.inShop': {
+    en: 'Filed in your shop {shop} — it is on the Sites screen with the others.',
+    ar: 'دخلت لحانوتك {shop} — راهي في شاشة المواقع مع الأخرين.',
+    fr: 'Rangée dans ta boutique {shop} — elle est sur l’écran Sites avec les autres.',
+  },
+  'chat.landing.seeShop': { en: 'see my shop', ar: 'شوف حانوتي', fr: 'voir ma boutique' },
 
   /* ── la connexion Facebook ────────────────────────────────────────────── */
   'chat.meta.connectBtn':  { en: 'Connect Facebook',       ar: 'اربط Facebook',    fr: 'Connecter Facebook' },

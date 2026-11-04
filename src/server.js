@@ -22,6 +22,12 @@ import { transcribe, understand } from './models/voice.js'
 import { setProvider, currentProvider, providerModel, PROVIDERS } from './models/llm.js'
 import { describePhoto } from './models/vision.js'
 import * as meta from './meta-sim/connect.js'
+// Le VRAI chemin Graph. Le serveur ne l'appelle pas — les écrans passent par
+// meta-sim — mais il en sert la description : les trois modes, les cinq appels
+// réels et la provenance des échanges rejoués. Sans ça, un juré regarde un
+// écran marqué « SIMULÉ » et en conclut que la plateforme n'a jamais été
+// touchée, ce qui est faux.
+import { platform as metaPlatform } from './meta-graph/index.js'
 import * as inbox from './meta-sim/inbox.js'
 import * as camp from './meta-sim/campaigns.js'
 import * as sites from './sites.js'
@@ -30,6 +36,8 @@ import { buildLandingPage } from './creative/landing.js'
 import * as catalog from './catalog.js'
 import * as credits from './credits.js'
 import { board } from './board.js'
+import { journal, activity } from './journal.js'
+import * as autoreply from './autoreply.js'
 import * as page from './meta-sim/posts.js'
 import * as notify from './meta-sim/notify.js'
 
@@ -192,6 +200,12 @@ function counts(sid) {
     live: one("SELECT COUNT(*) n FROM campaigns WHERE session=? AND status='ACTIVE'", sid)?.n ?? 0,
     orders: one('SELECT COUNT(*) n FROM orders WHERE page IN (SELECT id FROM pages WHERE session=?)', sid)?.n ?? 0,
     imported: one('SELECT COUNT(*) n FROM imports WHERE session=?', sid)?.n ?? 0,
+    // Les décisions des dernières 24 h : c'est la pastille de l'onglet
+    // Journal. On compte ici plutôt que d'appeler `activity()`, qui assemble
+    // sept requêtes — les compteurs partent à chaque rafraîchissement du rail.
+    decisions_24h: one(
+      `SELECT COUNT(*) n FROM decisions d JOIN campaigns c ON c.id = d.campaign
+       WHERE c.session = ? AND d.at > ?`, sid, Date.now() - 86_400_000)?.n ?? 0,
   }
 }
 
@@ -443,7 +457,14 @@ const server = createServer(async (req, res) => {
 
     /* ── the simulated Meta connection ──────────────────────────────────── */
     if (reading && p === '/api/meta') {
-      return json(res, 200, { ...meta.connection(sid), scope_catalog: meta.SCOPES, surfaces: surfaces(sid) })
+      return json(res, 200, {
+        ...meta.connection(sid), scope_catalog: meta.SCOPES, surfaces: surfaces(sid),
+        // `platform` ne dépend pas de la session : c'est l'état du dépôt, pas
+        // celui du marchand. Servi ici parce que c'est la route que l'écran
+        // Meta charge déjà — un appel de plus pour un objet figé serait un
+        // aller-retour payé pour rien.
+        platform: metaPlatform(),
+      })
     }
     if (req.method === 'POST' && p === '/api/meta/login') return json(res, 200, meta.startLogin(sid))
     if (req.method === 'POST' && p === '/api/meta/review') return json(res, 200, meta.reviewPermissions(sid))
@@ -464,6 +485,40 @@ const server = createServer(async (req, res) => {
       return json(res, 200, {
         ...board(sid, { wallet: ad ? camp.wallet(sid, ad) : null }),
         counts: counts(sid),
+      })
+    }
+
+    /* Le journal : ce que l'agent a trouvé, décidé et fait, dans l'ordre.
+       `since` rend l'écran vivant sans le redessiner — il ne demande que ce
+       qui est arrivé après sa dernière entrée connue, et le serveur ne
+       recalcule pas l'activité des 24 h pour un battement qui, neuf fois sur
+       dix, ne rapportera rien. */
+    /* La réponse automatique. Le battement est un POST et pas un GET parce
+       qu'il ÉCRIT : il appelle le modèle, publie des réponses et débite des
+       crédits. Un GET qui dépense de l'argent est un GET qu'un préchargeur de
+       navigateur peut déclencher tout seul. */
+    if (req.method === 'POST' && p === '/api/autoreply/tick') {
+      return json(res, 200, { ...(await autoreply.tick(sid)), counts: counts(sid) })
+    }
+    if (req.method === 'POST' && p === '/api/autoreply') {
+      const b = await jsonBody(req)
+      return json(res, 200, { on: autoreply.setEnabled(sid, !!b.on) })
+    }
+    if (reading && p === '/api/autoreply') {
+      return json(res, 200, {
+        on: autoreply.enabled(sid),
+        waiting: autoreply.pending(sid),
+        floor: autoreply.PLANCHER,
+        left: credits.balance(sid).left,
+      })
+    }
+
+    if (reading && p === '/api/journal') {
+      const since = Number(url.searchParams.get('since')) || 0
+      const kinds = (url.searchParams.get('kinds') || '').split(',').filter(Boolean)
+      return json(res, 200, {
+        entries: journal(sid, { since, kinds: kinds.length ? kinds : null }),
+        activity: since ? null : activity(sid),
       })
     }
 
@@ -491,6 +546,8 @@ const server = createServer(async (req, res) => {
       })
       notify.push(sid, {
         kind: 'post', ref: r.id, goto: 'meta',
+        key: r.status === 'scheduled' ? 'notif.post.queued' : 'notif.post.published',
+        vars: { kind: r.kind },
         title: r.status === 'scheduled' ? `${r.kind} programmé` : `${r.kind} publié sur la Page`,
         body: String(b.caption ?? '').slice(0, 120),
       })

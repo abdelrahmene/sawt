@@ -98,6 +98,40 @@ function gardeIds() {
   }
 }
 
+/* Chaque onglet doit avoir sa section dans index.html, sinon écran blanc.
+   Mesuré le 04/11 : l'onglet « journal » a été ajouté à TABS et sa feuille de
+   style liée, mais `<section id="v-journal">` oubliée. `go()` appelait alors
+   `mount(null)`, et comme `mount` est `async`, son TypeError devenait une
+   rejection non attrapée — le try/catch de `go()` ne la voit pas. Résultat :
+   un sixième onglet qui ouvre une page entièrement vide, sans une ligne en
+   console et sans toast. Le seul moyen de s'en apercevoir est de cliquer.
+
+   Deux listes qui doivent coïncider et que rien ne reliait : on les compare
+   au démarrage, une fois, et on crie si elles divergent. */
+function gardeVues() {
+  const manquants = TABS.filter((x) => !$(`#v-${x.id}`)).map((x) => x.id)
+  if (!manquants.length) return
+  console.error(
+    `[vues] ${manquants.map((m) => `« ${m} »`).join(', ')} : onglet déclaré dans TABS sans ` +
+    `<section id="v-${manquants[0]}"> dans index.html — l'écran s'ouvrira vide.`)
+  toast(`Onglet sans écran : ${manquants.join(', ')}`, true)
+}
+
+/**
+ * Le libellé d'une notification, dans la langue de l'écran.
+ *
+ * Le serveur envoie désormais une clé et ses paramètres. Il envoyait une
+ * phrase française figée, qui s'affichait telle quelle dans l'écran anglais
+ * — « story programmé dans 14 h » au milieu de l'interface que le jury
+ * regarde. `title` reste le repli pour les lignes écrites avant ce
+ * changement, et pour une clé qu'un dictionnaire n'aurait pas encore.
+ */
+export const libelle = (n) => {
+  if (!n?.tkey) return n?.title ?? ''
+  const s = t(n.tkey, n.vars ?? {})
+  return s === n.tkey ? (n.title ?? s) : s
+}
+
 /** Views call this after they change something that a badge counts. */
 export async function refresh({ repaint = true } = {}) {
   try {
@@ -243,7 +277,7 @@ function paintStatic() {
     box.innerHTML = d.items.length
       ? d.items.map((n) => `<button class="nrow${n.seen ? '' : ' new'}" data-goto="${esc(n.goto ?? '')}">
           <span class="k">${esc(n.kind)}</span>
-          <span class="tt">${esc(n.title)}</span>
+          <span class="tt">${esc(libelle(n))}</span>
           ${n.body ? `<span class="bb">${esc(n.body)}</span>` : ''}
         </button>`).join('')
       : `<div class="nempty">${t('shell.notifs.empty')}</div>`
@@ -334,6 +368,7 @@ applyDocument()
 paintStatic()
 syncPane()
 paintRail()
+gardeVues()
 const first = (location.hash || '#chat').slice(1)
 const state = await refresh({ repaint: false })
 chat.hydrate(state)
