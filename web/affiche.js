@@ -20,7 +20,21 @@
 // à largeur égale il occupe plus de hauteur d'écran qu'un carré.
 import { api } from './ui.js'
 
-const L = 1080, H = 1350
+/* ── un format par placement ──────────────────────────────────────────────
+   Meta ne sert pas la même image partout, et un créatif recadré à la volée
+   par la régie perd son texte : une accroche posée pour du 4:5 sort coupée
+   en 9:16. On compose donc chaque placement séparément, depuis la même
+   scène générée — l'image coûte un appel de modèle, la composition ne coûte
+   rien.
+
+     feed  4:5  — le fil. Le format qui occupe le plus de hauteur d'écran
+                  à largeur égale, donc celui que Meta sert le plus haut.
+     reel  9:16 — Reels et Stories. Plein écran sur un téléphone, et c'est
+                  là que se passe la quasi-totalité du trafic ici. */
+export const FORMATS = {
+  feed: { l: 1080, h: 1350, titre: 76, prix: 64, marge: 76 },
+  reel: { l: 1080, h: 1920, titre: 88, prix: 72, marge: 84 },
+}
 
 /** Coupe un titre en lignes qui tiennent, en mesurant vraiment. */
 function lignes(ctx, texte, largeur, max = 3) {
@@ -56,8 +70,10 @@ function pastille(ctx, x, y, w, h, r) {
  * un filet, et de l'air.
  */
 export async function composer(srcImage, {
-  headline, price, badge = null, cta = null, shop = null,
+  headline, price, badge = null, cta = null, shop = null, format = 'feed',
 } = {}) {
+  const F = FORMATS[format] ?? FORMATS.feed
+  const L = F.l, H = F.h
   const img = new Image()
   img.crossOrigin = 'anonymous'
   img.src = srcImage
@@ -83,7 +99,7 @@ export async function composer(srcImage, {
   x.fillStyle = g
   x.fillRect(0, Math.round(H * 0.44), L, Math.round(H * 0.56))
 
-  const marge = 76
+  const marge = F.marge
   const large = L - marge * 2
 
   /* 3. L'enseigne, tout en haut, en petites capitales espacées : c'est la
@@ -102,10 +118,11 @@ export async function composer(srcImage, {
 
   /* 4. Le filet d'accent, puis l'accroche. Le filet dit où commence la
         parole ; sans lui le texte flotte sur la photo. */
-  x.font = '700 76px Inter, system-ui, sans-serif'
-  x.letterSpacing = '-1.9px'
+  x.font = `700 ${F.titre}px Inter, system-ui, sans-serif`
+  x.letterSpacing = (-0.025 * F.titre).toFixed(2) + 'px'
   const ls = lignes(x, headline, large, 3)
-  const hauteurTitre = ls.length * 88
+  const interligne = Math.round(F.titre * 1.16)
+  const hauteurTitre = ls.length * interligne
   const basBloc = H - marge - (cta ? 112 : 56)
   const hautTitre = basBloc - (price ? 118 : 0) - hauteurTitre
 
@@ -115,7 +132,7 @@ export async function composer(srcImage, {
 
   x.fillStyle = '#ffffff'
   x.textBaseline = 'top'
-  ls.forEach((ligne, i) => x.fillText(ligne, marge, hautTitre + i * 88))
+  ls.forEach((ligne, i) => x.fillText(ligne, marge, hautTitre + i * interligne))
   x.letterSpacing = '0px'
 
   /* 5. Le prix. Pas une pastille criarde : le chiffre en gros, l'unité et la
@@ -123,8 +140,8 @@ export async function composer(srcImage, {
         chercher, il n'a pas besoin qu'on crie. */
   if (price) {
     const y = hautTitre + hauteurTitre + 26
-    x.font = '700 64px Inter, system-ui, sans-serif'
-    x.letterSpacing = '-1.2px'
+    x.font = `700 ${F.prix}px Inter, system-ui, sans-serif`
+    x.letterSpacing = (-0.019 * F.prix).toFixed(2) + 'px'
     x.fillStyle = '#ffffff'
     x.fillText(price, marge, y)
     const l = x.measureText(price).width
@@ -160,9 +177,25 @@ export async function composer(srcImage, {
  */
 export async function composerEtEnregistrer(srcImage, opts) {
   const blob = await composer(srcImage, opts)
-  const r = await fetch(`/api/affiche?session=${encodeURIComponent(opts.session ?? '')}&ext=png`, {
-    method: 'POST', body: blob,
-  })
-  if (!r.ok) throw new Error(`affiche ${r.status}`)
+  const q = new URLSearchParams({ session: opts.session ?? '', ext: 'png' })
+  if (opts.angle) q.set('angle', opts.angle)
+  if (opts.format) q.set('format', opts.format)
+  const r = await fetch('/api/affiche?' + q, { method: 'POST', body: blob })
+  if (!r.ok) throw new Error('affiche ' + r.status)
   return await r.json()
+}
+
+/**
+ * Les deux placements, depuis la même scène.
+ *
+ * Un créatif recadré par la régie perd son texte : une accroche posée pour
+ * du 4:5 sort coupée en 9:16. On compose donc chaque placement, et le prix
+ * reste entier dans les deux.
+ */
+export async function composerLesDeux(srcImage, opts) {
+  const out = {}
+  for (const format of ['feed', 'reel']) {
+    out[format] = await composerEtEnregistrer(srcImage, { ...opts, format })
+  }
+  return out
 }

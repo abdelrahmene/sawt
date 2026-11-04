@@ -497,18 +497,26 @@ function renderArtifactInner({ name, args, result, simulated, real }) {
       // carte ne doit pas attendre pour s'afficher. Elles arrivent ensuite,
       // une par une — ce qui se regarde mieux qu'un bloc qui surgit.
       ;(async () => {
-        const { composerEtEnregistrer } = await import('./affiche.js')
+        const { composerLesDeux } = await import('./affiche.js')
         for (const c of result.creatives) {
           try {
-            const a = await composerEtEnregistrer(c.url, {
+            // Les deux placements : le fil en 4:5, Reels et Stories en 9:16.
+            // Un créatif recadré par la régie perd son texte — une accroche
+            // posée pour du 4:5 sort coupée en plein écran.
+            const a = await composerLesDeux(c.url, {
               shop: result.shop ?? null,
               headline: c.angle || pour,
-              price: prix ? money(prix) : null,
+              // ⚠️ `dinars()` et non `money()` : le second enveloppe le
+              // montant dans un `<bdi>` pour le HTML, et le canvas a dessiné
+              // « <bdi dir="ltr">$118</bdi> » sur trois publicités. Un canvas
+              // ne lit pas de balises, il dessine ce qu'on lui donne.
+              price: prix ? dinars(prix) : null,
               badge: t('chat.creatives.cod'),
               cta: t('chat.creatives.cta'),
-              session: SESSION,
+              angle: c.angle, session: SESSION,
             })
-            pub.append(thumb(a.url, c.angle))
+            pub.append(thumb(a.feed.url, `${c.angle} · 4:5`))
+            pub.append(thumb(a.reel.url, `${c.angle} · 9:16`))
           } catch (e) { console.error('[affiche]', e.message) }
         }
       })()

@@ -311,7 +311,8 @@ const server = createServer(async (req, res) => {
       await writeFile(join(dossier, file), buf)
       const u = `/out/${file}`
       insert('INSERT INTO creatives(session,url,angle,model,at) VALUES(?,?,?,?,?)',
-        sid, u, url.searchParams.get('angle') ?? null, 'canvas+muse-image', now())
+        sid, u, [url.searchParams.get('angle'), url.searchParams.get('format')].filter(Boolean).join(' · ') || null,
+        'canvas+muse-image', now())
       return json(res, 200, { url: u, bytes: buf.length })
     }
 
