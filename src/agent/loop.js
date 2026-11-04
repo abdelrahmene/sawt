@@ -20,7 +20,8 @@ import * as notify from '../meta-sim/notify.js'
 import { addDomain } from '../sites.js'
 import * as catalog from '../catalog.js'
 import { charge } from '../credits.js'
-import { setting, all } from '../db.js'
+import { setting, all, one } from '../db.js'
+import { priceLabel } from '../money.js'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { OUT_DIR } from '../creative/landing.js'
@@ -552,6 +553,9 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       }
       // Kept on the session so the landing page can use them afterwards.
       ;(ctx.creatives ??= []).push(...out)
+      const prixCreatif = mien?.price
+        ?? (Number(args.price_dzd) || null)
+        ?? prixDUnePage(ctx.sessionId, mien?.name ?? args.product ?? subject)
       return {
         creatives: out, headline_ar: args.headline_ar ?? null, subject,
         source_photo: photo?.url ?? duCatalogue?.url ?? null,
@@ -569,9 +573,14 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
            Troisième source, et la plus fiable quand le produit n'a pas de
            fiche : la page de vente déjà construite pour ce produit porte son
            prix. Le code la lit ; il ne le demande pas. */
-        price_dzd: mien?.price
-          ?? (Number(args.price_dzd) || null)
-          ?? prixDUnePage(ctx.sessionId, mien?.name ?? args.product ?? subject),
+        price_dzd: prixCreatif,
+        /* Le modèle recopie ce qu'on lui rend. Avec `price_dzd: 4200` tout
+           seul, il écrivait « 4,200 DZD » dans sa réponse pendant que
+           l'affiche, la vitrine et la boutique disaient $31.11 — le champ
+           porte « dzd » dans son nom, il n'avait aucune raison de croire
+           autre chose. On lui rend donc aussi la forme affichée. */
+        price: prixCreatif == null ? null
+          : priceLabel(prixCreatif, one('SELECT language FROM sessions WHERE id=?', ctx.sessionId)?.language ?? 'en'),
         shop: ctx.shop ?? null,
         isolated: cut?.ok
           ? { model: 'sam-3.1', url: cut.url, coverage: cut.found.coverage, gain: cut.gain,
