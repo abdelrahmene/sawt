@@ -82,7 +82,11 @@ console.log(`\n  Session « ${SID} » — remise à neuf.\n`)
 
 effacer(SID)
 session(SID)
-run('UPDATE sessions SET shop=?, language=? WHERE id=?', BOUTIQUE, 'ar', SID)
+// ⚠️ L'ANGLAIS EST LA LANGUE DU FILM. Le jury est anglophone, et la langue
+// de la session décide de celle des pages construites. Un seul moment restera
+// en darija — le mémo vocal du marchand et la réponse de l'agent — parce que
+// c'est là que la compréhension de la darija se démontre, et nulle part ailleurs.
+run('UPDATE sessions SET shop=?, language=? WHERE id=?', BOUTIQUE, 'en', SID)
 
 // Le catalogue est global ; on s'assure seulement qu'il est à jour avec la
 // fixture, sinon les quatre vêtements premium manquent à l'écran.

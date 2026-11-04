@@ -165,11 +165,17 @@ export const TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          product_image: { type: 'string', description: 'Id of a photo the merchant uploaded.' },
+          // Le NOM du produit est demandé en premier, et il n'est pas
+          // facultatif : sans lui, l'outil prenait « la dernière photo
+          // envoyée », et une publicité pour un manteau est sortie avec la
+          // photo d'une basket. Le code apparie le produit à SES photos ;
+          // l'identifiant de photo ne sert que si le marchand en désigne une.
+          product: { type: 'string', description: 'The product these creatives are for, as the merchant names it.' },
+          product_image: { type: 'string', description: 'Id of a photo the merchant uploaded, only if they picked one.' },
           angles: { type: 'array', items: { type: 'string' }, description: 'Angle names from marketing_angles.' },
           headline_ar: { type: 'string', description: 'The Arabic headline to composite. Short.' },
         },
-        required: ['product_image', 'angles'],
+        required: ['product', 'angles'],
       },
     },
   },

@@ -24,6 +24,9 @@ import { setting } from '../db.js'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { OUT_DIR } from '../creative/landing.js'
+// Pour résoudre une URL servie par l'app en chemin de fichier, quand une
+// photo de catalogue doit passer sous `sam-3.1`.
+import { ROOT } from '../config.js'
 
 // Six was too few once the agent had state to act on: reading the inbox,
 // answering it, and then proposing what to do next is three calls before it
@@ -426,17 +429,45 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
     // retombe sur l'ancien chemin — le marchand préfère une créative
     // imparfaite à aucune créative.
     case 'generate_creatives': {
+      /* ⚠️ LA PHOTO VIENT DU PRODUIT NOMMÉ, PAS DE LA DERNIÈRE ENVOYÉE.
+         `photos.at(-1)` a produit trois publicités pour un manteau en laine
+         avec la photo d'une basket — le marchand avait envoyé des baskets
+         plus tôt dans la conversation, et l'outil a pris la dernière arrivée.
+         Troisième endroit du code où la même faute se présentait : une photo
+         se résout depuis la fiche du produit, jamais depuis ce qui traîne. */
       const photos = ctx.photos ?? []
-      const photo = photos[Number(args.product_image)] ?? photos.at(-1) ?? null
+      const mien = produitBoutique(ctx, args.product)
+      const choisie = args.product_image != null ? photos[Number(args.product_image)] : null
+      // Une photo que le marchand a prise lui-même prime sur le catalogue —
+      // mais seulement s'il l'a désignée, ou s'il n'a pas de fiche produit.
+      const photo = choisie
+        ?? (mien ? null : photos.at(-1))
+        ?? null
+      const duCatalogue = !photo && mien
+        ? { url: (mien.images ?? [])[0] ?? mien.image ?? null, path: null }
+        : null
       // What the model saw in the photo beats what anyone typed: the creative
       // should depict the product that exists, not the one described.
-      const subject = photo?.described?.product || ctx.productName || ctx.productGuess || 'the product'
+      const subject = photo?.described?.product || mien?.name || args.product
+        || ctx.productName || ctx.productGuess || 'the product'
       const seen = photo?.described?.details ? ` ${photo.described.details}` : ''
 
+      /* Une photo de catalogue arrive comme URL, pas comme chemin : `sam-3.1`
+         a besoin d'un fichier. On ne résout que ce qui est servi par l'app,
+         et jamais un chemin venu du modèle — `..` dans une URL est la plus
+         vieille façon de lire un fichier qui ne regarde personne. */
+      const surDisque = (u) => {
+        if (typeof u !== 'string') return null
+        const m = u.match(/^\/(out|fixtures)\/([A-Za-z0-9._\-\/]+)$/)
+        if (!m || m[2].includes('..')) return null
+        return join(ROOT, m[1], ...m[2].split('/'))
+      }
+      const source = photo?.path ?? surDisque(duCatalogue?.url)
+
       let cut = null
-      if (photo?.path) {
+      if (source) {
         onEvent({ type: 'progress', tool: 'generate_creatives', phase: 'isolate', label: subject })
-        cut = await isolate(photo.path, subject)
+        cut = await isolate(source, subject)
       }
 
       const out = []
@@ -456,7 +487,13 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       ;(ctx.creatives ??= []).push(...out)
       return {
         creatives: out, headline_ar: args.headline_ar ?? null, subject,
-        source_photo: photo?.url ?? null,
+        source_photo: photo?.url ?? duCatalogue?.url ?? null,
+        // Ce que l'affiche a besoin de savoir pour être une publicité et pas
+        // une photo : le prix et l'enseigne. Sans eux, le compositeur pose un
+        // titre sur une image et s'arrête là.
+        product: mien?.name ?? args.product ?? null,
+        price_dzd: mien?.price ?? null,
+        shop: ctx.shop ?? null,
         isolated: cut?.ok
           ? { model: 'sam-3.1', url: cut.url, coverage: cut.found.coverage, gain: cut.gain,
               from: 'le produit a été détouré de la photo, puis la créative part de CE produit' }

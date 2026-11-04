@@ -20,14 +20,25 @@ export function dataUrl(path) {
   return `data:${type};base64,${readFileSync(path).toString('base64')}`
 }
 
-const LOOK = `You are looking at a product photo sent by a small Algerian shopkeeper who
-wants to advertise it. Answer in FRENCH, as compact JSON and nothing else:
+/* ⚠️ LA DESCRIPTION EST EN ANGLAIS, ET CE N'EST PAS UN DÉTAIL DE CONFORT.
+   Elle disait « Answer in FRENCH », et elle est lue par deux publics qui n'ont
+   pas la même langue : elle s'affiche sur la carte photo de la conversation,
+   et elle entre dans le prompt système de l'agent. Un marchand anglophone
+   voyait donc « basket noire brillante lacée » au milieu de son écran — et
+   l'agent recevait un contexte français qu'il devait traduire avant de s'en
+   servir, ce qui est exactement le genre de détour où un détail se perd.
+
+   L'anglais est la langue pivot du modèle : la description y est la plus
+   fiable, et l'écran la traduit s'il doit. Ce que le marchand lit dans SA
+   langue, ce sont les phrases de l'interface, pas la sortie du modèle. */
+const LOOK = `You are looking at a product photo sent by a small shopkeeper who wants to
+advertise it. Answer in ENGLISH, as compact JSON and nothing else:
 
 {
-  "product": "what it is, three or four words, e.g. 'polo blanc col vert'",
+  "product": "what it is, three or four words, e.g. 'white polo, green collar'",
   "details": "colour, material, cut, visible branding, condition — one sentence",
   "angles": ["two or three reasons someone would buy THIS one, from what you can see"],
-  "photo_quality": "what is wrong with the photo for advertising: background, light, crop, wrinkles — one sentence, or 'bonne' if nothing is",
+  "photo_quality": "what is wrong with the photo for advertising: background, light, crop, wrinkles — one sentence, or 'good' if nothing is",
   "caution": "a trademark or counterfeit concern if you see a brand mark, otherwise null"
 }
 
@@ -41,7 +52,7 @@ export async function describePhoto(filePath, { provider } = {}) {
       {
         role: 'user',
         content: [
-          { type: 'text', text: 'Ce produit, décris-le.' },
+          { type: 'text', text: 'Describe this product.' },
           { type: 'image_url', image_url: { url: dataUrl(filePath) } },
         ],
       },
