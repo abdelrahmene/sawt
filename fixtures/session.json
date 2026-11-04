@@ -1,19 +1,21 @@
 {
   "_README": "Recorded model outputs, replayed when no API key is present so that `npm start` works for anyone. In `npm run live` these same steps are produced by Meta's models in real time instead.",
-
   "merchant_instruction": {
     "_recorded": "2026-10-30, merchant voice note, bench/clips/merchant-01.m4a",
     "audio": "bench/clips/merchant-01.m4a",
     "transcript_ar": "سلام، دير لي إشهار على هاد الصباط الجلد، و لانسيه بـ 2000 دينار في النهار، سيبلي وهران و الجزائر",
     "transcript_fr": "Salut, fais-moi une pub pour cette chaussure en cuir, et lance-la à 2000 DA par jour, cible Oran et Alger",
+    "transcript_en": "Hi — make me an ad for this leather shoe, and run it at 2,000 DA a day, target Oran and Algiers",
     "understood": {
       "intent": "launch_campaign",
       "product": "chaussure en cuir",
       "daily_budget_dzd": 2000,
-      "geo": ["Oran", "Alger"]
+      "geo": [
+        "Oran",
+        "Alger"
+      ]
     }
   },
-
   "creative": {
     "_recorded": "2026-10-30, muse-image-1.0 /images/generations",
     "prompt": "Advertising photograph of a men's brown leather shoe on warm stone, late afternoon light, shallow depth of field. Leave the top third of the frame visually empty and evenly lit, so a headline can be composited there afterwards. No text, no letters, no numbers anywhere in the image.",
@@ -22,25 +24,39 @@
     "price_overlay": "4500 DA",
     "note": "Arabic headline composited as a deterministic SVG layer, not drawn by the model."
   },
-
   "replies": {
     "t_119…4417": {
       "_recorded": "2026-10-30, muse-spark-1.3 with parallel tool calls",
       "tools": [
-        { "name": "shipping_quote", "args": "wilaya=Oran, commune=Bir El Djir", "result": "600 DA · domicile · 48-72h" },
-        { "name": "product_price", "args": "sku=LTH-BRN", "result": "4500 DA" }
+        {
+          "name": "shipping_quote",
+          "args": "wilaya=Oran, commune=Bir El Djir",
+          "result": "600 DA · domicile · 48-72h"
+        },
+        {
+          "name": "product_price",
+          "args": "sku=LTH-BRN",
+          "result": "4500 DA"
+        }
       ],
       "text_ar": "وعليكم السلام 🙏 الثمن 4500 دج، و التوصيل لوهران 600 دج، يوصلك في 48 لـ 72 سا. تحب نسجلهالك؟",
-      "text_fr": "Bonjour 🙏 Le prix est 4500 DA, et la livraison à Oran 600 DA, sous 48 à 72 h. Je vous l'enregistre ?"
+      "text_fr": "Bonjour 🙏 Le prix est 4500 DA, et la livraison à Oran 600 DA, sous 48 à 72 h. Je vous l'enregistre ?",
+      "text_en": "Hello 🙏 It is 4,500 DA, and delivery to Oran is 600 DA in 48 to 72 hours. Shall I put the order through?"
     },
     "t_119…4418": {
       "_recorded": "2026-10-30, muse-spark-1.3",
-      "tools": [{ "name": "product_detail", "args": "sku=LTH-BRN, field=material", "result": "cuir véritable, doublure cuir" }],
+      "tools": [
+        {
+          "name": "product_detail",
+          "args": "sku=LTH-BRN, field=material",
+          "result": "cuir véritable, doublure cuir"
+        }
+      ],
       "text_ar": "جلد طبيعي 100٪، حتى البطانة تاعو جلد. نقدر نبعثلك تصويرة قريبة تاع الخياطة إذا تحب 👍",
-      "text_fr": "Cuir véritable à 100 %, même la doublure est en cuir. Je peux vous envoyer une photo rapprochée de la couture si vous voulez 👍"
+      "text_fr": "Cuir véritable à 100 %, même la doublure est en cuir. Je peux vous envoyer une photo rapprochée de la couture si vous voulez 👍",
+      "text_en": "Real leather, 100% — even the lining. I can send you a close-up of the stitching if you like 👍"
     }
   },
-
   "objection_loop": {
     "_recorded": "2026-10-30, agent decision trace",
     "detected": "objection_quality",
@@ -51,6 +67,7 @@
     "file": "fixtures/creative-02.png",
     "headline_ar": "شوف الخياطة — جلد طبيعي",
     "headline_fr": "Regardez la couture — cuir véritable",
+    "headline_en": "Look at the stitching — real leather",
     "elapsed_from_first_objection": "3 h 41 min"
   }
 }

@@ -1,56 +1,80 @@
 {
   "_README": "Recorded Facebook/Instagram exchanges, replayed so that anyone can run this project with no account of their own. Account identifiers are redacted to the last four characters; returned object ids are kept as returned. Replace these with your own recordings by running in --real mode with SAWT_RECORD=1.",
-
   "inbox": {
     "_recorded": "2026-10-30, Messenger conversations on a test Page",
     "data": [
       {
         "id": "t_119…4417",
-        "from": { "name": "Amina B.", "id": "psid_…8831" },
+        "from": {
+          "name": "Amina B.",
+          "id": "psid_…8831"
+        },
         "kind": "audio",
         "attachment": "bench/clips/01.m4a",
         "transcript_ar": "السلام، شحال الثمن تاعو؟ وواش كاين توصيل لـ وهران؟",
-        "transcript_fr": "Bonjour, c'est combien le prix ? Et vous livrez à Oran ?"
+        "transcript_fr": "Bonjour, c'est combien le prix ? Et vous livrez à Oran ?",
+        "transcript_en": "Hello, how much is it? And do you deliver to Oran?"
       },
       {
         "id": "t_119…4418",
-        "from": { "name": "Yacine M.", "id": "psid_…2290" },
+        "from": {
+          "name": "Yacine M.",
+          "id": "psid_…2290"
+        },
         "kind": "audio",
         "attachment": "bench/clips/02.m4a",
         "transcript_ar": "واش راه جلد حقيقي ولا ستيتيك؟",
-        "transcript_fr": "C'est du vrai cuir ou du synthétique ?"
+        "transcript_fr": "C'est du vrai cuir ou du synthétique ?",
+        "transcript_en": "Is it real leather or synthetic?"
       },
       {
         "id": "t_119…4419",
-        "from": { "name": "Sarah K.", "id": "psid_…5107" },
+        "from": {
+          "name": "Sarah K.",
+          "id": "psid_…5107"
+        },
         "kind": "text",
         "transcript_ar": "خويا هاد الجلد راه حقيقي؟ خفت تكون تقليد",
-        "transcript_fr": "Ce cuir est vraiment du vrai ? J'ai peur que ce soit une imitation"
+        "transcript_fr": "Ce cuir est vraiment du vrai ? J'ai peur que ce soit une imitation",
+        "transcript_en": "Is this leather genuinely real? I am worried it is a fake"
       },
       {
         "id": "t_119…4420",
-        "from": { "name": "Nadia T.", "id": "psid_…6644" },
+        "from": {
+          "name": "Nadia T.",
+          "id": "psid_…6644"
+        },
         "kind": "text",
         "transcript_ar": "الجلد تاعو أصلي ولا لا؟",
-        "transcript_fr": "Son cuir est authentique ou pas ?"
+        "transcript_fr": "Son cuir est authentique ou pas ?",
+        "transcript_en": "Is its leather authentic or not?"
       }
     ]
   },
-
   "comments": {
     "_recorded": "2026-10-30, comments on a test Page post",
     "data": [
-      { "id": "c_880…1142", "from": { "name": "Riad" }, "message": "شحال السعر؟" },
-      { "id": "c_880…1143", "from": { "name": "Lamia" }, "message": "كاين بوانتير 39 ؟" }
+      {
+        "id": "c_880…1142",
+        "from": {
+          "name": "Riad"
+        },
+        "message": "شحال السعر؟"
+      },
+      {
+        "id": "c_880…1143",
+        "from": {
+          "name": "Lamia"
+        },
+        "message": "كاين بوانتير 39 ؟"
+      }
     ]
   },
-
   "reply": {
     "_recorded": "2026-10-30, POST /{thread-id}/messages on a test Page",
     "recipient_id": "psid_…8831",
     "message_id": "m_AbC…9f31"
   },
-
   "createCampaign": {
     "_recorded": "2026-10-30, POST /act_…/campaigns, status PAUSED, no spend",
     "id": "1204…7781",
@@ -59,7 +83,6 @@
     "daily_budget": 200000,
     "currency": "DZD"
   },
-
   "createAd": {
     "_recorded": "2026-10-30, POST /act_…/ads, status PAUSED, no spend",
     "id": "1204…7902",

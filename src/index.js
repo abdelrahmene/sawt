@@ -30,9 +30,14 @@ async function main() {
   }
 
   // ── 1. The merchant speaks ────────────────────────────────────────────────
+  /* La glose est en anglais quand elle existe. Les fixtures portaient une
+     traduction française sous chaque phrase en darija : c'est la démo que
+     le jury lance avec `npm start`, et il est anglophone. Le français reste
+     dans le fichier, il n'est simplement plus ce qu'on affiche. */
+  const glose = (o, cle) => o[`${cle}_en`] ?? o[`${cle}_fr`] ?? null
   const m = session.merchant_instruction
   ui.step(1, 'The merchant sends a voice note, in darija')
-  ui.speech('merchant', m.transcript_ar, m.transcript_fr)
+  ui.speech('merchant', m.transcript_ar, glose(m, 'transcript'))
   await sleep(500)
 
   let understood = m.understood
@@ -83,7 +88,7 @@ async function main() {
     ui.speech(
       `${msg.from.name}${msg.kind === 'audio' ? ' 🎤' : '   '}`,
       msg.transcript_ar,
-      msg.transcript_fr
+      glose(msg, 'transcript')
     )
     const canned = session.replies[msg.id]
     if (canned) {
@@ -97,7 +102,7 @@ async function main() {
         ui.speech('agent   ', out, '')
       } else {
         ui.replayed('muse-spark-1.3 reply', canned._recorded)
-        ui.speech('agent   ', canned.text_ar, canned.text_fr)
+        ui.speech('agent   ', canned.text_ar, glose(canned, 'text'))
       }
       // L'envoi aussi dit d'où il vient. Il était le seul appel Graph de ce
       // script dont le résultat partait à la poubelle : un juré lisait trois
@@ -118,7 +123,7 @@ async function main() {
   if (live) ui.liveCall('muse-image-1.0 /images/edits — rewrite the creative')
   else ui.replayed('creative edited to answer the objection', o._recorded)
   ui.note(o.edit_prompt.slice(0, 96) + '…')
-  ui.kv('new headline', `${o.headline_ar}   (${o.headline_fr})`)
+  ui.kv('new headline', `${o.headline_ar}   (${glose(o, 'headline')})`)
   ui.ok(`new creative live ${o.elapsed_from_first_objection} after the first objection.`)
 
   ui.end([
