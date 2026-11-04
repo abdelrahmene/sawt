@@ -1,7 +1,7 @@
 {
   "name": "sawt",
   "version": "0.2.0",
-  "description": "An AI agent that runs a cash-on-delivery business by voice, in Algerian darija — and refuses to answer what it cannot verify.",
+  "description": "Starting a business no longer takes capital or a product — it takes knowing how to run ads. This agent is that profession: product photos in, shop and campaign out, by voice, in Algerian darija.",
   "type": "module",
   "engines": {
     "node": ">=22.5"

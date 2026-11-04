@@ -164,9 +164,9 @@ export const chat = {
     fr: 'Je fais le marketing. Toi, tu parles.',
   },
   'chat.hello.lede': {
-    en: 'Hold the mic and speak in darija, or tap one of these to see what happens.',
-    ar: 'شد الميكرو واحكي بالدارجة، ولا اضغط على وحدة من هادو باش تشوف.',
-    fr: 'Tiens le micro et parle en darija, ou touche une de ces cartes pour voir.',
+    en: 'Never launched a campaign, or tired of launching them — either way, hold the mic and speak in darija. Or tap a card.',
+    ar: 'عمرك ما لانسيت إشهار، ولا شبعت منه — في الزوج، شد الميكرو واحكي بالدارجة. ولا اضغط كارت.',
+    fr: "Jamais lancé de campagne, ou fatigué d'en lancer — dans les deux cas, tiens le micro et parle en darija. Ou touche une carte.",
   },
   'chat.hello.foot': {
     en: 'Everything it builds is a real file you can open. What is staged is labelled SIMULATED.',

@@ -1,14 +1,46 @@
 # Sawt — صوت
 
-**An AI agent that runs a cash-on-delivery business by voice, in Algerian darija — and that
-refuses to answer what it cannot verify.**
+**Starting a business no longer takes capital or a product. It takes knowing how to run ads —
+and that is a profession. This agent is that profession.**
 
-You send it a voice note. It writes the ad, generates the creative, launches the campaign,
-and then answers the customers who reply — including the ones who answer with a voice note
-of their own. Nobody clicks a button.
+You give it a product and its photos. If you have no product, you pick one from the
+catalogue. From there it builds the shop, writes the ad, draws the creative from *your* photo,
+launches the campaign, watches what each order actually costs, replaces the creative that
+wears out, and answers the customers who reply — including the ones who answer with a voice
+note of their own.
 
-Understanding the language is not the hard part. The models do that well. Acting on it
-without lying is the hard part, and that is what this is about.
+You talk to it. By voice, in Algerian darija, if that is how you talk.
+
+**You never open Ads Manager. You never learn what a lookalike audience is.**
+
+---
+
+## Who this is for, and why it is not a niche
+
+Two people have the same problem from opposite ends.
+
+**The beginner** has a little money saved and no idea where to start. Finding something to
+sell is a solved problem — suppliers and dropshipping catalogues are one search away. What
+stops them is that advertising is a trade: pixels, audiences, creatives, cost per
+acquisition, attribution windows. They do not fail at commerce. They fail at the console.
+
+**The professional** climbed that curve years ago and is tired of it. The work is daily,
+repetitive and never finished — watch the cost per order, pause what is bleeding, write
+another creative because last week's stopped converting, answer the same forty questions
+from forty customers. They do not need to be taught. They need it off their hands.
+
+One agent serves both, because underneath it is the same job: **turn a product into a
+campaign that is watched and corrected without a human in the loop.**
+
+### Cash on delivery is where I built it, not what it is
+
+In Algeria almost nobody pays online. The parcel arrives, the customer pays cash — or refuses
+it at the door, and the merchant pays the return. That is why this agent is built to refuse
+to guess: here, a confident wrong answer has a price in dinars, the same day. See
+**[The one rule](#the-one-rule)**.
+
+Change the payment rail and the agent does not change. The local rules — carriers, tariffs
+per commune, the language customers write in — plug in underneath it.
 
 ---
 
@@ -28,10 +60,13 @@ Add `MODEL_API_KEY` to `.env` to make the models live; without one the app still
 says so in the corner.
 
 **You never have to connect a Meta account.** The organisers asked for that explicitly, and
-it is also the only honest way to ship this: `ads_management` takes Meta weeks to approve,
-and a judge has no Page to approve it against. So the Facebook side is a staged environment —
-the real consent flow, the real permission strings, a Business Manager, a Page, an Instagram
+it is also the only honest way to ship this: `ads_management` takes Meta weeks to approve, and
+a judge has no Page to approve it against. So by default the Facebook side is staged — the
+real consent flow, the real permission strings, a Business Manager, a Page, an Instagram
 account, an inbox and campaign tables — and every surface of it is marked **SIMULÉ**.
+
+Staged by default is not the same as staged only. **If you own a Meta app, the same code
+drives your real Page and your real ad account** — see *[The Meta side](#the-meta-side-live-recorded-or-staged--and-the-badge-says-which)* below.
 
 What is *not* staged is the AI. The darija it writes, the pictures it draws, the pages it
 builds and its refusal to answer what it cannot verify are all real model calls.
@@ -52,16 +87,29 @@ builds and its refusal to answer what it cannot verify are all real model calls.
 
 ---
 
-## What it does
+## The whole circuit, from nothing to a campaign that corrects itself
 
-1. **Listens.** The merchant speaks, in darija: *"sors-moi une pub pour ce produit, 2000 DA par jour."*
-2. **Creates.** `muse-image` generates the ad creative from the product photo.
-3. **Launches.** The agent builds and submits the campaign.
-4. **Sells.** Customers comment and send Messenger messages — often voice notes, because
-   that is how people actually buy here. The agent answers in darija, quotes the real
-   shipping price for their commune, picks the variant, and takes the order.
-5. **Decides.** When the same objection comes back three times, it regenerates the creative
-   to answer that objection. On its own.
+1. **Pick a product, or bring one.** The dropshipping catalogue is inside the app — browse
+   it, import one. If you already sell something, send your own photos instead.
+2. **It looks at the photo.** `sam-3.1` finds the product inside the frame, `ffmpeg` crops to
+   it, and the vision model says what it is — and what the photo gets wrong.
+3. **It builds the shop.** A storefront and a landing page per product, as real files, in the
+   language you picked.
+4. **It draws the creatives.** `muse-image` *edits* your cropped photo rather than inventing a
+   picture from a description, so the ad shows the article you will actually ship.
+5. **It launches.** Budget, audience, placements, campaign submitted.
+6. **It watches the only number that matters.** Not clicks — cost per *delivered* order, and
+   its drift. A campaign at 400 DA an order climbing 15 % a day will be at 800 within the
+   week. Today's figure does not say that. The slope does.
+7. **It corrects itself.** Scales what works by a factor it can justify, pauses what bleeds,
+   and replaces a creative that has worn out — pausing the old ad instead of deleting it, so
+   before and after stay comparable.
+8. **It sells.** Customers comment and send Messenger messages, often as voice notes. It
+   answers in darija, quotes the real shipping price for their commune, picks the variant,
+   takes the order — and hands back the questions it must not answer.
+
+Step 6 and step 7 are the ones a human never keeps up with, and they are the reason this is
+an agent rather than a generator.
 
 ## Darija, and what the benchmark actually measures
 
@@ -90,6 +138,58 @@ npm run bench     # regenerates the table below from the clips in bench/clips/
 ```
 
 > Results table is produced by `bench/run.mjs` and will be published here before submission.
+
+## The Meta side: live, recorded, or staged — and the badge says which
+
+The default connects nothing, because the organisers asked that a judge be able to run this
+without an account of their own. But the real path is not a paragraph promising one: it is
+code, and the recorded exchanges shipped in `fixtures/graph.json` came out of it.
+
+| Mode | How you get it | Meta's models | The Facebook / Instagram side |
+|---|---|---|---|
+| `replay` | `npm start`, no key at all | nothing live, no network | recorded real exchanges, dated on screen |
+| `live` | a `MODEL_API_KEY` in `.env` | **live** | staged, every surface marked `SIMULÉ` |
+| `real` | your own Meta app — [SETUP.md](SETUP.md) | **live** | **live Graph API**, your Page, your ad account |
+
+The mode is *derived* from what is present in the environment, never from a flag nobody
+passes, and the badge in the corner of the rail is a claim about what just happened. It used
+to default to `replay` while the server happily made real model calls behind the label, which
+is the one kind of inaccuracy this project cannot afford.
+
+**`real` mode calls the real Graph API** — `src/meta-graph/index.js`, five endpoints:
+`GET /{page}/conversations`, `GET /{post}/comments`, `POST /{thread}/messages`,
+`POST /act_{id}/campaigns`, `POST /act_{id}/ads`. Real campaign creation is forced to
+`status: PAUSED`. **An agent that can start spending your money without a human saying so is
+not a feature.**
+
+**The recorded exchanges are real exchanges.** Every entry in `fixtures/graph.json` carries
+the date and the call that produced it — *"2026-10-30, POST /act_…/campaigns, status PAUSED,
+no spend"* — and the screen replaying one shows that line, so you never have to wonder whether
+it was invented. Account identifiers are redacted to their last four characters; the returned
+object ids are the ones Meta actually returned.
+
+**The permissions are the real strings**, with the real consequences: `pages_show_list`,
+`pages_read_engagement`, `pages_manage_engagement`, `pages_messaging`,
+`pages_manage_metadata`, `instagram_basic`, `instagram_manage_comments`,
+`instagram_manage_messages`, `ads_management`, `business_management`, `catalog_management`.
+Refuse one in the consent screen and the thing it unlocks really disappears — decline
+`instagram_manage_messages` and the Instagram inbox comes back empty, naming the scope as the
+reason. That is the one screen I would ask you to click through yourself.
+
+### Already have a Meta app? You are five lines from live
+
+```bash
+META_APP_ID=…          # your app in Meta for Developers
+META_APP_SECRET=…
+META_PAGE_ID=…         # the Page the agent manages
+META_PAGE_TOKEN=…      # a Page access token with the scopes above
+META_AD_ACCOUNT_ID=…   # without the act_ prefix
+```
+
+`npm start` then reports `mode: real`, and [SETUP.md](SETUP.md) lists, call by call, which
+permission each one needs and what it does in each mode. An app still in development mode is
+enough for the Page and ad accounts you administer — which is how the recorded exchanges above
+were produced.
 
 ## Built with
 
@@ -185,18 +285,24 @@ refused delivery, the return shipping, and a customer who never comes back.
 
 ## Built during the Hackathon (27 Oct – 4 Nov 2026)
 
-Everything in `src/`, `bench/` and `fixtures/` was written during the event.
+Everything in `src/`, `web/`, `bench/` and `fixtures/` was written during the event.
 Repository created 30 October 2026 and pushed daily — see the commit history.
 
-## Prior work — NOT part of this submission
+## Where the problem comes from — and what is not in this repository
 
-I also build and run **Dropdz**, an existing cash-on-delivery commerce platform for Algerian
-merchants (2024–). This agent can call Dropdz over its public HTTP API for **domain data
-only**: per-commune shipping rates, product catalogue, order persistence. That integration is
-optional and off by default.
+I build and run **Dropdz**, a cash-on-delivery commerce platform used by Algerian merchants
+since 2024. That is where this problem was handed to me, repeatedly, by the people living it:
+merchants who have a product, a supplier and a phone, and who stall at the ad account. Some
+never start at all. The ones who do spend their evenings watching numbers nobody taught them
+to read, and asking me what to do about them.
 
-**No Dropdz code is in this repository.** Everything here is new work written for this
-hackathon.
+So this is not a problem I invented in order to have something to build this week. It is the
+one I get asked, and the reason I knew which number to put on the first screen.
+
+**No Dropdz code is in this repository.** Everything in `src/`, `web/`, `bench/` and
+`fixtures/` was written during the event. The agent *can* call Dropdz over its public HTTP API
+for **domain data only** — per-commune shipping rates, product catalogue, order persistence —
+and that integration is optional and off by default.
 
 ## Honest limitations
 

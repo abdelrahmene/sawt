@@ -5,9 +5,23 @@ les erreurs déjà faites.
 
 ## Ce que c'est
 
-Un agent qui fait le marketing d'une petite boutique algérienne : on lui parle,
-en **darija**, et il écrit les pages, dessine les visuels, prépare les
-campagnes et répond aux clients.
+Lancer un commerce ne demande plus ni capital ni produit : ça demande de savoir
+faire de la publicité, et c'est un métier. **Cet agent est ce métier.**
+
+On lui donne un produit et ses photos — ou on en choisit un dans le catalogue
+fournisseur — et il construit la boutique, écrit les annonces, dessine les
+visuels à partir de la vraie photo, lance la campagne, surveille le coût par
+commande **livrée**, remplace le visuel qui s'use et répond aux clients. On lui
+parle, en **darija**. L'utilisateur n'ouvre jamais le gestionnaire de publicités.
+
+**Deux publics, un seul problème.** Le débutant n'arrive pas à monter la courbe
+d'apprentissage ; le professionnel l'a montée et en a assez de la remonter
+chaque jour. C'est le même travail en dessous.
+
+**Le paiement à la livraison est le terrain, pas la thèse.** En Algérie presque
+personne ne paie en ligne, donc une réponse fausse coûte un colis refusé et un
+retour payé — c'est la raison du refus de deviner. Change de moyen de paiement
+et l'agent ne change pas : les règles locales se branchent en dessous.
 
 **Soumission au Meta Global AI Developer Hackathon, piste Indie.**
 Dépôt le **4 novembre 2026 avant 21 h ET**. Le barème : Impact 30 % · usage des
