@@ -51,19 +51,48 @@ const isUrl = (s) => typeof s === 'string' && (s.startsWith('/out/') || s.starts
  * photos PAR POSITION : une chance sur deux que la page de la gourde
  * montre les chaussures, ce qui est pire qu'une page sans image.
  */
-function produitBoutique(ctx, nom) {
+/* Les mots d'un libellé, assez longs pour vouloir dire quelque chose. */
+const mots = (s) => new Set(
+  String(s ?? '').toLowerCase().split(/[^a-z0-9؀-ۿ]+/).filter((w) => w.length >= 3))
+
+// Exportée pour être testable : c'est elle qui décide quelle photo va sur
+// quelle page, et elle s'est trompée une fois de façon invisible.
+export function produitBoutique(ctx, nom) {
   const produits = ctx.products ?? []
   if (!produits.length) return null
-  const cible = String(nom ?? '').toLowerCase()
-  const mots = cible.split(/[^a-z0-9؀-ۿ]+/).filter((w) => w.length > 2)
-  return produits.find((p) =>
-    (p.aliases ?? [p.name]).some((alias) => {
-      const n = String(alias ?? '').toLowerCase()
-      if (!n) return false
-      return mots.some((w) => n.includes(w)) ||
-        n.split(/[^a-z0-9؀-ۿ]+/).some((w) => w.length > 2 && cible.includes(w))
-    })
-  ) ?? (produits.length === 1 ? produits[0] : null)
+  const cible = mots(nom)
+  if (!cible.size) return produits.length === 1 ? produits[0] : null
+
+  /* ⚠️ ON COMPARE DES MOTS ENTIERS, PAS DES SOUS-CHAÎNES.
+     L'ancienne version faisait `cible.includes(w)`, et « Pull col roulé » a
+     gagné la page du « Wool overcoat, tailored collar » — parce que « col »
+     est contenu dans « collar ». Mesuré le 04/11 : la page du manteau est
+     sortie avec les trois photos du pull, étiquetées du nom du manteau.
+
+     C'est la faute que drip-bot a payée en production sur un survêtement
+     Arsenal devenu « ARMANI AX2615 », les deux commençant par AR. Une
+     sous-chaîne n'est pas une ressemblance.
+
+     Et on prend le MEILLEUR score, pas le premier trouvé : avec trois
+     vêtements au catalogue, plusieurs partagent des mots, et « le premier qui
+     touche » dépend de l'ordre d'importation. */
+  let meilleur = null, score = 0, exaequo = false
+  for (const p of produits) {
+    let n = 0
+    for (const alias of (p.aliases ?? [p.name])) {
+      let c = 0
+      for (const w of mots(alias)) if (cible.has(w)) c++
+      if (c > n) n = c
+    }
+    if (n > score) { score = n; meilleur = p; exaequo = false }
+    else if (n === score && n > 0 && p !== meilleur) exaequo = true
+  }
+
+  // Aucun mot commun, ou deux produits aussi plausibles l'un que l'autre : on
+  // ne tranche pas. Rendre le mauvais produit coûte un colis refusé ; ne rien
+  // rendre coûte une page sans galerie, que le marchand voit et corrige.
+  if (!score || exaequo) return produits.length === 1 ? produits[0] : null
+  return meilleur
 }
 
 /**
@@ -92,6 +121,38 @@ function assetsFor(ctx, explicit) {
   // une photo de catalogue.
   const boutique = (ctx.products ?? []).flatMap((p) => p.images ?? (p.image ? [p.image] : [])).filter(isUrl)
   return [...creatives, ...photos, ...boutique].slice(0, 6)
+}
+
+/**
+ * Les images d'UN produit précis — pas celles de la boutique entière.
+ *
+ * ⚠️ `assetsFor()` rend tout ce qui traîne dans la session, et c'est juste
+ * pour une publicité générique. Pour la page d'UN article, c'est faux : la
+ * page du manteau en laine est sortie avec une galerie contenant les photos
+ * du pull et du trench, toutes étiquetées « Wool overcoat ». Mesuré le 04/11
+ * sur `out/lp-wool-overcoat-tailored-collar-ad36.html` — cinq images, trois
+ * d'un autre article.
+ *
+ * C'est la même faute que celle corrigée ce matin dans `build_site`, à un
+ * autre endroit du code : la photo d'un produit se résout PAR LE CODE depuis
+ * sa fiche, jamais depuis ce qui se trouvait à portée. Une page qui montre
+ * l'article du voisin se répare au retour du colis.
+ *
+ * Les photos envoyées par le marchand pendant la conversation restent
+ * prioritaires : s'il vient d'en prendre une, c'est d'elle qu'il parle.
+ */
+function imagesDuProduit(ctx, nom, explicites) {
+  const choisies = (explicites ?? []).filter(isUrl)
+  if (choisies.length) return choisies
+
+  const recentes = (ctx.photos ?? []).map((p) => p.url ?? p).filter(isUrl)
+  if (recentes.length) return recentes.slice(0, 6)
+
+  const mien = produitBoutique(ctx, nom)
+  const siennes = (mien?.images ?? (mien?.image ? [mien.image] : [])).filter(isUrl)
+  // Pas de repli sur la boutique entière : mieux vaut une page sans galerie
+  // qu'une page qui ment sur ce qu'elle vend.
+  return siennes.slice(0, 6)
 }
 
 /* Ce qui met une campagne en ligne, dans les trois langues du marchand, et ce
@@ -535,7 +596,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
     // looks like.
     case 'build_landing_page':
       return buildLandingPage({
-        ...args, images: assetsFor(ctx, args.images), shop: ctx.shop,
+        ...args, images: imagesDuProduit(ctx, args.product, args.images), shop: ctx.shop,
         // Les tailles du produit, prises là où elles existent vraiment —
         // la fiche du catalogue — plutôt que redemandées au modèle, qui les
         // inventerait. Un formulaire sans taille, c'est un appel de
