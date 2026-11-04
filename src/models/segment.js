@@ -118,12 +118,12 @@ export async function cropToBox(imagePath, box, { pad = 0.08, suffix = 'cut' } =
 export async function isolate(imagePath, concept, { minCoverage = 0.02, maxCoverage = 0.92 } = {}) {
   try {
     const found = await locate(imagePath, concept)
-    if (!found.best) return { ok: false, why: `sam-3.1 n'a pas trouvé « ${concept} » dans la photo`, path: imagePath }
+    if (!found.best) return { ok: false, why: `sam-3.1 did not find “${concept}” in the photo`, path: imagePath }
     // Trop petit : la boîte est probablement un reflet ou une étiquette.
     // Presque toute l'image : il n'y a rien à détourer, le recadrage ne
     // ferait que dégrader la définition.
-    if (found.coverage < minCoverage) return { ok: false, why: `objet trop petit (${Math.round(found.coverage * 100)} % de l'image)`, path: imagePath, found }
-    if (found.coverage > maxCoverage) return { ok: false, why: `le produit occupe déjà ${Math.round(found.coverage * 100)} % du cadre — rien à détourer`, path: imagePath, found }
+    if (found.coverage < minCoverage) return { ok: false, why: `the object is too small (${Math.round(found.coverage * 100)}% of the image)`, path: imagePath, found }
+    if (found.coverage > maxCoverage) return { ok: false, why: `the product already fills ${Math.round(found.coverage * 100)}% of the frame — nothing to cut out`, path: imagePath, found }
 
     const cut = await cropToBox(imagePath, found.best)
     return {

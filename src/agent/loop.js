@@ -575,8 +575,8 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         shop: ctx.shop ?? null,
         isolated: cut?.ok
           ? { model: 'sam-3.1', url: cut.url, coverage: cut.found.coverage, gain: cut.gain,
-              from: 'le produit a été détouré de la photo, puis la créative part de CE produit' }
-          : cut ? { model: 'sam-3.1', failed: cut.why, from: 'créative générée depuis la description, pas depuis la photo' } : null,
+              from: 'the product was cut out of the photo, and the creative starts from THAT product' }
+          : cut ? { model: 'sam-3.1', failed: cut.why, from: 'creative generated from the description, not from the photo' } : null,
       }
     }
 
@@ -700,7 +700,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
           : null,
         note: cut.ok
           ? `Produit détouré par sam-3.1 (il n'occupait que ${Math.round(cut.found.coverage * 100)} % de ta photo), puis réédité par muse-image. Même objet, fond propre.`
-          : `Détourage impossible (${cut.why}) — réédition faite depuis la photo entière.`,
+          : `Could not cut it out (${cut.why}) — re-edited from the whole photo instead.`,
       }
     }
 

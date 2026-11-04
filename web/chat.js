@@ -85,7 +85,14 @@ function say(who, text, cls) {
   log.querySelector('.hello')?.remove()
   const n = el('div', `msg ${cls || who}`)
   linkify(n, String(text ?? ''))
-  if (isArabic(text)) n.dir = 'rtl'
+  /* ⚠️ PAS DE `dir=rtl` SUR LA BULLE ENTIÈRE.
+     `isArabic(text)` est vrai dès qu'UN mot arabe apparaît quelque part. Une
+     réponse anglaise qui cite une accroche en arabe basculait donc en entier,
+     et sortait « .but not 100% your piece », « ?What do you want to do next » —
+     le point et le point d'interrogation passés devant la phrase.
+     `unicode-bidi:plaintext` dans la feuille de style laisse CHAQUE ligne
+     choisir son sens d'après son premier caractère fort. La bulle mélangée
+     est le cas normal ici, pas l'exception. */
   log.append(n); bottom(log); return n
 }
 

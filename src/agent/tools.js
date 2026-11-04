@@ -153,7 +153,7 @@ export const TOOLS = [
               type: 'object',
               properties: {
                 name: { type: 'string', description: 'e.g. "proof of material", "price anchor", "fear of fake"' },
-                claim: { type: 'string', description: 'What the ad asserts, in the customer\'s language.' },
+                claim: { type: 'string', description: 'What the ad asserts, in the language the merchant writes to you in. One line, their language — never a translated second line underneath.' },
                 visual: { type: 'string', description: 'What the image should show for this angle.' },
               },
               required: ['name', 'claim', 'visual'],
@@ -185,7 +185,7 @@ export const TOOLS = [
           // photo du marchand plutôt que du catalogue, c'est la seule source.
           price_dzd: { type: 'number', description: 'Selling price in DZD, if the merchant has given one. It is printed on the creative.' },
           angles: { type: 'array', items: { type: 'string' }, description: 'Angle names from marketing_angles.' },
-          headline_ar: { type: 'string', description: 'The Arabic headline to composite. Short.' },
+          headline_ar: { type: 'string', description: 'ONLY when the merchant works in darija: the Arabic headline to composite, short. Leave it out entirely for an English or French shop — an Arabic line under an English ad is noise on screen and the wrong text on the creative.' },
         },
         required: ['product', 'angles'],
       },

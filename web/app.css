@@ -604,7 +604,12 @@ input.f:focus,select.f:focus,textarea.f:focus{border-color:var(--accent);box-sha
   min-height:0;scroll-behavior:smooth}
 #log > *{width:100%;max-width:var(--read);margin-inline:auto}
 
+/* `unicode-bidi:plaintext` + `white-space:pre-wrap` : chaque LIGNE de la bulle
+   est son propre paragraphe et choisit son sens toute seule. Une réponse
+   anglaise qui cite une accroche arabe garde son anglais à gauche et l'arabe
+   à droite, au lieu de basculer en bloc comme le faisait `dir=rtl`. */
 .msg{flex:0 0 auto;white-space:pre-wrap;word-wrap:break-word;
+  unicode-bidi:plaintext;text-align:start;
   animation:rise .28s cubic-bezier(.2,.8,.3,1) both;font-size:16px;line-height:1.75}
 @keyframes rise{from{opacity:0;transform:translateY(7px)}}
 /* Seul le marchand est dans une bulle. L'agent parle sur la page — c'est ce
