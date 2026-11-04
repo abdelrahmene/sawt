@@ -66,6 +66,16 @@ export const campaigns = {
     ar: 'ماشي حقيقي. حتى إشهار ما خدم، حتى دينار ما تصرف، وحتى حاجة ما مشات لميتا.',
     fr: "SIMULÉ. Aucune publicité n'a tourné, aucun dinar n'a été dépensé, rien n'est parti chez Meta.",
   },
+  'campaigns.note.justLaunched': {
+    en: 'It just went live — no day of data yet.',
+    ar: 'كي ما خرجات — مازال حتى نهار من المعلومات.',
+    fr: 'Elle vient de partir — aucune journée de données pour l’instant.',
+  },
+  'campaigns.note.neverLaunched': {
+    en: 'Never launched, so there is nothing to read.',
+    ar: 'عمرها ما تلانسات، ما كاين والو نقراوه.',
+    fr: 'Jamais lancée, donc rien à lire.',
+  },
   'campaigns.note.stopped': {
     en: 'Stopped — nothing to read.',
     ar: 'واقفة — ما كاين واش تقرا.',

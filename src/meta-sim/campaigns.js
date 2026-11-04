@@ -70,7 +70,7 @@ export function configure(sessionId, spec) {
   )
   run('UPDATE campaigns SET ext_id=? WHERE id=?', `SIM-CAMP-${100000 + id}`, id)
 
-  const creatives = spec.creatives?.length ? spec.creatives : [{ angle: 'par défaut', url: null }]
+  const creatives = spec.creatives?.length ? spec.creatives : [{ angle: 'default', url: null }]
   for (const c of creatives) {
     const adId = insert(
       'INSERT INTO ads(campaign,ext_id,angle,creative,headline,status,at) VALUES(?,?,?,?,?,?,?)',
@@ -229,9 +229,16 @@ export function results(id, { group = 'ad_placement' } = {}) {
   if (!jours) {
     return {
       simulated: true, campaign_id: id, status: c.status, days: 0,
+      /* ⚠️ LA NOTE PART AVEC SA CLÉ, PAS SEULEMENT SA PHRASE.
+         L'interface traduisait en retrouvant la phrase FRANÇAISE exacte dans
+         une table. Deux notes n'y étaient pas, et elles sont sorties en
+         français au milieu d'un écran anglais — dans un plan du film. Un
+         appariement par chaîne exacte casse au premier caractère changé ;
+         une clé ne casse pas. */
+      note_key: c.status === 'ACTIVE' ? 'campaigns.note.justLaunched' : 'campaigns.note.neverLaunched',
       note: c.status === 'ACTIVE'
-        ? 'Elle vient de partir — aucune journée de données pour l\'instant.'
-        : 'Jamais lancée, donc rien à lire.',
+        ? 'It just went live — no day of data yet.'
+        : 'Never launched, so there is nothing to read.',
     }
   }
 
@@ -280,7 +287,8 @@ export function results(id, { group = 'ad_placement' } = {}) {
       cost_per_click_dzd: totals.clicks ? Math.round(totals.spend / totals.clicks) : null,
     },
     rows, by_day: byDay, by_placement: byPlacement,
-    note: 'SIMULÉ. Aucune publicité n\'a tourné, aucun dinar n\'a été dépensé, rien n\'est parti chez Meta.',
+    note_key: 'campaigns.note.simulated',
+    note: 'SIMULATED. No ad ran, not one dinar was spent, nothing was sent to Meta.',
   }
 }
 

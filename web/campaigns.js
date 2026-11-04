@@ -64,7 +64,13 @@ const NOTES = {
   "SIMULÉ. Aucune publicité n'a tourné, aucun dinar n'a été dépensé, rien n'est parti chez Meta.": 'campaigns.note.simulated',
   "À l'arrêt — rien à lire.": 'campaigns.note.stopped',
 }
-const note = (s) => (s && NOTES[s] ? t(NOTES[s]) : s)
+/* La clé d'abord, la phrase ensuite. Le serveur envoie désormais
+   `note_key`; la table par phrase exacte reste pour les notes plus
+   anciennes, mais elle n'est plus ce sur quoi on compte. */
+const note = (s, cle) => {
+  if (cle) { const x = t(cle); if (x !== cle) return x }
+  return s && NOTES[s] ? t(NOTES[s]) : s
+}
 
 export async function mount(root) {
   root.innerHTML = `<div class="page">${loading(t('campaigns.load.campaigns'))}</div>`
@@ -195,7 +201,7 @@ async function detail(root) {
     </div>
 
     ${r?.rows?.length ? results(r) : `<div class="card" style="margin-top:16px"><div class="body">
-      <div class="why warn">${esc(note(r?.note) ?? t('campaigns.results.none'))}</div>
+      <div class="why warn">${esc(note(r?.note, r?.note_key) ?? t('campaigns.results.none'))}</div>
     </div></div>`}
 
     ${c.decisions.length ? `<h2 class="sec">${t('campaigns.sec.decisions')}</h2>
@@ -301,6 +307,6 @@ function results(r) {
           <td class="num">${t('campaigns.pct', { n: x.ctr })}</td><td class="num">${x.orders}</td>
           <td class="num">${dzd(x.cost_per_order_dzd)}</td></tr>`).join('')}
       </tbody></table></div>
-      <div class="body"><div class="why"><b>${esc(note(r.note))}</b></div></div>
+      <div class="body"><div class="why"><b>${esc(note(r.note, r.note_key))}</b></div></div>
     </div>`
 }
