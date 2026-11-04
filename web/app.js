@@ -13,6 +13,7 @@ import * as studio from './studio.js'
 import * as meta from './meta.js'
 import * as inbox from './inbox.js'
 import * as campaigns from './campaigns.js'
+import * as journal from './journal.js'
 import * as sites from './sites.js'
 import * as settings from './settings.js'
 
@@ -24,6 +25,10 @@ const TABS = [
   { id: 'studio', key: 'tab.studio', ic: 'bolt', mod: studio },
   { id: 'sites', key: 'tab.sites', ic: 'globe', mod: sites, badge: (c) => c.pages, calm: true },
   { id: 'campaigns', key: 'tab.campaigns', ic: 'mega', mod: campaigns, badge: (c) => c.live, calm: true },
+  // Le journal se lit juste après les campagnes : l'écran d'à côté montre
+  // l'ÉTAT (le budget d'aujourd'hui), celui-ci montre le MOUVEMENT (qui l'a
+  // changé, et pourquoi). Dans cet ordre, la question appelle sa réponse.
+  { id: 'journal', key: 'tab.journal', ic: 'clock', mod: journal, badge: (c) => c.decisions_24h, calm: true },
   { id: 'inbox', key: 'tab.inbox', ic: 'inbox', mod: inbox, badge: (c) => c.inbox_open + c.inbox_stuck },
   { id: 'meta', key: 'tab.meta', ic: 'link', mod: meta, badge: (c) => c.comments_open },
   { id: 'settings', key: 'tab.settings', ic: 'gear', mod: settings },
@@ -338,6 +343,46 @@ addEventListener('hashchange', () => {
   const id = location.hash.slice(1)
   if (id && id !== current) go(id)
 })
+
+/* ── le battement ─────────────────────────────────────────────────────────
+   L'app attendait qu'on lui parle. Les clients, eux, n'attendent pas : en
+   paiement à la livraison, la première boutique qui répond prend la commande.
+   Toutes les douze secondes, l'agent va voir qui attend et répond — vraiment,
+   par un appel de modèle — ou rend la question au marchand quand il ne sait
+   pas. Les compteurs du rail suivent, donc l'app change sous les yeux sans
+   qu'on ait rien demandé.
+
+   ⚠️ Chaque réponse coûte un crédit réel. Les garde-fous sont côté serveur
+   (`src/autoreply.js`) et pas ici : un plafond posé dans le navigateur est un
+   plafond qu'un onglet dupliqué fait sauter.
+
+   Douze secondes et non six : un battement qui coûte de l'argent se règle
+   plus lentement qu'un battement qui coûte une requête. */
+const PAUSE_ONGLET_CACHE = () => document.visibilityState === 'hidden'
+
+async function battement() {
+  // Un onglet au second plan ne doit pas dépenser : on laisse passer le tour.
+  if (PAUSE_ONGLET_CACHE()) return
+  let r
+  try { r = await api('/autoreply/tick', { method: 'POST' }) } catch { return }
+  if (!r?.ran) return
+
+  const n = (r.answered?.length ?? 0) + (r.handed_back?.length ?? 0)
+  if (!n) return
+
+  // `refresh()` plutôt qu'une mise à jour à la main des compteurs : il remet
+  // aussi la pastille de crédits à jour, et c'est précisément elle qui doit
+  // bouger — on vient de dépenser pour répondre.
+  await refresh()
+
+  // On ne dit quelque chose que quand quelque chose a été dit. Le refus passe
+  // devant la réponse : c'est l'événement qui demande une action humaine.
+  const h = r.handed_back?.[0]
+  if (h) toast(t('beat.handed', { who: h.person ?? '' }))
+  else toast(t('beat.answered', { n: r.answered.length }))
+}
+
+setInterval(battement, 12_000)
 
 // One keyboard shortcut per surface, because a demo that needs a mouse to
 // change screen loses three seconds every time.

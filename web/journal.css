@@ -1,0 +1,189 @@
+/* L'écran « journal » — la ligne de temps des décisions de l'agent.
+ *
+ * Tenu à part de `app.css` parce qu'il est né pendant que d'autres mains
+ * écrivaient dans la feuille principale. Il n'utilise que les variables du
+ * thème, donc il suit le mode sombre et les couleurs sans rien redéfinir, et
+ * il peut être recollé dans `app.css` tel quel le jour où on veut une seule
+ * feuille.
+ *
+ * ⚠️ Le responsive passe par `@container device`, jamais `@media` : la coque
+ * téléphone de cette app est un conteneur, pas une fenêtre. Une règle en
+ * `@media` ne se déclencherait jamais quand on bascule en format mobile sur
+ * un écran de bureau.
+ */
+
+.jpage header { align-items: flex-start; }
+
+/* ── le témoin de direct ──────────────────────────────────────────────── */
+.jlive { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.jbeat {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: 600 11.5px var(--sans); letter-spacing: .02em;
+  padding: 5px 11px 5px 9px; border-radius: 999px; cursor: pointer;
+  background: var(--sunk); border: 1px solid var(--line-2); color: var(--dim);
+  transition: background .18s, color .18s, border-color .18s;
+}
+.jbeat.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+
+.jpulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .45; }
+.jbeat.on .jpulse { opacity: 1; animation: jbat 2s ease-in-out infinite; }
+@keyframes jbat {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  70%      { box-shadow: 0 0 0 6px transparent; opacity: .55; }
+}
+
+/* Le compteur d'arrivées : visible quelques secondes, puis il s'efface. Une
+   pastille permanente cesse d'être remarquée au bout de deux minutes. */
+.jnew {
+  font: 600 11px var(--mono); letter-spacing: .06em; color: var(--accent);
+  opacity: 0; transform: translateY(-3px); transition: opacity .25s, transform .25s;
+}
+.jnew.on { opacity: 1; transform: none; }
+
+/* ── le résumé des 24 h ───────────────────────────────────────────────── */
+.jsum {
+  margin: 4px 0 18px; font: 400 13.5px/1.6 var(--sans); color: var(--ink-2);
+}
+.jsum b { font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; }
+.jwin { color: var(--faint); }
+
+/* ── les filtres ──────────────────────────────────────────────────────── */
+.jchips { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 22px; }
+.jchip {
+  font: 600 12px var(--sans); padding: 6px 13px; border-radius: 999px; cursor: pointer;
+  background: transparent; border: 1px solid var(--line-2); color: var(--dim);
+  transition: background .16s, color .16s, border-color .16s;
+}
+.jchip:hover { border-color: var(--ink-2); color: var(--ink-2); }
+.jchip.on { background: var(--solid); border-color: var(--solid); color: var(--solid-on); }
+
+/* ── la ligne de temps ────────────────────────────────────────────────── */
+.jlist { position: relative; max-width: var(--read); }
+
+.jday {
+  font: 650 11px var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--faint); margin: 26px 0 10px; padding-left: 74px;
+}
+.jday:first-child { margin-top: 0; }
+
+.jrow {
+  position: relative; display: grid;
+  grid-template-columns: 58px 16px minmax(0, 1fr); gap: 0 10px;
+  padding: 11px 0; align-items: start;
+}
+
+/* Le trait vertical qui relie les entrées. Il est tracé par la pastille et
+   non par un pseudo-élément du conteneur, pour qu'il s'arrête exactement à la
+   dernière ligne au lieu de pendre dans le vide. */
+.jrow::before {
+  content: ''; position: absolute; left: 65px; top: 0; bottom: 0;
+  width: 1px; background: var(--line);
+}
+.jrow:first-of-type::before { top: 18px; }
+.jrow:last-child::before { bottom: auto; height: 18px; }
+
+.jwhen {
+  font: 500 11.5px/1.5 var(--mono); color: var(--faint);
+  text-align: right; padding-top: 2px; font-variant-numeric: tabular-nums;
+}
+
+.jmark {
+  position: relative; z-index: 1; display: grid; place-items: center;
+  width: 16px; height: 16px; margin-top: 2px; border-radius: 50%;
+  background: var(--panel); color: var(--dim);
+}
+.jmark svg { width: 13px; height: 13px; }
+
+.jbody { min-width: 0; padding-bottom: 2px; }
+
+.jline {
+  font: 400 14px/1.55 var(--sans); color: var(--ink);
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+}
+
+/* La citation : en retrait, dans la couleur secondaire, et `dir="auto"` dans
+   le HTML — la raison peut être en darija au milieu d'un écran anglais, et
+   sans l'auto elle se lirait à l'envers. */
+.jwhy {
+  margin-top: 4px; font: 400 13px/1.6 var(--sans); color: var(--dim);
+  display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap;
+}
+.jwhy q { quotes: '«\00a0' '\00a0»' '"' '"'; color: var(--ink-2); }
+.jwhy q:lang(en) { quotes: '"' '"'; }
+
+.jtag {
+  flex: none; font: 650 9.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--faint); border: 1px solid var(--line-2); border-radius: 4px; padding: 3px 5px;
+}
+
+/* La question du client, avant la réponse : on doit voir à quoi il répond. */
+.jq {
+  flex: none; max-width: 100%; color: var(--faint);
+  padding-right: 8px; border-right: 2px solid var(--line-2);
+}
+[dir="rtl"] .jq { padding: 0 0 0 8px; border-right: 0; border-left: 2px solid var(--line-2); }
+
+.jcost {
+  flex: none; font: 600 10.5px/1 var(--mono); letter-spacing: .04em;
+  color: var(--dim); background: var(--sunk); border-radius: 5px; padding: 3px 6px;
+}
+
+.jopen {
+  flex: none; font: 600 11.5px var(--sans); color: var(--accent);
+  text-decoration: none; border-bottom: 1px solid var(--accent-line);
+}
+.jopen:hover { border-bottom-color: var(--accent); }
+
+/* ── ce qui distingue une nature d'une autre ──────────────────────────── */
+/* Une décision est le seul type d'entrée qui engage de l'argent : c'est la
+   seule qui prend la couleur d'accent et un fond. Tout colorer revient à ne
+   rien colorer. */
+.k-decision .jmark { color: var(--accent); background: var(--accent-soft);
+  box-shadow: 0 0 0 3px var(--panel); }
+.k-decision .jline { font-weight: 550; }
+
+.k-handed_back .jmark { color: var(--warn); background: var(--warn-soft);
+  box-shadow: 0 0 0 3px var(--panel); }
+
+.k-launched .jmark { color: var(--info); background: var(--info-soft);
+  box-shadow: 0 0 0 3px var(--panel); }
+
+.k-spent .jline, .k-notified .jline { color: var(--ink-2); }
+.k-spent .jwhen, .k-notified .jwhen { opacity: .7; }
+
+/* ── l'arrivée ────────────────────────────────────────────────────────── */
+/* Une chose qui apparaît sans se signaler, personne ne la voit : la ligne
+   entre par le haut et s'éclaire une seconde et demie. */
+.jrow.fresh { animation: jin .45s cubic-bezier(.2, .8, .3, 1); }
+.jrow.fresh .jbody { animation: jglow 1.6s ease-out; border-radius: var(--r-s); }
+@keyframes jin {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes jglow {
+  0%   { background: var(--accent-soft); box-shadow: 0 0 0 7px var(--accent-soft); }
+  100% { background: transparent; box-shadow: 0 0 0 7px transparent; }
+}
+
+/* Quelqu'un qui a demandé moins de mouvement en reçoit moins. */
+@media (prefers-reduced-motion: reduce) {
+  .jrow.fresh, .jrow.fresh .jbody, .jbeat.on .jpulse { animation: none; }
+}
+
+/* ── coque étroite ────────────────────────────────────────────────────── */
+/* L'heure passe au-dessus et le trait disparaît : à 380 px de contenu, une
+   colonne d'heures de 58 px mange le sixième de la largeur utile. */
+@container device (max-width: 640px) {
+  .jrow { grid-template-columns: 16px minmax(0, 1fr); gap: 0 9px; padding: 9px 0; }
+  .jrow::before { left: 7px; }
+  .jday { padding-left: 25px; margin: 20px 0 8px; }
+  .jwhen {
+    grid-column: 2; text-align: left; order: -1;
+    padding: 0 0 2px; font-size: 10.5px;
+  }
+  [dir="rtl"] .jwhen { text-align: right; }
+  .jmark { grid-row: span 2; }
+  .jline { font-size: 13.5px; }
+  .jwhy { font-size: 12.5px; }
+}

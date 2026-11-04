@@ -22,8 +22,16 @@ export const isArabic = (s) => /[؀-ۿ]/.test(s || '')
 // Le séparateur de milliers suit la langue choisie, il n'est plus cloué au
 // français : un juré anglophone lit « 14,046 » et un marchand « 14 046 ».
 export { num } from './i18n.js'
-import { num as nLoc, t } from './i18n.js'
-export const money = (n) => (n == null ? '—' : `<bdi dir="ltr">${nLoc(n)} DA</bdi>`)
+import { num as nLoc, t, money as montant } from './i18n.js'
+// Une seule règle de monnaie pour toute l'app : celle de `i18n.js`, qui suit
+// la langue et sait convertir. Ce qui reste ici n'est pas une traduction —
+// le tiret quand la valeur est inconnue (un coût par commande sans commande
+// n'est pas « 0 », il est indéterminé), et l'isolat bidi, sans lequel
+// « 4 500 DZD » se lit « DZD 500 4 » au milieu d'une phrase en darija.
+//
+// Cette fonction disait « DA » en dur pendant que `i18n.money()` disait
+// « DZD » : deux unités pour une même somme, sur deux écrans voisins.
+export const money = (n) => (n == null ? '—' : `<bdi dir="ltr">${montant(n)}</bdi>`)
 export const pct = (n) => (n == null ? '—' : `${n > 0 ? '+' : ''}${n}%`)
 
 export function ago(ms) {

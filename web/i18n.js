@@ -19,8 +19,9 @@ import { inbox } from './i18n/inbox.js'
 import { meta } from './i18n/meta.js'
 import { settings } from './i18n/settings.js'
 import { catalog } from './i18n/catalog.js'
+import { journal } from './i18n/journal.js'
 
-const DICT = { ...shell, ...chat, ...studio, ...sites, ...campaigns, ...inbox, ...meta, ...settings, ...catalog }
+const DICT = { ...shell, ...chat, ...studio, ...sites, ...campaigns, ...inbox, ...meta, ...settings, ...catalog, ...journal }
 
 /** Ce que le sélecteur propose. `ar` est de la darija algérienne, pas de l'arabe littéraire. */
 export const LANGS = [
@@ -76,8 +77,63 @@ export function num(n) {
   try { return Number(n ?? 0).toLocaleString(loc).replace(/[  ]/g, ' ') } catch { return String(n ?? 0) }
 }
 
-/** Un montant en dinars, toujours lisible dans un paragraphe arabe. */
-export const money = (n) => `${num(Math.round(Number(n) || 0))} DZD`
+/* ── la monnaie ───────────────────────────────────────────────────────────
+   POURQUOI. Tout est compté en dinars, parce que c'est la monnaie dans
+   laquelle ce commerce se fait. Mais la thèse du projet n'est pas algérienne,
+   et quelqu'un qui ne sait pas ce que vaut un dinar ne peut rien faire de
+   « 1 804 DZD par commande » : il ne peut pas dire si c'est cher.
+
+   Donc la monnaie suit la LANGUE de l'écran — dinars en darija et en
+   français, dollars en anglais — et peut être forcée dans les réglages.
+
+   ⚠️ Et le taux est ÉCRIT, partout où une conversion s'affiche. Un montant
+   converti en silence est un chiffre inventé qui a l'air d'une mesure, ce que
+   ce projet s'interdit ailleurs ligne par ligne ; il n'y a pas de raison de
+   se l'autoriser ici. La valeur de référence reste le dinar : c'est lui qui
+   est en base, lui qui est juste, et le dollar n'en est qu'une lecture. */
+
+/* Taux officiel de la Banque d'Algérie, arrondi, figé au 4 novembre 2026.
+   Figé et non récupéré en ligne, pour deux raisons : l'app doit tourner sans
+   réseau, et un taux qui bouge rendrait deux captures d'écran du même écran
+   incomparables. Le marché parallèle est sensiblement plus haut — c'est une
+   lecture, pas la vérité du marchand. */
+export const RATE_DZD_PER_USD = 135
+export const rateLabel = () => `${num(RATE_DZD_PER_USD)} DZD = $1`
+
+const CUR_STORE = 'sawt.currency'
+let devise = null
+try { devise = localStorage.getItem(CUR_STORE) } catch {}
+
+/** La monnaie d'affichage : celle qu'on a choisie, sinon celle de la langue. */
+export const currency = () => devise ?? (current === 'en' ? 'usd' : 'dzd')
+
+export function setCurrency(code) {
+  devise = code === 'auto' ? null : code === 'usd' ? 'usd' : 'dzd'
+  try {
+    if (devise) localStorage.setItem(CUR_STORE, devise)
+    else localStorage.removeItem(CUR_STORE)
+  } catch {}
+  for (const fn of listeners) { try { fn(current) } catch (e) { console.error('[i18n]', e) } }
+  return currency()
+}
+
+/**
+ * Un montant, toujours lisible dans un paragraphe arabe.
+ *
+ * L'entrée est TOUJOURS en dinars — c'est l'unité de la base. `force` sert aux
+ * rares endroits qui doivent dire une monnaie précise quoi qu'il arrive, comme
+ * le prix du paquet de crédits, qui est en dollars parce qu'il a été payé en
+ * dollars.
+ */
+export function money(n, { force = null } = {}) {
+  const v = Math.round(Number(n) || 0)
+  if ((force ?? currency()) !== 'usd') return `${num(v)} DZD`
+  const usd = v / RATE_DZD_PER_USD
+  // Sous cent dollars on garde deux décimales : entre « $13 » et « $13.36 »,
+  // le second dit si une commande à 1 800 DZD est au-dessus ou au-dessous
+  // d'un seuil que le lecteur a en tête. Au-dessus, la précision est du bruit.
+  return `$${usd >= 100 ? num(Math.round(usd)) : usd.toFixed(2)}`
+}
 
 const listeners = new Set()
 /** Les écrans s'inscrivent ici pour se redessiner quand la langue change. */
