@@ -95,7 +95,18 @@ for (const provider of providers) {
       const clip = clipDe(c)
       let texte = c.text
       if (clip) {
-        texte = (await transcribe(clip)).text ?? ''
+        // ⚠️ `transcribe()` rend UNE CHAÎNE, pas un objet (src/models/voice.js:90-93) :
+        // elle joint les tours de parole, ou retombe sur `json.transcript`. Ce banc
+        // lisait `.text` dessus, donc `undefined ?? ''` — chaîne vide — donc le cas
+        // partait dans `failed` juste en dessous. TOUT cas pourvu d'un clip était
+        // compté en échec, et personne ne l'avait vu parce que `bench/clips/` n'a
+        // jamais existé. Le tableau promis au README aurait annoncé zéro entendu.
+        //
+        // Les deux autres appelants la traitaient déjà correctement comme une chaîne
+        // (src/server.js:320, bench/try-one.mjs:37) — ce banc était le seul à se
+        // tromper, et c'était celui dont le résultat allait être publié.
+        texte = (await transcribe(clip)) ?? ''
+        if (typeof texte !== 'string') texte = String(texte ?? '')
         if (!texte.trim()) { failed++; continue }
         heard++
       }
