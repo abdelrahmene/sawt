@@ -374,10 +374,10 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
           // même photo qui servira de source aux scènes de sa page.
           image: p.image, images: p.images,
         })),
-        note: 'Catalogue de démonstration, modelé sur un vrai catalogue algérien : ' +
+        note: 'Demonstration catalogue, modelled on a real Algerian one: ' +
           'les champs, les prix et les marges sont réalistes, mais aucun fournisseur n\'expédiera. ' +
           'Le calcul de marge, lui, est le vrai : prix de vente moins coût fournisseur.',
-        say: 'La marge est par commande LIVRÉE, pas par commande passée — en paiement à la livraison, une partie revient.',
+        say: 'The margin is per DELIVERED order, not per order placed — with cash on delivery a share of them comes back.',
       }
     }
 
@@ -416,7 +416,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       }
       if (!demandes.length) {
         return {
-          error: "Rien à mettre dans la boutique : le marchand n'a aucun produit avec un prix.",
+          error: "Nothing to put in the shop: the merchant has no product with a price.",
           needs: 'browse_catalog',
           say: "Dis-le-lui franchement et propose-lui de choisir un produit dans le catalogue fournisseur — tu ne peux pas ouvrir une boutique vide.",
         }
@@ -626,14 +626,14 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
           neufs.push({ angle, url: `/out/${file}` })
         } catch (e) { /* une créative ratée ne doit pas annuler les autres */ }
       }
-      if (!neufs.length) return { error: "Aucune créative n'est revenue. La campagne n'a pas été touchée." }
+      if (!neufs.length) return { error: "No creative came back. The campaign was left untouched." }
 
       const r = camp.swapCreatives(id, neufs, args.because ?? 'usure des visuels')
       ;(ctx.creatives ??= []).push(...neufs)
       return {
         ...r, creatives: neufs, subject: sujet,
         isolated: cut?.ok ? { model: 'sam-3.1', coverage: cut.found?.coverage } : null,
-        say: "Le budget n'a pas bougé : quand le coût monte à cause de l'usure, changer l'image coûte moins cher que monter la mise.",
+        say: "The budget was left alone: when the cost climbs because the creative is worn out, changing the image is cheaper than raising the bid.",
       }
     }
 
@@ -696,10 +696,10 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         // d'où vient sa marchandise, et c'est son compte publicitaire.
         brand_risk: marque
           ? { seen: marque, told_the_model: 'ne rien rendre plus lisible que sur l original',
-              say: "Dis-le-lui en une phrase : un logo de marque sur une publicité Meta, sans autorisation, c'est le compte publicitaire fermé. Demande-lui si le produit est authentique ou s'il préfère une photo où la marque ne se voit pas." }
+              say: "Tell them in one sentence: a brand logo on a Meta ad, without authorisation, gets the ad account shut down. Ask whether the product is authentic, or whether they would rather use a photo where the brand does not show." }
           : null,
         note: cut.ok
-          ? `Produit détouré par sam-3.1 (il n'occupait que ${Math.round(cut.found.coverage * 100)} % de ta photo), puis réédité par muse-image. Même objet, fond propre.`
+          ? `sam-3.1 cut the product out (it filled only ${Math.round(cut.found.coverage * 100)}% of your photo), then muse-image re-shot it. Same object, clean background.`
           : `Could not cut it out (${cut.why}) — re-edited from the whole photo instead.`,
       }
     }
@@ -759,16 +759,16 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         already: c.status === 'connected',
         status: c.status,
         because: args.because,
-        note: 'Flux de connexion SIMULÉ : aucune vraie app Meta, aucun vrai compte, aucun jeton utilisable.',
+        note: 'SIMULATED connection flow: no real Meta app, no real account, no usable token.',
       }
     }
 
     /* ── la Page ─────────────────────────────────────────────────────── */
     case 'read_page': {
       const c = connection(ctx.sessionId)
-      if (c.status !== 'connected') return { error: "Meta n'est pas connecté — il n'y a pas de Page.", needs: 'connect_meta' }
+      if (c.status !== 'connected') return { error: "Meta is not connected — there is no Page.", needs: 'connect_meta' }
       const pages = surfacesOf(c).filter((a) => a.kind === 'page')
-      if (!pages.length) return { error: "Aucune Page dans les actifs accordés." }
+      if (!pages.length) return { error: "No Page among the granted assets." }
       const a = pages[0]
       const posts = page.postsOf(a.id)
       return {
@@ -783,15 +783,15 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
           id: p.id, kind: p.kind, caption: p.caption,
           in_hours: Math.round((p.scheduled_at - Date.now()) / 3_600_000),
         })),
-        note: "Page SIMULÉE : rien n'est publié chez Facebook. Les portées sont à l'échelle d'une vraie Page de cette taille, ce ne sont pas des mesures.",
+        note: "SIMULATED Page: nothing is published to Facebook. The reach figures are scaled to a real Page of this size; they are not measurements.",
       }
     }
 
     case 'schedule_post': {
       const c = connection(ctx.sessionId)
-      if (c.status !== 'connected') return { error: "Meta n'est pas connecté.", needs: 'connect_meta' }
+      if (c.status !== 'connected') return { error: "Meta is not connected.", needs: 'connect_meta' }
       const a = surfacesOf(c).find((x) => x.kind === 'page')
-      if (!a) return { error: "Aucune Page dans les actifs accordés." }
+      if (!a) return { error: "No Page among the granted assets." }
       const h = Number(args.in_hours)
       const r = page.schedulePost(a.id, {
         kind: args.kind, caption: args.caption,
@@ -809,14 +809,14 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         body: String(args.caption ?? '').slice(0, 120),
       })
       return { ...r, page: a.name, caption: args.caption,
-        note: "Programmation SIMULÉE : aucune publication n'est créée chez Facebook." }
+        note: "SIMULATED scheduling: no post is created on Facebook." }
     }
 
     case 'answer_comments': {
       const c = connection(ctx.sessionId)
-      if (c.status !== 'connected') return { error: "Meta n'est pas connecté.", needs: 'connect_meta' }
+      if (c.status !== 'connected') return { error: "Meta is not connected.", needs: 'connect_meta' }
       const a = surfacesOf(c).find((x) => x.kind === 'page')
-      if (!a) return { error: "Aucune Page dans les actifs accordés." }
+      if (!a) return { error: "No Page among the granted assets." }
 
       let ids = (args.comment_ids ?? []).map(Number).filter(Boolean)
       if (!ids.length) ids = page.openComments(a.id).map((x) => x.id)
@@ -847,7 +847,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       return {
         answered, escalated,
         count: { answered: answered.length, escalated: escalated.length },
-        say: "Les réponses publiées sont visibles de tout le monde. Celles que je n'ai pas écrites, je ne pouvais pas les prouver.",
+        say: "Published answers are visible to everyone. The ones I did not write are the ones I could not prove.",
       }
     }
 
@@ -907,7 +907,7 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
       return {
         answered, escalated,
         summary: `${answered.length} répondus, ${escalated.length} renvoyés au marchand.`,
-        note: 'Les réponses sont écrites par muse-spark, en darija. La page et les clients sont simulés.',
+        note: 'The replies are written by muse-spark, in whatever language the customer used. The Page and the customers are simulated.',
       }
     }
 
