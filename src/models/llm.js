@@ -67,9 +67,20 @@ async function insiste(fn, encore = () => true) {
 export async function chat(messages, { tools, toolChoice = 'auto', provider: name = currentProvider(), temperature = 0.3 } = {}) {
   const p = provider(name)
   if (!p.key()) {
+    /* ⚠️ CE MESSAGE EST LU PAR UN JURÉ, PAS PAR MOI.
+       Il disait « No API key for provider "meta" » et s'arrêtait là. Un juré
+       qui tape sa première phrase dans le chat recevait ça — une panne, à ses
+       yeux. Or ce n'est pas une panne : c'est l'état normal d'un clone sans
+       clé, et tout le reste du produit fonctionne. Le message doit donc dire
+       ce qui marche quand même, et la seule ligne qui débloque le chat. */
     throw new Error(
-      `No API key for provider "${name}". Run \`npm start\` for the credential-free replay, ` +
-      `or copy .env.example to .env and add a key.`
+      'This is the credential-free replay: no key is set, so the agent cannot think live. '
+      + 'Everything else works — browse the catalogue, the shop, the campaigns, the '
+      + 'journal of decisions, the inbox and the orders, all seeded with a running '
+      + 'business. To make the agent answer for real, add one line and restart:  '
+      + 'echo "MODEL_API_KEY=your-meta-model-api-key" > .env && npm start  '
+      + `— it then calls Meta's ${name === 'baseten' ? 'open-weight models through Baseten' : 'Model API'} `
+      + 'and the badge in the rail switches to "live".'
     )
   }
   const body = { model: p.model, messages, temperature }

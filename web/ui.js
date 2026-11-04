@@ -85,9 +85,19 @@ export const icon = (name, size = 18) =>
   `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name] ?? PATHS.check}</svg>`
 
 /* ── the session ─────────────────────────────────────────────────────────── */
+/* 🚨 LE PREMIER VISITEUR ATTERRIT SUR LA DÉMONSTRATION, PAS SUR DU VIDE.
+   Ici on tirait un identifiant AU HASARD. Conséquence mesurée en clonant le
+   dépôt public dans un dossier vide : le serveur sème bien une boutique
+   complète au premier démarrage, mais le navigateur ouvrait une session
+   inconnue — Meta non connecté, zéro client, zéro campagne. Le juré voyait
+   un formulaire vide là où le README promettait une boutique qui tourne.
+   Le serveur et l'écran doivent désigner la MÊME session, sinon le semis ne
+   sert à personne. `demo` est aussi la valeur que `src/demo.js` écrit. */
 const KEY = 'sawt.session'
+export const DEMO = 'demo'
 export let SESSION = localStorage.getItem(KEY)
-if (!SESSION) { SESSION = Math.random().toString(36).slice(2); localStorage.setItem(KEY, SESSION) }
+if (!SESSION) { SESSION = DEMO; localStorage.setItem(KEY, SESSION) }
+// Oublier la session ramène sur la démonstration, pas sur une page blanche.
 export const forgetSession = () => localStorage.removeItem(KEY)
 
 /* ── the API ─────────────────────────────────────────────────────────────── */

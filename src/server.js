@@ -16,6 +16,7 @@ import { join, extname, basename } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { ROOT, MODE } from './config.js'
+import { seedDemoSiVide, DEMO_SESSION } from './demo.js'
 import { all, one, run, insert, now, J, unJ, session, touch, setting, importLegacyJson, DB_FILE } from './db.js'
 import { runTurn, marquerEngagement } from './agent/loop.js'
 import { transcribe, understand } from './models/voice.js'
@@ -815,5 +816,20 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`\n  Sawt  →  http://localhost:${PORT}`)
-  console.log(`  mode: ${MODE}   ·   base: out/${basename(DB_FILE)}\n`)
+  console.log(`  mode: ${MODE}   ·   base: out/${basename(DB_FILE)}`)
+
+  /* 🚨 UNE BASE VIERGE N'EST PAS UNE DÉMONSTRATION.
+     `out/` est gitignoré, donc un clone frais arrive sans base : Meta non
+     connecté, zéro client, zéro campagne, zéro commande. Mesuré en clonant
+     le dépôt public dans un dossier vide. Le README promettait l'inverse.
+     On sème donc la scène au premier démarrage — une seule fois, jamais
+     par-dessus un état existant. */
+  const seme = seedDemoSiVide()
+  if (seme) {
+    console.log(`  première fois : boutique « ${seme.shop} » semée —`
+      + ` ${seme.produits} produits · Meta connecté (${seme.surfaces} surfaces)`
+      + ` · ${seme.campagnes} campagnes · ${seme.conversations} conversations`
+      + ` · ${seme.commentaires} commentaires`)
+  }
+  console.log('')
 })
