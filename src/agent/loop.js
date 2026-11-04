@@ -80,6 +80,39 @@ function prixDUnePage(sessionId, nom) {
   return !score || exaequo ? null : meilleur.price_dzd
 }
 
+/**
+ * Une photo envoyée dans CETTE session, appariée à un produit par ce que le
+ * modèle de vision y a vu — jamais par son rang d'arrivée.
+ *
+ * POURQUOI. Un produit arrivé par photo n'a pas de fiche catalogue. La
+ * vitrine ne connaissait que deux sources — la fiche, et l'url que le modèle
+ * repasse — donc elle a rendu une carte « PHOTO COMING SOON » pour un sac qui
+ * avait six photos premium dans la même session. Le modèle n'y est pour rien :
+ * il a appelé `build_site` sans image parce que rien ne l'y obligeait.
+ *
+ * Le repli « une seule photo, un seul produit » est volontairement étroit :
+ * au-delà, une photo non appariée reste sans carte. Une carte sans photo se
+ * répare ; une carte qui montre l'article du voisin se répare au retour du
+ * colis, et c'est le marchand qui paie.
+ */
+export function photoDuProduit(ctx, nom, nbDemandes = 1) {
+  const photos = (ctx.photos ?? []).filter((p) => isUrl(p?.url ?? p))
+  if (!photos.length) return null
+  if (photos.length === 1 && nbDemandes === 1) return photos[0].url ?? photos[0]
+
+  const cherche = mots(nom)
+  if (!cherche.size) return null
+  let meilleure = null, score = 0, exaequo = false
+  for (const p of photos) {
+    const vue = `${p.described?.product ?? ''} ${p.described?.summary ?? ''} ${p.name ?? ''}`
+    const n = [...mots(vue)].filter((w) => cherche.has(w)).length
+    if (!n) continue
+    if (n > score) { score = n; meilleure = p; exaequo = false }
+    else if (n === score) exaequo = true
+  }
+  return !score || exaequo ? null : (meilleure.url ?? meilleure)
+}
+
 // Exportée pour être testable : c'est elle qui décide quelle photo va sur
 // quelle page, et elle s'est trompée une fois de façon invisible.
 export function produitBoutique(ctx, nom) {
@@ -417,7 +450,16 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         //    pas inventer un chemin de catalogue.
         const duModele = isUrl(p.image) && pool.includes(p.image) ? [p.image] : []
 
-        const images = siennes.length ? siennes : duModele
+        // 3. Une photo que le marchand a envoyée dans cette session, appariée
+        //    par ce que la vision y a vu. Sans elle, un produit arrivé par
+        //    photo — donc sans fiche — sortait avec « PHOTO COMING SOON »
+        //    alors que ses photos étaient à l'écran deux minutes plus tôt.
+        const dEnvoi = (() => {
+          const u = photoDuProduit(ctx, p.name, demandes.length)
+          return u ? [u] : []
+        })()
+
+        const images = siennes.length ? siennes : duModele.length ? duModele : dEnvoi
         return {
           ...p,
           images,

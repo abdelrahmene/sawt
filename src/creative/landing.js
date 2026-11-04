@@ -16,6 +16,7 @@ import { ROOT } from '../config.js'
 import { chat, visibleAnswer } from '../models/llm.js'
 import { insert, run, one, now, J } from '../db.js'
 import { siteFor } from '../sites.js'
+import { priceLabel } from '../money.js'
 import { landingContent } from './landing-content.js'
 import { renderLanding } from './landing-render.js'
 import { renderScenes } from './scenes.js'
@@ -267,7 +268,8 @@ and one honest line, then a responsive grid of product cards with generous
 whitespace, rounded corners (16px), soft shadows and a hover lift.
 
 Each card MUST show the photo at the URL given for that product — exactly as
-written, no prefix, no placeholder — then the name, the price in DZD, and a
+written, no prefix, no placeholder — then the name, the price EXACTLY as given
+(symbol and all — never convert it, never re-add a currency), and a
 link to that product's landing page at the href given.
 
 When a product's photo reads "none", that card gets a plain coloured block in
@@ -302,7 +304,11 @@ export async function buildStorefront({ shop_name, products, language = 'ar', ta
     ...products.map((p) =>
       typeof p === 'string'
         ? `  - ${p}`
-        : `  - ${p.name} — ${p.price ?? '?'} DZD — photo: ${p.image ?? 'none'} — href: ${p.href ?? '#'}`
+        /* Le prix dans la monnaie que la vitrine affichera, pas dans celle
+           de la base. Il était écrit « ${p.price} DZD » en dur : une boutique
+           anglaise sortait donc « 4200 DZD » sous une interface qui compte en
+           dollars, et sa propre page produit annonçait $31.11 juste à côté. */
+        : `  - ${p.name} — ${priceLabel(p.price, language)} — photo: ${p.image ?? 'none'} — href: ${p.href ?? '#'}`
     ),
   ].join('\n')
 
