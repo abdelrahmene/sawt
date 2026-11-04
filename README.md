@@ -74,6 +74,39 @@ builds and its refusal to answer what it cannot verify are all real model calls.
 
 ---
 
+## The demo video
+
+Two cuts of the same run, both 1920×1080, both subtitled in English, both recorded from the
+app itself — no mock-ups, no slides, no narration over a storyboard.
+
+| | Length | What it covers |
+|---|---|---|
+| **`out/sawt-3min.mp4`** | 2:47 | The submission cut. One photo in, a paid order out. |
+| **`out/sawt-complet.mp4`** | 7:32 | The whole walkthrough, nothing skipped. |
+
+What the short cut shows, in order: the board already running · connecting to a **real Meta
+app** and granting thirteen named Graph scopes · one phone photo of a bag, taken in a café ·
+the three finished ads with `$31.11` and *Pay on delivery* composited on them · the shop front
+the agent wrote · the campaign configured from one sentence and **stopped at PAUSED** until a
+human says yes · the agent reading its own numbers days later and finding Reels costs more per
+order than feed · pausing the campaign that lost money and funding the one that did not,
+writing down the number that justified it · answering nine customers, in the language each one
+wrote in · refusing to invent a stock level it does not have · a customer ordering on a phone,
+and the order landing in the dashboard · and the merchant asking, in darija, how the day went.
+
+Both files are rebuilt from the raw takes with:
+
+```sh
+node bench/couper.mjs        # trim each take on its black markers
+node bench/sous-titres.mjs   # burn the English subtitles (libass)
+node bench/monter2.mjs       # assemble both cuts
+```
+
+The takes live in `out/film2/`, which is gitignored — the repository carries the tools that
+made the film, not the film.
+
+---
+
 ## What you'll see
 
 | Screen | What it is |
@@ -81,8 +114,10 @@ builds and its refusal to answer what it cannot verify are all real model calls.
 | **Agent** | Talk to it, by voice in darija or by text. It builds, decides, and asks when something is missing. |
 | **Studio** | Every knob on a landing page — tone, audience, length, template, colours, which sections, how many generated visuals — with the cost printed *before* the button. |
 | **Sites** | The pages and shops it built, as real files, plus domains. The DNS check is a **real** lookup. |
-| **Pubs** | Campaigns, their state and their KPIs, from one row per ad per placement per day. |
-| **Messages** | Comments and Messenger. The agent answers in darija — and hands back the ones it must not answer. |
+| **Ads** | Campaigns, their state and their KPIs, from one row per ad per placement per day. |
+| **Journal** | Everything the agent did, in one timeline: what it found, what it decided, what it spent, what it refused — each with the number that justified it. |
+| **Orders** | The orders your pages actually took. Cash on delivery, so the screen says *orders*, never *revenue*. |
+| **Messages** | Comments and Messenger. It answers each customer **in the language that customer wrote in** — and hands back the ones it must not answer. |
 | **Meta** | The staged "Continue with Facebook", then the Business Manager it unlocks. Refuse a permission and the thing it unlocks really disappears. |
 
 ---
@@ -105,8 +140,12 @@ builds and its refusal to answer what it cannot verify are all real model calls.
    and replaces a creative that has worn out — pausing the old ad instead of deleting it, so
    before and after stay comparable.
 8. **It sells.** Customers comment and send Messenger messages, often as voice notes. It
-   answers in darija, quotes the real shipping price for their commune, picks the variant,
-   takes the order — and hands back the questions it must not answer.
+   answers **each one in the language that customer wrote in** — darija to a darija message,
+   English to an English one — quotes the real shipping price for their commune, picks the
+   variant, takes the order, and hands back the questions it must not answer.
+9. **The order lands.** The form on the page posts a real order into the dashboard: product,
+   customer, wilaya, commune, quantity, total. Cash on delivery, so the screen calls it an
+   order and not revenue — a confirmation call is what turns one into the other.
 
 Step 6 and step 7 are the ones a human never keeps up with, and they are the reason this is
 an agent rather than a generator.
