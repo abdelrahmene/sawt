@@ -292,7 +292,12 @@ export async function buildStorefront({ shop_name, products, language = 'ar', ta
   const prompt = [
     `Shop: ${shop_name}`,
     tagline ? `Tagline: ${tagline}` : '',
-    `Language: ${language === 'fr' ? 'French' : 'Algerian darija, Arabic script'}`,
+    // ⚠️ Trois langues, et l'anglais n'était pas dans le test : tout ce qui
+    // n'était pas « fr » retombait sur la darija. Une vitrine demandée en
+    // anglais revenait en arabe, sans que rien ne le signale.
+    `Language: ${language === 'en' ? 'English'
+      : language === 'fr' ? 'French'
+      : 'Algerian darija, Arabic script'}`,
     'Products:',
     ...products.map((p) =>
       typeof p === 'string'

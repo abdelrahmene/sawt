@@ -108,7 +108,15 @@ export const TOOLS = [
         properties: {
           shop_name: { type: 'string' },
           tagline: { type: 'string', description: 'One honest line about what the shop sells.' },
-          language: { type: 'string', enum: ['ar', 'fr'] },
+          // ⚠️ L'ANGLAIS MANQUAIT À L'ÉNUMÉRATION. Le moteur de page le gère depuis
+          // toujours — landing-content.js a ses RULES_EN, landing-render.js son
+          // `const en = c.language === 'en'` — mais le schéma de l'outil ne
+          // l'offrait pas au modèle. Un marchand qui demandait une page en
+          // anglais en recevait une en arabe, et rien ne signalait le refus :
+          // le modèle choisissait simplement la valeur la plus proche qu'on lui
+          // laissait. Une capacité absente du schéma est une capacité qui
+          // n'existe pas.
+          language: { type: 'string', enum: ['en', 'ar', 'fr'] },
           products: {
             type: 'array',
             minItems: 1,
@@ -220,7 +228,7 @@ export const TOOLS = [
           product: { type: 'string' },
           price_dzd: { type: 'number' },
           angle: { type: 'string', description: 'Which marketing angle the page leads with.' },
-          language: { type: 'string', enum: ['ar', 'fr'], description: 'Page language. Default ar.' },
+          language: { type: 'string', enum: ['en', 'ar', 'fr'], description: 'Page language. Follow the merchant: the language they write in, or the one they name.' },
           // Leave this out. Every image the session has produced or been given
           // is attached automatically, creatives first — the model used to
           // answer with ids like "photo_1", which are not image URLs, and the
