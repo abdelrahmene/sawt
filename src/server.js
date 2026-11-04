@@ -424,13 +424,41 @@ const server = createServer(async (req, res) => {
       const data = Object.fromEntries(new URLSearchParams((await body(req)).toString('utf8')))
       const order = sites.recordOrder(data)
       console.log('[order]', order)
+
+      /* ⚠️ LA CONFIRMATION PARLE LA LANGUE DE LA BOUTIQUE.
+         Elle était écrite en dur en darija, avec une ligne en français
+         en dessous. C'est la DERNIÈRE page que voit une cliente, juste
+         après avoir donné son nom et son numéro — le moment où elle
+         vérifie qu'elle n'a pas fait une bêtise. La recevoir dans une
+         langue qui n'est pas celle de la boutique qu'elle vient de lire,
+         c'est exactement là qu'on perd une commande payée à la livraison. */
+      const langue = one(
+        `SELECT s.language FROM pages pg
+         JOIN sites s ON s.id = pg.site
+         WHERE pg.id = ?`, Number(data.page))?.language
+        ?? one('SELECT language FROM sessions WHERE id=?', sid)?.language
+        ?? 'en'
+      const DITS = {
+        en: { t: 'Thank you', h: 'Your order is in.',
+              s: 'We will call you shortly to confirm it.',
+              n: (id) => `order no. ${id} — recorded` },
+        fr: { t: 'Merci', h: 'Votre commande est enregistrée.',
+              s: 'Nous vous appelons très vite pour la confirmer.',
+              n: (id) => `commande nº ${id} — enregistrée` },
+        ar: { t: 'تم', h: 'تم تسجيل طلبك',
+              s: 'نعيطولك قريب باش نأكّدو الطلب.',
+              n: (id) => `طلب رقم ${id} — مسجّل` },
+      }
+      const d = DITS[langue] ?? DITS.en
+      const rtl = langue === 'ar'
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-      return res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>تم</title><body style="margin:0;background:#0d1117;color:#e7eaee;font:16px/1.8 system-ui;display:grid;place-items:center;height:100dvh;text-align:center;padding:24px">
+      return res.end(`<!doctype html><html lang="${langue}" dir="${rtl ? 'rtl' : 'ltr'}"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${d.t}</title><body style="margin:0;background:#0d1117;color:#e7eaee;font:16px/1.8 system-ui;display:grid;place-items:center;height:100dvh;text-align:center;padding:24px">
 <div><div style="font-size:46px;margin-bottom:12px">✓</div>
-<p style="font-size:21px;font-weight:700" dir="rtl">تم تسجيل طلبك</p>
-<p style="color:#8b949e" dir="rtl">نعيطولك قريب باش نأكّدو الطلب.</p>
-<p style="color:#6e7681;font-size:13px;margin-top:22px">commande nº ${order.id} — enregistrée dans la base</p></div></body>`)
+<p style="font-size:21px;font-weight:700">${d.h}</p>
+<p style="color:#8b949e">${d.s}</p>
+<p style="color:#6e7681;font-size:13px;margin-top:22px">${d.n(order.id)}</p></div></body></html>`)
     }
 
     /* ── state for the shell ────────────────────────────────────────────── */
