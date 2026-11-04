@@ -84,12 +84,59 @@ export function risqueMarque(described) {
 // drawn by the model: generative models reorder digits inside a right-to-left
 // run, which turns a price into a different price. The model makes the scene,
 // the typesetter makes the words.
-export function headlinePrompt(product, angle) {
+/* Trois PRISES DE VUE différentes, et c'est le point.
+
+   Avant, les trois créatives d'une campagne étaient la même photo : « an
+   advertising photograph of X » rendait trois fois le même produit détouré
+   sur du gris, et l'angle marketing — deux mots en milieu de prompt — ne
+   changeait rien. Trois images identiques ne sont pas trois créatives : la
+   régie les montre aux mêmes gens, la lassitude arrive au même rythme, et on
+   n'apprend rien de laquelle marche.
+
+   Une campagne a besoin de regards différents sur le MÊME objet : le produit
+   en situation, la matière de près, le produit porté. C'est ce qu'un studio
+   livre, et c'est ce qui fait la différence entre une fiche et une publicité. */
+const PRISES = [
+  { nom: 'editorial',
+    scene: 'Editorial advertising photograph in a real place that suits the product — daylight from one side, ' +
+      'soft falloff, a shallow depth of field that keeps the product sharp and lets the background fall away. ' +
+      'The product is the subject and fills the frame confidently.' },
+  { nom: 'macro',
+    scene: 'Extreme close-up on the material and the construction — the weave, the stitching, an edge or a fastening ' +
+      'crossing the frame diagonally. Raking light so the texture reads. Very shallow depth of field.' },
+  { nom: 'worn',
+    scene: 'The product in use, three-quarter view, cinematic natural light, a lived-in setting slightly out of focus ' +
+      'behind it. No face in frame.' },
+]
+
+/**
+ * Le prompt d'une créative publicitaire.
+ *
+ * ⚠️ LA PLACE DU TEXTE EST EN BAS, PAS EN HAUT. La consigne demandait un
+ * tiers SUPÉRIEUR vide — héritage du temps où l'accroche arabe était
+ * composée en haut — alors que le compositeur écrit sur le bas de l'image.
+ * L'image et la composition se contredisaient : le dégradé du bas tombait
+ * sur le produit, et le vide réservé en haut ne servait à rien.
+ *
+ * ⚠️ ET LA FIDÉLITÉ PASSE EN PREMIER. Ce qu'on met en tête d'un prompt pèse
+ * le plus — la leçon est déjà écrite dans `src/creative/scenes.js`, elle
+ * n'avait simplement pas été appliquée ici.
+ *
+ * @param {number} prise  laquelle des trois prises de vue (0, 1, 2)
+ */
+export function headlinePrompt(product, angle, prise = 0) {
+  const p = PRISES[prise % PRISES.length]
   return [
-    `Advertising photograph of ${product}.`,
-    angle,
-    'Leave the top third of the frame visually empty and evenly lit,',
-    'so a headline can be composited there afterwards.',
-    'No text, no letters, no numbers anywhere in the image.',
-  ].join(' ')
+    'This is the product. Keep it exactly as it is in the image:',
+    'same shape, same cut, same materials, same proportions, every visible detail identical.',
+    'Do not redesign it, do not swap it for a similar product, do not add or remove parts.',
+    `Re-photograph THIS object — ${product}.`,
+    p.scene,
+    angle ? `The idea to convey: ${angle}.` : '',
+    'Premium brand photography, not a catalogue cutout: real light, real depth, a considered background.',
+    // La place du texte, là où le compositeur écrit vraiment.
+    'Leave the bottom third of the frame calm and uncluttered — no busy detail there —',
+    'so a headline and a price can be composited over it afterwards.',
+    'No text, no letters, no numbers, no logo anywhere in the image.',
+  ].filter(Boolean).join(' ')
 }

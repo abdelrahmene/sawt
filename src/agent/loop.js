@@ -472,9 +472,12 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
 
       const out = []
       const angles = (args.angles ?? ['default']).slice(0, 3)
-      for (const angle of angles) {
+      for (const [i, angle] of angles.entries()) {
         onEvent({ type: 'progress', tool: 'generate_creatives', phase: 'creative', step: out.length + 1, total: angles.length, label: angle })
-        const prompt = headlinePrompt(subject + seen, angle)
+        // Une PRISE DE VUE différente par créative : le produit en situation,
+        // la matière de près, le produit porté. Trois fois le même cadrage ne
+        // sont pas trois créatives.
+        const prompt = headlinePrompt(subject + seen, angle, i)
         const b64 = cut?.ok
           ? await edit(cut.path, `Keep this exact product, unchanged. ${prompt} ${GARDE_MARQUE}`)
           : await generate(prompt)
@@ -531,10 +534,12 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
 
       const angles = (args.angles ?? ['une autre lumière', 'en situation']).slice(0, 3)
       const neufs = []
-      for (const angle of angles) {
+      for (const [i, angle] of angles.entries()) {
         onEvent({ type: 'progress', tool: 'refresh_creatives', phase: 'creative', step: neufs.length + 1, total: angles.length, label: angle })
         try {
-          const prompt = headlinePrompt(sujet, angle)
+          // Décalées d'un cran par rapport à la série précédente : renouveler
+          // des visuels usés en reprenant les mêmes cadrages ne renouvelle rien.
+          const prompt = headlinePrompt(sujet, angle, i + 1)
           const b64 = cut?.ok
             ? await edit(cut.path, `Keep this exact product, unchanged. ${prompt} ${GARDE_MARQUE}`)
             : await generate(prompt)
