@@ -18,7 +18,7 @@ import { refresh } from './app.js'
 // `money` était importé d'ui.js sans servir une seule fois ici — retiré. Les
 // nombres passent par le `num()` de la couche i18n : le séparateur de milliers
 // suit la langue au lieu d'être cloué au français.
-import { t, num, pick } from './i18n.js'
+import { t, num, pick, money as montant } from './i18n.js'
 
 let D = null          // the catalogue + current options, from the server
 let O = {}            // what is selected right now
@@ -175,7 +175,7 @@ function vitrine() {
           return `<button data-pid="${esc(p.id)}" class="${on ? 'on' : ''}" title="${esc(p.name)}">
             ${p.image ? `<img src="${esc(p.image)}" alt="" loading="lazy">` : '<span class="noimg"></span>'}
             <span class="nm">${esc(p.name)}</span>
-            <span class="pz"><bdi dir="ltr">${num(p.price)} DA</bdi></span>
+            <span class="pz"><bdi dir="ltr">${montant(p.price)}</bdi></span>
             <span class="mg ${p.mine ? 'own' : ''}">${p.mine
               ? t('studio.showcase.mine', { m: num(p.margin) })
               : t('studio.showcase.offer', { m: num(p.margin) })}</span>

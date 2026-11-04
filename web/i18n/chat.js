@@ -114,35 +114,41 @@ export const chat = {
      serveur renvoie une étiquette, l'écran la traduit. Sinon une interface
      en darija recevrait un verdict en français. */
   'chat.board.title': { en: 'Where you stand', ar: 'وين راك', fr: 'Où tu en es' },
+  /* ⚠️ L'unité monétaire a été RETIRÉE de ces phrases, et ce n'est pas un
+     détail de traduction. « DA » cuit dans le gabarit affichait des dinars à
+     un lecteur anglophone à qui tout le reste de l'écran parlait en dollars —
+     sur le premier écran de l'app, celui que le jury voit d'abord. La valeur
+     interpolée porte désormais sa propre unité, décidée une seule fois dans
+     `i18n.money()`. */
   'chat.board.yesterday': {
-    en: 'yesterday: {spend} DA spent, {orders} order(s)',
-    ar: 'البارح: صرفت {spend} دج، {orders} طلب',
-    fr: 'hier : {spend} DA dépensés, {orders} commande(s)',
+    en: 'yesterday: {spend} spent, {orders} order(s)',
+    ar: 'البارح: صرفت {spend}، {orders} طلب',
+    fr: 'hier : {spend} dépensés, {orders} commande(s)',
   },
   'chat.board.real': { en: 'Your credits', ar: 'الكريدي تاعك', fr: 'Tes crédits' },
   'chat.board.credits': { en: 'left', ar: 'باقي', fr: 'restants' },
   'chat.board.usd': { en: '${spent} of ${pack} used', ar: 'صرفت {spent}$ من {pack}$', fr: '{spent} $ utilisés sur {pack} $' },
   'chat.board.ads': { en: 'Ad spend', ar: 'مصروف الإشهار', fr: 'Dépense publicitaire' },
   'chat.board.orders': {
-    en: '{n} orders · {cpo} DA each',
-    ar: '{n} طلب · {cpo} دج للواحد',
-    fr: '{n} commandes · {cpo} DA pièce',
+    en: '{n} orders · {cpo} each',
+    ar: '{n} طلب · {cpo} للواحد',
+    fr: '{n} commandes · {cpo} pièce',
   },
 
   'chat.board.verdict.wearing': {
-    en: '{name} is wearing out: {cpo} DA per order, up {trend}% since it started. {best} is your cheapest at {bestCost} DA, {worst} your dearest at {worstCost} DA.',
-    ar: '{name} راهي تتعب: {cpo} دج للطلب، زادت {trend}% من البداية. {best} هي الرخيصة بـ {bestCost} دج، و{worst} هي الغالية بـ {worstCost} دج.',
-    fr: "{name} s'essouffle : {cpo} DA par commande, soit {trend} % de plus qu'au départ. {best} est le moins cher à {bestCost} DA, {worst} le plus cher à {worstCost} DA.",
+    en: '{name} is wearing out: {cpo} per order, up {trend}% since it started. {best} is your cheapest at {bestCost}, {worst} your dearest at {worstCost}.',
+    ar: '{name} راهي تتعب: {cpo} للطلب، زادت {trend}% من البداية. {best} هي الرخيصة بـ {bestCost}، و{worst} هي الغالية بـ {worstCost}.',
+    fr: "{name} s'essouffle : {cpo} par commande, soit {trend} % de plus qu'au départ. {best} est le moins cher à {bestCost}, {worst} le plus cher à {worstCost}.",
   },
   'chat.board.verdict.improving': {
-    en: '{name} is getting cheaper: {cpo} DA per order, down {trend}%. {best} carries it at {bestCost} DA.',
-    ar: '{name} راهي ترخص: {cpo} دج للطلب، نقصت {trend}%. {best} هي لي داهيها بـ {bestCost} دج.',
-    fr: '{name} coûte de moins en moins : {cpo} DA par commande, {trend} % de moins. {best} la porte à {bestCost} DA.',
+    en: '{name} is getting cheaper: {cpo} per order, down {trend}%. {best} carries it at {bestCost}.',
+    ar: '{name} راهي ترخص: {cpo} للطلب، نقصت {trend}%. {best} هي لي داهيها بـ {bestCost}.',
+    fr: '{name} coûte de moins en moins : {cpo} par commande, {trend} % de moins. {best} la porte à {bestCost}.',
   },
   'chat.board.verdict.steady': {
-    en: '{name} holds at {cpo} DA per order. {best} at {bestCost} DA, {worst} at {worstCost} DA.',
-    ar: '{name} ثابتة على {cpo} دج للطلب. {best} بـ {bestCost} دج، و{worst} بـ {worstCost} دج.',
-    fr: '{name} tient à {cpo} DA par commande. {best} à {bestCost} DA, {worst} à {worstCost} DA.',
+    en: '{name} holds at {cpo} per order. {best} at {bestCost}, {worst} at {worstCost}.',
+    ar: '{name} ثابتة على {cpo} للطلب. {best} بـ {bestCost}، و{worst} بـ {worstCost}.',
+    fr: '{name} tient à {cpo} par commande. {best} à {bestCost}, {worst} à {worstCost}.',
   },
 
   'chat.board.fix': { en: 'Fix it', ar: 'صلّحها', fr: 'Corrige ça' },

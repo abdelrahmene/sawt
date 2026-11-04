@@ -46,10 +46,12 @@ export const catalog = {
     ar: 'على كل طلبية توصل',
     fr: 'sur chaque commande livrée',
   },
+  // L'unité est portée par la valeur, décidée une fois dans `i18n.money()` :
+  // écrite ici, elle affichait des dinars dans un écran en dollars.
   'catalog.underCost': {
-    en: 'Below the supplier price — you would lose {n} DA per order.',
-    ar: 'تحت سومة الفورنيسور — تخسر {n} دج في كل طلبية.',
-    fr: 'Sous le prix fournisseur — tu perdrais {n} DA par commande.',
+    en: 'Below the supplier price — you would lose {n} per order.',
+    ar: 'تحت سومة الفورنيسور — تخسر {n} في كل طلبية.',
+    fr: 'Sous le prix fournisseur — tu perdrais {n} par commande.',
   },
   'catalog.confirm': { en: 'Add to my shop', ar: 'زيده للحانوت', fr: 'Ajouter à ma boutique' },
   'catalog.cancel':  { en: 'Cancel',         ar: 'بلاصة',       fr: 'Annuler' },

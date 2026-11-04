@@ -1028,7 +1028,7 @@ export async function tableau() {
     <div class="bhead">
       <span class="bt">${esc(t('chat.board.title'))}</span>
       ${b.yesterday ? `<span class="bago">${esc(t('chat.board.yesterday', {
-        spend: num(b.yesterday.spend_dzd), orders: num(b.yesterday.orders) }))}</span>` : ''}
+        spend: dinars(b.yesterday.spend_dzd), orders: num(b.yesterday.orders) }))}</span>` : ''}
     </div>
 
     <div class="bcols">
@@ -1039,10 +1039,14 @@ export async function tableau() {
       </div>
       <div class="bcol ads">
         <div class="bl">${esc(t('chat.board.ads'))} <span class="sim">${esc(t('chat.badge.sim'))}</span></div>
-        <div class="bv">${num(b.simulated.spend_dzd)}<small> DA</small></div>
+        <!-- Le montant porte son unité : « DA » en dur ici affichait des
+             dinars dans un écran qui parlait dollars partout ailleurs. Et un
+             suffixe en petit n'a aucun sens pour une monnaie dont le symbole
+             est un PRÉFIXE — « $246 » ne se coupe pas en deux. -->
+        <div class="bv">${money(b.simulated.spend_dzd)}</div>
         <div class="bs">${esc(t('chat.board.orders', {
           n: num(b.simulated.orders),
-          cpo: b.simulated.cost_per_order ? num(b.simulated.cost_per_order) : '—' }))}</div>
+          cpo: b.simulated.cost_per_order ? dinars(b.simulated.cost_per_order) : '—' }))}</div>
       </div>
     </div>
 
@@ -1051,17 +1055,17 @@ export async function tableau() {
         <button class="bcamp" data-go="campaigns">
           <span class="st ${esc(c.status.toLowerCase())}"></span>
           <span class="nm">${esc(c.name)}</span>
-          <span class="cp">${c.analysis?.cost_per_order ? num(c.analysis.cost_per_order) + ' DA' : '—'}</span>
+          <span class="cp">${c.analysis?.cost_per_order ? money(c.analysis.cost_per_order) : '—'}</span>
           ${c.analysis?.trend != null ? `<span class="tr ${c.analysis.trend > 0 ? 'up' : 'down'}">${c.analysis.trend > 0 ? '+' : ''}${num(c.analysis.trend)}%</span>` : ''}
         </button>`).join('')}
     </div>` : ''}
 
     ${a?.verdict ? `<div class="bverdict ${esc(sens)}">${esc(t('chat.board.verdict.' + a.verdict, {
       name: b.simulated.top[0].name,
-      cpo: num(a.cost_per_order),
+      cpo: dinars(a.cost_per_order),
       trend: Math.abs(a.trend ?? 0),
-      best: a.best?.placement ?? '—', bestCost: a.best ? num(a.best.per_order) : '—',
-      worst: a.worst?.placement ?? '—', worstCost: a.worst?.per_order ? num(a.worst.per_order) : '—',
+      best: a.best?.placement ?? '—', bestCost: a.best ? dinars(a.best.per_order) : '—',
+      worst: a.worst?.placement ?? '—', worstCost: a.worst?.per_order ? dinars(a.worst.per_order) : '—',
     }))}</div>` : ''}
 
     ${a?.verdict === 'wearing' ? `<button class="btn p sm bfix" data-say="${esc(t('chat.board.fix.say', { name: b.simulated.top[0].name }))}">${esc(t('chat.board.fix'))}</button>` : ''}`

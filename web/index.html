@@ -8,7 +8,15 @@
 <!-- Le thème et la coque AVANT la feuille de style, sinon l'écran part en
      blanc puis bascule, et le téléphone apparaît après coup en sautant.
      Clair par défaut, téléphone par défaut. -->
-<script>try{var r=document.documentElement,s=localStorage;r.dataset.theme=s.getItem('sawt.theme')||'jour';r.dataset.shell=s.getItem('sawt.shell')||'phone';var l=s.getItem('sawt.lang')||'en';r.lang=l;r.dir=l==='ar'?'rtl':'ltr'}catch(e){}</script>
+<!-- Le thème est posé AVANT le premier rendu, sinon la page clignote en clair
+     une fraction de seconde avant de passer en nuit. Ordre : ce que la
+     personne a choisi, sinon ce que son système demande, sinon la nuit — qui
+     est le thème pour lequel cette app a été dessinée, et que app.css décrit
+     comme tel depuis le début alors que ce script ouvrait en clair. -->
+<script>try{var r=document.documentElement,s=localStorage,v=s.getItem('sawt.theme');
+if(!v){v=matchMedia('(prefers-color-scheme: light)').matches?'jour':'nuit'}
+r.dataset.theme=v;r.dataset.shell=s.getItem('sawt.shell')||'phone';
+var l=s.getItem('sawt.lang')||'en';r.lang=l;r.dir=l==='ar'?'rtl':'ltr'}catch(e){}</script>
 <link rel="stylesheet" href="/web/app.css">
 <link rel="stylesheet" href="/web/journal.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='13' fill='%230d7a5f'/><circle cx='12' cy='12' r='5' fill='%2338e0ad'/></svg>">

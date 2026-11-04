@@ -50,6 +50,9 @@ const MIME = {
   '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
   '.webp': 'image/webp', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
+  // Servi avec le bon type, sinon le navigateur refuse la police en silence
+  // et retombe sur la pile système sans rien dire à personne.
+  '.woff2': 'font/woff2',
 }
 
 const imported = importLegacyJson()

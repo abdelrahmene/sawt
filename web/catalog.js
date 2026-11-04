@@ -8,7 +8,7 @@
 // commande payée, et un écran qui l'oublie promet des revenus qui n'existent
 // pas.
 import { $, $$, el, esc, api, toast, icon, money } from './ui.js'
-import { t, lang, num } from './i18n.js'
+import { t, lang, num, money as montant } from './i18n.js'
 import { refresh } from './app.js'
 
 let data = null
@@ -160,7 +160,7 @@ function ouvrir(root, id) {
     const m = v - p.supplier_cost
     live.className = `live${m < 0 ? ' bad' : ''}`
     live.innerHTML = m < 0
-      ? esc(t('catalog.underCost', { n: num(p.supplier_cost - v) }))
+      ? esc(t('catalog.underCost', { n: montant(p.supplier_cost - v) }))
       : `${esc(t('catalog.youKeep'))} <strong>${money(m)}</strong> ${esc(t('catalog.perDelivered'))}`
   }
   px.oninput = show
