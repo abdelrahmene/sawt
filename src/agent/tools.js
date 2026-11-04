@@ -172,6 +172,10 @@ export const TOOLS = [
           // l'identifiant de photo ne sert que si le marchand en désigne une.
           product: { type: 'string', description: 'The product these creatives are for, as the merchant names it.' },
           product_image: { type: 'string', description: 'Id of a photo the merchant uploaded, only if they picked one.' },
+          // Le prix finit SUR l'affiche. Sans lui, la créative est une belle
+          // photo et pas une publicité — et quand le produit vient d'une
+          // photo du marchand plutôt que du catalogue, c'est la seule source.
+          price_dzd: { type: 'number', description: 'Selling price in DZD, if the merchant has given one. It is printed on the creative.' },
           angles: { type: 'array', items: { type: 'string' }, description: 'Angle names from marketing_angles.' },
           headline_ar: { type: 'string', description: 'The Arabic headline to composite. Short.' },
         },

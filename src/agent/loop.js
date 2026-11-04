@@ -495,7 +495,9 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         // une photo : le prix et l'enseigne. Sans eux, le compositeur pose un
         // titre sur une image et s'arrête là.
         product: mien?.name ?? args.product ?? null,
-        price_dzd: mien?.price ?? null,
+        // La fiche du marchand d'abord ; le prix qu'il vient d'annoncer
+        // ensuite. Un produit arrivé par photo n'a pas de fiche.
+        price_dzd: mien?.price ?? (Number(args.price_dzd) || null),
         shop: ctx.shop ?? null,
         isolated: cut?.ok
           ? { model: 'sam-3.1', url: cut.url, coverage: cut.found.coverage, gain: cut.gain,
