@@ -20,7 +20,7 @@ import * as notify from '../meta-sim/notify.js'
 import { addDomain } from '../sites.js'
 import * as catalog from '../catalog.js'
 import { charge } from '../credits.js'
-import { setting } from '../db.js'
+import { setting, all } from '../db.js'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import { OUT_DIR } from '../creative/landing.js'
@@ -57,6 +57,28 @@ const isUrl = (s) => typeof s === 'string' && (s.startsWith('/out/') || s.starts
 /* Les mots d'un libellé, assez longs pour vouloir dire quelque chose. */
 const mots = (s) => new Set(
   String(s ?? '').toLowerCase().split(/[^a-z0-9؀-ۿ]+/).filter((w) => w.length >= 3))
+
+/**
+ * Le prix d'un produit, lu sur la page de vente déjà construite pour lui.
+ *
+ * Dernier recours quand le produit est arrivé par photo : il n'a pas de fiche
+ * catalogue, mais si l'agent lui a déjà fait une page, le prix y est écrit.
+ * Même règle d'appariement que les photos — jetons entiers, meilleur score,
+ * refus en cas d'égalité : « col » ne doit pas aller chercher « collar ».
+ */
+function prixDUnePage(sessionId, nom) {
+  if (!sessionId || !nom) return null
+  const cherche = mots(nom)
+  if (!cherche.size) return null
+  let meilleur = null, score = 0, exaequo = false
+  for (const p of all('SELECT product, price_dzd FROM pages WHERE session=? AND price_dzd > 0', sessionId)) {
+    const n = [...mots(p.product)].filter((w) => cherche.has(w)).length
+    if (!n) continue
+    if (n > score) { score = n; meilleur = p; exaequo = false }
+    else if (n === score) exaequo = true
+  }
+  return !score || exaequo ? null : meilleur.price_dzd
+}
 
 // Exportée pour être testable : c'est elle qui décide quelle photo va sur
 // quelle page, et elle s'est trompée une fois de façon invisible.
@@ -495,9 +517,19 @@ async function runTool(name, args, ctx, onEvent = () => {}) {
         // une photo : le prix et l'enseigne. Sans eux, le compositeur pose un
         // titre sur une image et s'arrête là.
         product: mien?.name ?? args.product ?? null,
-        // La fiche du marchand d'abord ; le prix qu'il vient d'annoncer
-        // ensuite. Un produit arrivé par photo n'a pas de fiche.
-        price_dzd: mien?.price ?? (Number(args.price_dzd) || null),
+        /* ⚠️ UNE PUBLICITÉ SANS PRIX N'EST PAS UNE PUBLICITÉ.
+           Il n'y avait que deux sources ici : la fiche catalogue, et le prix
+           que le modèle pensait à repasser. Le sac en cuir est arrivé par
+           photo — donc sans fiche — et le modèle n'a pas repassé le prix que
+           le marchand venait pourtant d'écrire dans sa phrase. Les six
+           affiches sont sorties sans prix, et personne ne s'en est aperçu
+           avant de les regarder une par une.
+           Troisième source, et la plus fiable quand le produit n'a pas de
+           fiche : la page de vente déjà construite pour ce produit porte son
+           prix. Le code la lit ; il ne le demande pas. */
+        price_dzd: mien?.price
+          ?? (Number(args.price_dzd) || null)
+          ?? prixDUnePage(ctx.sessionId, mien?.name ?? args.product ?? subject),
         shop: ctx.shop ?? null,
         isolated: cut?.ok
           ? { model: 'sam-3.1', url: cut.url, coverage: cut.found.coverage, gain: cut.gain,
