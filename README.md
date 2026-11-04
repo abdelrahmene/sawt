@@ -144,7 +144,8 @@ app itself — no mock-ups, no slides, no narration over a storyboard.
 
 | | Length | What it covers |
 |---|---|---|
-| **`out/sawt-mobile-3min.mp4`** | 3:04 | **The submission cut.** Portrait, 1080×1920, filmed on the phone shell — the whole business run live from the agent chat, nothing but the conversation. |
+| **`out/sawt-final.mp4`** | 4:59 | **The full walkthrough.** Every step in order — Facebook login and the thirteen permissions, the supplier catalogue, one phone photo into three priced ads, the sales page, the shop, the campaign held at PAUSED, the customers, the order, the journal, and the darija memo. Captions sit in a band BELOW the picture, so nothing on screen is covered. With a music bed. |
+| `out/sawt-mobile-3min.mp4` | 3:04 | **The submission cut.** Portrait, 1080×1920, filmed on the phone shell — the whole business run live from the agent chat, nothing but the conversation. |
 | `out/sawt-3min.mp4` | 2:47 | The same story on the desktop shell, landscape. |
 | **`out/sawt-complet.mp4`** | 7:32 | The whole walkthrough, nothing skipped. |
 
