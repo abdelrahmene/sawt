@@ -1,11 +1,14 @@
 # Sawt — صوت
 
-**An AI agent that runs social media marketing by voice — and understands Algerian darija,
-the dialect today's models handle worst.**
+**An AI agent that runs a cash-on-delivery business by voice, in Algerian darija — and that
+refuses to answer what it cannot verify.**
 
 You send it a voice note. It writes the ad, generates the creative, launches the campaign,
 and then answers the customers who reply — including the ones who answer with a voice note
 of their own. Nobody clicks a button.
+
+Understanding the language is not the hard part. The models do that well. Acting on it
+without lying is the hard part, and that is what this is about.
 
 ---
 
@@ -60,20 +63,27 @@ builds and its refusal to answer what it cannot verify are all real model calls.
 5. **Decides.** When the same objection comes back three times, it regenerates the creative
    to answer that objection. On its own.
 
-## Why darija
+## Darija, and what the benchmark actually measures
 
 Algerian darija mixes Arabic, French and Berber, has no standard orthography, and is written
-in both Arabic and Latin script. It is the language where current models fail hardest — and
-it is the language in which an entire country does business, out loud, in voice notes.
+in both Arabic and Latin script. It is also the language in which an entire country does
+business, out loud, in voice notes.
 
-So the benchmark in [`bench/`](bench/) does not measure word error rate, which is meaningless
-for a language with no fixed spelling. It measures what actually decides a sale:
+I started this assuming transcription would be the wall. It is not: the models read darija
+well, and the open-weights table below shows one writing it correctly too. So the benchmark
+in [`bench/`](bench/) does not measure word error rate — that would measure the part that
+already works, and measure it badly, because WER needs a reference spelling this language
+does not have.
+
+It measures what survives the transcription, because that is what decides a sale:
 
 - **intent accuracy** — price, sizes, delivery time, availability, objection, cancellation
 - **entity extraction** — wilaya, commune, quantity, size
 
 A rough transcription that returns the right wilaya and the right size is a commercial
-success. A perfect transcription that loses the wilaya is worthless.
+success. A perfect transcription that loses the wilaya is worthless: the customer is quoted
+the wrong shipping price, and in cash on delivery a wrong price is a parcel refused at the
+door, with the merchant paying the return.
 
 ```bash
 npm run bench     # regenerates the table below from the clips in bench/clips/
@@ -155,8 +165,10 @@ requires two different answers, which assumes nothing about either photo.
 
 **A missing detail is a question, never a guess.**
 
-Transcription drops words, and it drops the one that matters: the size, the quantity, the
-commune. So the agent asks instead of inferring — and the same rule applies to customers:
+The customer does not always say the size. The merchant has not always given the stock. Both
+are the same problem — the answer is not in the conversation — and guessing either one costs
+a real delivery. So the agent asks instead of inferring, and the rule holds in both
+directions:
 
 | A customer asks | What it does |
 |---|---|
