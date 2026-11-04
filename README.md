@@ -31,7 +31,25 @@ MIT — the whole thing is in this repository.
 | **Use of Meta tools — 25%** | [The Meta tools, one by one](#the-meta-tools-one-by-one) below — five Meta models and the Graph + Marketing APIs, each with the file that calls it. Click through the consent screen yourself: refuse `instagram_manage_messages` and the Instagram inbox really comes back empty, naming the scope. |
 | **Demonstration — 25%** | [`out/sawt-3min.mp4`](#the-demo-video), and the app itself — `npm start` and it is already running, not an empty state you have to fill before anything happens. |
 | **Technical depth — 20%** | [Why `sam-3.1` earns its place](#why-sam-31-earns-its-place), [the benchmark](#darija-and-what-the-benchmark-actually-measures), [the one rule](#the-one-rule). Twenty-three agent tools, a measured darija benchmark, and a real/simulated boundary enforced in code rather than promised in prose. |
-| **Open source — mandatory** | This repository, MIT, public. No key is committed; `.env.example` holds only public endpoints. |
+| **Public repository — required** | This one. MIT, public, no key committed; `.env.example` holds only public endpoints. |
+
+**Track** — Indie Developer, solo. **Problem statement** — *Build for Your World*: I run a
+cash-on-delivery commerce platform in Algeria, and this is the question its merchants ask me
+most ([why](#where-the-problem-comes-from--and-what-is-not-in-this-repository)).
+
+**The Stage One gate: does it genuinely use Meta's models?** Yes, and only Meta's. Every
+inference in this project — the agent's reasoning, the sales copy, the darija replies, the
+ad visuals, the segmentation, the vision, the transcription — goes to the Meta Model API or
+to Meta open-weight models through Baseten. There is no OpenAI key, no Anthropic key, no
+third model provider anywhere in `src/`. (Grep will find the word *OpenAI* three times — all
+three are comments noting that Meta's endpoints are OpenAI-*compatible* in shape, which is why
+the open-weights switch is one line. No call goes there.) Switching between the two Meta routes is one
+environment variable ([the open-weights path](#the-open-weights-path-is-a-switch-not-a-paragraph)).
+
+**New work only.** Everything in `src/`, `web/`, `bench/`, `fixtures/` and `out/` was written
+between 27 October and 4 November 2026 — the repository has no commit before that, and the
+history is public. What is *not* new is stated plainly below: the problem, and the production
+platform it came from, which this project does not import, vendor or depend on.
 
 ---
 
@@ -369,8 +387,16 @@ refused delivery, the return shipping, and a customer who never comes back.
 
 ## Built during the Hackathon (27 Oct – 4 Nov 2026)
 
-Everything in `src/`, `web/`, `bench/` and `fixtures/` was written during the event.
-Repository created 30 October 2026 and pushed daily — see the commit history.
+**Written during the event:** every line of `src/`, `web/`, `bench/`, `fixtures/` and the
+films in `out/`. The repository has no commit before 30 October 2026 and was pushed daily —
+the history is public and checkable.
+
+**Not written during the event, and not in this repository:** Dropdz, the production
+cash-on-delivery platform I run. Sawt does not import it, vendor it, or call it. One optional
+environment pair (`DROPDZ_API_BASE`, `DROPDZ_API_KEY`) would let a merchant who already uses
+that platform read their own catalogue over HTTP; it is empty here, nothing in the demo
+touches it, and removing it changes nothing you will see. What Dropdz contributed is the
+problem statement and four years of knowing which number matters — not code.
 
 ## Where the problem comes from — and what is not in this repository
 
