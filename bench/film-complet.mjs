@@ -244,6 +244,22 @@ async function extrait(e, i) {
 }
 
 /* ── le montage ──────────────────────────────────────────────────────────── */
+/* MODE COURT — .................
+  ✓  out/sawt-final.mp4 — 4 min 59 s  (17 segments · 1920×1080 · sous-titres hors image · musique).
+   Le guide du hackathon annonce une vidéo de trois minutes. On garde donc
+   UNE étape par plan : la première fenêtre de chaque extrait, son premier
+   carton allongé pour tenir toute la fenêtre. Rien n'est réécrit, rien n'est
+   refilmé — on resserre. */
+if (process.argv[2] === 'court') {
+  for (const e of FILM) {
+    if (!e.plan) { e.duree = e.titre === 'ouverture' ? 6.5 : 7.5; continue }
+    e.a = e.de + 10.6
+    e.cartons = [[0.2, 10.0, e.cartons[0][2], e.cartons[0][3], e.cartons[0][4]]]
+  }
+  TITRES.ouverture.duree = 6.5
+  TITRES.fin.duree = 7.5
+}
+
 console.log('')
 const morceaux = []
 for (const [i, e] of FILM.entries()) {
@@ -273,7 +289,7 @@ const chaine = `${mix};${notes.map((_, i) => `[a${i}]`).join('')}amix=inputs=4:n
   + 'tremolo=f=0.11:d=0.35,lowpass=f=900,aecho=0.8:0.85:320|540:0.28|0.2,'
   + `volume=0.16,afade=t=in:st=0:d=3,afade=t=out:st=${Math.max(0, duree - 5)}:d=5`
 
-const sortie = join(ROOT, 'out', 'sawt-final.mp4')
+const sortie = join(ROOT, 'out', process.argv[2] === 'court' ? 'sawt-3min-final.mp4' : 'sawt-final.mp4')
 await run('ffmpeg', ['-v', 'error', '-y', '-i', muet,
   ...src.flatMap((s) => ['-f', 'lavfi', '-i', s]),
   '-filter_complex', chaine + '[mus]', '-map', '0:v', '-map', '[mus]',

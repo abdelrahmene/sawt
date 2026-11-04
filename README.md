@@ -13,13 +13,42 @@ You talk to it. By voice, in Algerian darija, if that is how you talk.
 
 **You never open Ads Manager. You never learn what a lookalike audience is.**
 
+## Judges: you need nothing. No key, no account, no Meta app.
+
 ```sh
 git clone https://github.com/abdelrahmene/sawt && cd sawt && npm start
 ```
 
-Zero dependencies, no key, no account. It opens on `localhost:7070` with a working shop, a
-connected Meta account, nine customers waiting and a campaign six days old. Open source,
-MIT — the whole thing is in this repository.
+That is the whole setup. `npm install` is not even required — **`dependencies` is empty**,
+on purpose. Node 22+ and nothing else.
+
+It prints `mode: replay` and opens on `localhost:7070` on a shop that is already running:
+a connected Meta account, three products, nine customers waiting, a campaign six days old
+with real per-placement numbers, and a decision history you can read. Click anywhere.
+Nothing is an empty state waiting for you to fill it.
+
+**In `replay` mode every model answer is a recorded real one**, dated on screen with the
+call that produced it — *"2026-10-30, POST /act_…/campaigns, status PAUSED, no spend"*. No
+network call leaves your machine. The badge in the corner of the rail says `replay`, and
+that badge is a claim about what just happened, not a label someone typed.
+
+**Want live models instead?** One line, your own key, nothing else changes:
+
+```sh
+echo "MODEL_API_KEY=your-meta-model-api-key" > .env && npm start   # prints mode: live
+```
+
+It then calls the Meta Model API for real — the agent, the images, the segmentation, the
+transcription — while the Facebook side stays staged and keeps saying `SIMULATED` on
+screen. A key is **never** required to see the product work. [The three modes in
+detail](#the-meta-side-live-recorded-or-staged--and-the-badge-says-which).
+
+> No API key of mine is in this repository, and none is needed. `.env` is gitignored,
+> `.env.example` contains only public endpoint URLs, and the git history has never held a
+> secret. Sharing a Model API key is also forbidden by its terms of use — so the project
+> was built so that nobody has to.
+
+Open source, MIT. The whole thing is in this repository.
 
 ---
 
@@ -29,7 +58,7 @@ MIT — the whole thing is in this repository.
 |---|---|
 | **Impact — 30%** | [Who this is for](#who-this-is-for-and-why-it-is-not-a-niche). Advertising is a trade, and that trade is the only thing standing between a person with savings and a business. This agent *is* the trade. Not a niche: the same wall stops a beginner in Algiers and a shop owner in Lagos, Karachi or Lima. |
 | **Use of Meta tools — 25%** | [The Meta tools, one by one](#the-meta-tools-one-by-one) below — five Meta models and the Graph + Marketing APIs, each with the file that calls it. Click through the consent screen yourself: refuse `instagram_manage_messages` and the Instagram inbox really comes back empty, naming the scope. |
-| **Demonstration — 25%** | [`out/sawt-3min.mp4`](#the-demo-video), and the app itself — `npm start` and it is already running, not an empty state you have to fill before anything happens. |
+| **Demonstration — 25%** | The [demo video](#the-demo-video), and the app itself: `npm start` with **no key and no account**, and it is already running — not an empty state you have to fill first. See [Judges: you need nothing](#judges-you-need-nothing-no-key-no-account-no-meta-app), verified from a clean clone of this repository. |
 | **Technical depth — 20%** | [Why `sam-3.1` earns its place](#why-sam-31-earns-its-place), [the benchmark](#darija-and-what-the-benchmark-actually-measures), [the one rule](#the-one-rule). Twenty-three agent tools, a measured darija benchmark, and a real/simulated boundary enforced in code rather than promised in prose. |
 | **Public repository — required** | This one. MIT, public, no key committed; `.env.example` holds only public endpoints. |
 
