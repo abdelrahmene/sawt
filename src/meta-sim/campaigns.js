@@ -14,6 +14,8 @@
 // it, and the agent is instructed to say so out loud.
 import { createHash } from 'node:crypto'
 import { all, one, run, insert, now, J, unJ } from '../db.js'
+// Pas de cycle : catalog.js ne connaît que config.js et db.js.
+import { shopProducts } from '../catalog.js'
 
 /** Deterministic: the same campaign always tells the same story, so the demo
  *  is reproducible and the video can be re-shot without the numbers moving. */
@@ -345,11 +347,35 @@ const PASSE = [
     status: 'ACTIVE', ago: 5, placements: ['facebook_feed', 'instagram_reels', 'instagram_stories'] },
 ]
 
+/* Les campagnes du passé portent SES produits, quand il en a.
+   Une boutique de manteaux dont le compte publicitaire montre un historique
+   de sandales n'est pas un passé, c'est un décor — et c'est la première
+   incohérence qu'un lecteur attentif relève. Quand le marchand n'a encore
+   rien importé, on retombe sur PASSE : il vient de brancher son compte, et
+   son passé ne peut pas parler de produits qu'il n'a pas.
+
+   Le plus cher prend la campagne qui dérive : c'est sur l'article à forte
+   marge que la hausse du coût par commande fait le plus mal, donc celle qui
+   mérite vraiment une décision. */
+const GEO = ['Alger & Blida', 'national']
+
+function passeDe(sessionId) {
+  let miens = []
+  try { miens = shopProducts(sessionId) } catch { /* catalogue indisponible */ }
+  if (miens.length < PASSE.length) return PASSE
+  const tries = [...miens].sort((a, b) => (b.price ?? 0) - (a.price ?? 0))
+  return PASSE.map((p, i) => ({
+    ...p,
+    name: `${tries[i].name} — ${GEO[i] ?? 'national'}`,
+    product: tries[i].name,
+  }))
+}
+
 export function seedCampaigns(sessionId) {
   const deja = one('SELECT COUNT(*) n FROM campaigns WHERE session=?', sessionId)
   if (deja?.n) return deja.n
 
-  for (const p of PASSE) {
+  for (const p of passeDe(sessionId)) {
     const c = configure(sessionId, {
       name: p.name, product: p.product, daily_budget_dzd: p.budget,
       objective: 'OUTCOME_SALES', placements: p.placements,
