@@ -17,6 +17,8 @@
 import { all, one, run, insert, now, J, unJ } from '../db.js'
 import { seedPosts, dueNow, commentsOf, replyComment, escalateComment } from './posts.js'
 import { chat, visibleAnswer } from '../models/llm.js'
+import { priceLabel } from '../money.js'
+import { shopProducts } from '../catalog.js'
 
 /* ── the seed ─────────────────────────────────────────────────────────────
    Eight threads, chosen so that three of them CANNOT be answered without the
@@ -36,21 +38,18 @@ const H = 3600_000
 const SEED = [
   {
     channel: 'comment', person: 'Amine Kh.', intent: 'price',
-    post: { ar: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
-            en: 'New leather crossbody · 4 200 DA · delivery to all 58 wilayas' },
+    post: true, // la légende est construite dans le semis, depuis le vrai produit
     msgs: { ar: ['بشحال؟'], en: ['how much?'] }, ago: 0.4,
   },
   {
     channel: 'comment', person: 'Sofiane M.', intent: 'price_objection',
-    post: { ar: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
-            en: 'New leather crossbody · 4 200 DA · delivery to all 58 wilayas' },
+    post: true, // la légende est construite dans le semis, depuis le vrai produit
     msgs: { ar: ['غالي بزاف خويا، ما تنقصش شي حاجة؟'],
             en: ['too expensive bro, can you do better?'] }, ago: 1.2,
   },
   {
     channel: 'comment', person: 'Nadir B.', intent: 'delivery_zone',
-    post: { ar: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
-            en: 'New leather crossbody · 4 200 DA · delivery to all 58 wilayas' },
+    post: true, // la légende est construite dans le semis, depuis le vrai produit
     msgs: { ar: ['كاين توصيل لتيزي وزو؟'], en: ['do you deliver to Tizi Ouzou?'] }, ago: 2.1,
   },
   {
@@ -74,10 +73,17 @@ const SEED = [
   },
   {
     channel: 'comment', person: 'Karim L.', intent: 'visit_shop',
-    post: { ar: 'صباط رياضي جديد · 4 500 دج · التوصيل لكامل الولايات',
-            en: 'New leather crossbody · 4 200 DA · delivery to all 58 wilayas' },
+    post: true, // la légende est construite dans le semis, depuis le vrai produit
     msgs: { ar: ['نقدر نجي نشوفو في المحل قبل ما نشري؟'],
             en: ['can I come see it in the shop before I buy?'] }, ago: 4.4,
+  },
+  /* This one is darija whatever the interface is set to — see `fixe` in the
+     seeder. It is answerable from the facts the agent has, so it produces a
+     published darija answer rather than a hand-back: the point is to show the
+     reply, not the refusal. */
+  {
+    channel: 'messenger', person: 'Yacine B.', intent: 'delivery_zone', fixe: 'ar',
+    msgs: { ar: ['سلام خويا، كيفاش يتم الدفع؟ و كاين توصيل لبسكرة؟'] }, ago: 0.6,
   },
 ]
 
@@ -96,12 +102,33 @@ export function seedInbox(assetId, channel) {
      montrer que l'agent répond dans la langue du client, et une
      démonstration illisible ne démontre rien. */
   const sess = one(
-    `SELECT s.language FROM sessions s
+    `SELECT s.id, s.language FROM sessions s
      JOIN meta_connections c ON c.session = s.id
      JOIN meta_assets a ON a.connection = c.id
-     WHERE a.id = ?`, assetId)?.language
-  const langue = sess === 'en' ? 'en' : 'ar'
-  const dit = (v) => (v && typeof v === 'object' ? (v[langue] ?? v.ar ?? v.en) : v)
+     WHERE a.id = ?`, assetId)
+  const langue = sess?.language === 'en' ? 'en' : 'ar'
+
+  /* ⚠️ LA LÉGENDE DU POST DIT LE PRODUIT DE CETTE BOUTIQUE, PAS UN EXEMPLE.
+     Elle était écrite en dur : « New leather crossbody · 4 200 DA ». Or
+     l'agent, lui, répondait avec le vrai produit et le vrai prix de la
+     session. Résultat lisible dans une seule capture d'écran : au-dessus, un
+     sac à 4 200 DA ; juste en dessous, l'agent qui annonce 40 $ pour un pull.
+     Deux prix, deux produits, une conversation. Un juré n'a pas besoin de
+     chercher pour voir ça — et il ne peut pas savoir lequel des deux mentait. */
+  const produit = shopProducts(sess?.id ?? '')[0]
+  const titre = produit?.name ?? (langue === 'en' ? 'New arrival' : 'جديد')
+  const prix = produit ? priceLabel(produit.price, langue) : null
+  const legende = langue === 'en'
+    ? [titre, prix, 'delivery to all 58 wilayas'].filter(Boolean).join(' · ')
+    : [titre, prix, 'التوصيل لكامل الولايات'].filter(Boolean).join(' · ')
+  /* `fixe` wins over the session language. One customer writes in darija no
+     matter what the interface is set to, because that is what actually
+     happens: the shopkeeper's dashboard is in one language and the person
+     typing on Messenger is in another. The agent has to follow the customer,
+     not the dashboard — and the only way to see that it does is to have both
+     kinds of customer in the same inbox at the same time. */
+  const dit = (v, fixe) => (v && typeof v === 'object'
+    ? (v[fixe ?? langue] ?? v.ar ?? v.en) : v)
 
   const t = now()
   let n = 0
@@ -112,9 +139,10 @@ export function seedInbox(assetId, channel) {
     const id = insert(
       `INSERT INTO threads(asset,channel,person,avatar,post_text,status,intent,last_at,at)
        VALUES(?,?,?,?,?,?,?,?,?)`,
-      assetId, s.channel, s.person, initials(s.person), dit(s.post) ?? null, 'open', s.intent, at, at
+      assetId, s.channel, s.person, initials(s.person),
+      s.post ? legende : null, 'open', s.intent, at, at
     )
-    ;(dit(s.msgs) ?? []).forEach((text, i) => {
+    ;(dit(s.msgs, s.fixe) ?? []).forEach((text, i) => {
       run('INSERT INTO thread_messages(thread,author,text,by_ai,at) VALUES(?,?,?,0,?)',
         id, 'customer', text, at + i * 40_000)
     })
@@ -173,20 +201,25 @@ export const thread = (id) => {
  * are. Stock per size, the per-wilaya fee and the supplier's paperwork are
  * absent on purpose — those are the three that must be refused.
  */
-export function shopFacts({ product, price_dzd, shop, language = 'ar' } = {}) {
+export function shopFacts({ product, price_dzd, shop, language = 'en' } = {}) {
   return {
     shop: shop ?? 'Sabat Dzair',
-    product: product ?? 'صباط رياضي',
+    product: product ?? 'Running shoes',
     price_dzd: price_dzd ?? 4500,
-    payment: 'Paiement à la livraison (COD). Le client paie le livreur.',
-    coverage: 'Livraison dans les 58 wilayas, 2 à 4 jours.',
+    payment: 'Cash on delivery. The customer pays the courier, not the shop.',
+    coverage: 'Delivery to all 58 wilayas, 2 to 4 days.',
     language,
+    // Le prix tel que la cliente le lit sur la page, pas tel qu'il est stocké.
+    price_label: priceLabel(price_dzd ?? 4500, language),
+    /* Written in English because these are not notes to myself: the model
+       copies them into "missing", and "missing" is what the merchant reads on
+       the Meta screen when a thread comes back to them. */
     unknown: [
-      'le stock par pointure',
-      'le frais de livraison exact par wilaya',
-      "l'état d'une commande déjà passée",
-      "l'origine ou l'authenticité du produit",
-      'toute remise non décidée par le marchand',
+      'stock, per size',
+      'the exact delivery fee for a given wilaya',
+      'the status of an order already placed',
+      "the product's origin or whether it is authentic",
+      'any discount the merchant has not decided',
     ],
   }
 }
@@ -199,7 +232,35 @@ export function shopFacts({ product, price_dzd, shop, language = 'ar' } = {}) {
 
    La darija reste la langue par défaut parce que c'est celle dans laquelle
    la plupart des clients écrivent ici, et parce qu'y répondre est ce que le
-   projet démontre. Mais c'est un défaut, pas une règle. */
+   projet démontre. Mais c'est un défaut, pas une règle.
+
+   ⚠️ DEUXIÈME CAUSE, et la vraie : la règle ci-dessus était juste, mais la
+   branche du refus, trois paragraphes plus bas, disait « "reply" is a short
+   holding line IN DARIJA ». Le modèle a obéi à la consigne la plus spécifique
+   et la plus proche — correctement. Les seules réponses qui sortaient en arabe
+   pour un client anglophone étaient exactement les refus. Une consigne générale
+   ne rattrape pas une consigne particulière qui la contredit : il faut la
+   corriger là où elle est écrite.
+
+   Et parce qu'un prompt ne devrait pas avoir à déduire ce que le code sait
+   déjà, la langue est maintenant détectée ici et énoncée au modèle. */
+
+/** The customer's language, decided by code rather than inferred by the model. */
+export function langueDu(texte) {
+  const s = String(texte ?? '')
+  if (/[؀-ۿ]/.test(s)) return { code: 'ar', nom: 'Algerian darija, in Arabic letters' }
+  /* Darija in Latin letters — "bghit nchri", "chhal", "wach kayen". Half the
+     messages a shop gets look like this, and matching Arabic script alone
+     filed them as English. In arabizi 3, 7 and 9 are LETTERS, so they sit
+     against letters — 3andek, ch7al, 9ahwa. The test requires that adjacency,
+     because a bare number does not mean darija: "do you have size 39?" is an
+     English sentence and an earlier `\w*[379]\w*` called it darija. */
+  const arabizi = /\b(bghit|baghi|chhal|kayen|kayn|wach|wesh|khoya|kho|sahbi|labas|rani|win|kifach|kifah|ndir|nchri|dyal|bzaf|barka|hada|hadi)\b|[a-z][379]|[379][a-z]/i
+  if (arabizi.test(s)) return { code: 'ar', nom: 'Algerian darija, in Latin letters — answer in the same Latin letters' }
+  const fr = /\b(je|j'ai|bonjour|salut|est-ce|combien|livraison|vous|merci|svp|prix|taille|commande)\b/i
+  if (fr.test(s)) return { code: 'fr', nom: 'French' }
+  return { code: 'en', nom: 'English' }
+}
 const SYSTEM = (f) => `You answer customers for a cash-on-delivery shop, on Facebook
 and Instagram, as the shop — never as a robot and never as a brand voice.
 
@@ -214,7 +275,8 @@ No Modern Standard Arabic.
 WHAT YOU KNOW — and nothing beyond it:
   · shop: ${f.shop}
   · product: ${f.product}
-  · price: ${f.price_dzd} DZD
+  · price: ${f.price_label ?? `${f.price_dzd} DZD`} — quote it EXACTLY like that,
+    with that currency symbol, because that is what the customer sees on the page
   · ${f.payment}
   · ${f.coverage}
 
@@ -225,8 +287,8 @@ THE RULE THAT MATTERS. A wrong "yes" costs the merchant a refused delivery,
 the return shipping, and a customer who never comes back. So:
   · can_answer = true  only when every fact in your reply is in the list above.
   · can_answer = false when it is not. Then "missing" names the ONE thing the
-    merchant has to tell you, in French, and "reply" is a short holding line in
-    darija that promises an answer without inventing one.
+    merchant has to tell you, in English, and "reply" is a short holding line
+    IN THE CUSTOMER'S OWN LANGUAGE that promises an answer without inventing one.
   · Never invent a stock level, a delivery fee, a discount, a delivery date, or
     a claim about where the product was made.
   · A customer asking for a discount gets warmth and the real price, never a
@@ -253,10 +315,16 @@ export async function draftReply(threadId, facts = shopFacts()) {
     ? `A public comment under the post: "${t.post_text ?? ''}". Other people read it.`
     : 'A private message.'
 
+  const derniere = [...t.messages].reverse().find((m) => m.author === 'customer')
+  const langue = langueDu(derniere?.text)
+
   const t0 = Date.now()
   const msg = await chat(
     [{ role: 'system', content: SYSTEM(facts) },
-     { role: 'user', content: `${where}\n\n${convo}\n\nAnswer the last customer line.` }],
+     { role: 'user', content: `${where}\n\n${convo}\n\n`
+       + `The customer wrote in ${langue.nom}. Your "reply" must be in ${langue.nom}`
+       + ` — including when can_answer is false. "missing" stays in English.\n\n`
+       + 'Answer the last customer line.' }],
     { temperature: 0.6 }
   )
   const raw = visibleAnswer(msg)
@@ -318,6 +386,9 @@ and never mention anything personal about this customer.
 
 CUSTOMER (${c.person}): ${c.text}
 
+They wrote in ${langueDu(c.text).nom}. Your "reply" must be in ${langueDu(c.text).nom}
+— including when can_answer is false. "missing" stays in English.
+
 Answer that comment.` }],
     { temperature: 0.6 }
   )
@@ -341,7 +412,7 @@ Answer that comment.` }],
 /** Publie la réponse, ou rend le commentaire au marchand avec la raison. */
 export function sendCommentReply(commentId, draft) {
   if (draft.can_answer && draft.reply) return replyComment(commentId, draft.reply, { byAi: true })
-  return escalateComment(commentId, draft.missing ?? "Information que la boutique n'a pas donnée.")
+  return escalateComment(commentId, draft.missing ?? 'A fact the shop never gave the agent.')
 }
 
 /** The merchant answers the question the agent could not. */

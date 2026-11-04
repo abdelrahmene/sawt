@@ -122,7 +122,9 @@ Answer with the JSON object and nothing else.`
 export async function landingContent({ product, price_dzd, angle, language = 'ar', shop, photos = [], notes, extra = '' }) {
   const system = [
     `You write cash-on-delivery sales pages for Algerian shops.`,
-    language === 'en' ? RULES_EN : language === 'fr' ? RULES_FR : RULES_AR,
+    // English is the fallback, not darija: a site whose language was never
+    // stated is an English site. The two others are opt-in, by record.
+    language === 'ar' ? RULES_AR : language === 'fr' ? RULES_FR : RULES_EN,
     `Return exactly this shape:\n${SCHEMA}`,
     RULES,
     // The merchant's own settings, last, so they win over the defaults above —

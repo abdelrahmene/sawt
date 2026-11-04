@@ -37,8 +37,28 @@ import {
   draftComment, sendCommentReply, shopFacts,
 } from './meta-sim/inbox.js'
 import { openComments } from './meta-sim/posts.js'
+import { shopProducts } from './catalog.js'
 import { charge, balance } from './credits.js'
 import { push } from './meta-sim/notify.js'
+
+/* ⚠️ LES FAITS SONT CEUX DE CETTE BOUTIQUE, PAS CEUX DU DÉFAUT.
+   Ici c'était `shopFacts()`, sans un seul argument. Le battement répondait
+   donc aux clients avec la boutique d'exemple et un prix codé en dur, pendant
+   que l'agent — `loop.js`, même fonction, mêmes clients — répondait avec le
+   vrai produit et le vrai prix. Deux chemins, deux vérités, et c'est le
+   chemin automatique qui mentait : celui qui tourne tout seul, sans que
+   personne regarde. Un client à qui on annonce un prix inventé revient
+   le réclamer à la livraison. */
+function factsOf(sessionId) {
+  const s = one('SELECT shop, language FROM sessions WHERE id=?', sessionId)
+  const p = shopProducts(sessionId)[0]
+  return shopFacts({
+    shop: s?.shop || undefined,
+    product: p?.name || undefined,
+    price_dzd: p?.price || undefined,
+    language: s?.language || 'en',
+  })
+}
 
 /** En dessous, on ne lance plus rien : il faut de quoi finir une démonstration. */
 export const PLANCHER = 40
@@ -131,13 +151,15 @@ export async function tick(sessionId, { max = PAR_BATTEMENT, force = false } = {
 
   const repondus = [], rendus = []
   let credits = 0
+  // Une fois pour la file, pas une fois par client : la boutique ne change pas
+  // entre deux réponses du même battement.
+  const facts = factsOf(sessionId)
 
   for (const item of file) {
     // On revérifie le solde entre deux appels : deux réponses peuvent suffire
     // à franchir le plancher quand on en est près.
     if (balance(sessionId).left <= PLANCHER) break
     try {
-      const facts = shopFacts()
       const draft = item.sort === 'comment'
         ? await draftComment(item.id, facts)
         : await draftReply(item.id, facts)

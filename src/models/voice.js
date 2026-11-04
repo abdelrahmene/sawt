@@ -108,7 +108,8 @@ Return ONLY a JSON object, no prose, with exactly these keys:
   "commune"  the commune mentioned, or null
   "quantity" integer or null
   "size"     the size or shoe size mentioned, or null
-  "summary"  one short sentence in French`
+  "summary"  one short sentence in English — this one is read by the merchant
+             in the interface, so it is never in the customer's language`
 
 export async function understand(text, opts = {}) {
   const msg = await chat(

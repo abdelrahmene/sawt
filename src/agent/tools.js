@@ -372,7 +372,7 @@ export const TOOLS = [
         type: 'object',
         properties: {
           kind: { type: 'string', enum: ['post', 'story', 'reel'], description: 'Default post.' },
-          caption: { type: 'string', description: 'The caption, in darija unless the merchant writes otherwise.' },
+          caption: { type: 'string', description: "The caption, in the language the merchant writes to you in." },
           in_hours: { type: 'number', description: 'Schedule this many hours from now. Leave empty to publish immediately.' },
           image: { type: 'string', description: 'A url already produced in this session, if the post carries one.' },
         },
@@ -385,7 +385,7 @@ export const TOOLS = [
     function: {
       name: 'answer_comments',
       description:
-        'Answer the public comments under the posts, in darija. Same rule as the private messages, and it matters MORE here: everyone reading the post reads your answer. A comment that needs a fact you cannot prove from the product sheet — stock for a size, the fee to a given commune, where a parcel is, the return policy — is NOT answered. It comes back marked for the merchant with the one fact you need.',
+        'Answer the public comments under the posts, each one in the language that commenter used. Same rule as the private messages, and it matters MORE here: everyone reading the post reads your answer. A comment that needs a fact you cannot prove from the product sheet — stock for a size, the fee to a given commune, where a parcel is, the return policy — is NOT answered. It comes back marked for the merchant with the one fact you need.',
       parameters: {
         type: 'object',
         properties: {
@@ -414,7 +414,7 @@ export const TOOLS = [
     function: {
       name: 'answer_inbox',
       description:
-        'Answer customers in darija. For each thread the model drafts a reply AND decides whether it may send it at all: a question that needs a fact you do not have (stock for a size, the fee for a wilaya, where an existing parcel is, whether the product is authentic) is NOT answered — it comes back marked for the merchant, with the single fact you need from them. Report both kinds honestly afterwards: how many you answered, and what you need from them for the rest.',
+        'Answer customers, each one in the language they wrote in. For each thread the model drafts a reply AND decides whether it may send it at all: a question that needs a fact you do not have (stock for a size, the fee for a wilaya, where an existing parcel is, whether the product is authentic) is NOT answered — it comes back marked for the merchant, with the single fact you need from them. Report both kinds honestly afterwards: how many you answered, and what you need from them for the rest.',
       parameters: {
         type: 'object',
         properties: {
