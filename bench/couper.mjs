@@ -24,11 +24,24 @@ import { promisify } from 'node:util'
 import { ROOT } from '../src/config.js'
 
 const run = promisify(execFile)
-const BRUT = join(ROOT, 'out', 'film')
-const NET = join(ROOT, 'out', 'film', 'coupes')
+
+/* Le dossier des rushes se donne en premier argument, parce qu'il y en a
+   maintenant deux : `out/film` est la première série, `out/film2` celle
+   refaite en anglais avec les sous-titres. Il était écrit en dur, donc
+   `node bench/couper.mjs out/film2/10-clients.mp4` répondait « aucun plan » —
+   il cherchait un plan nommé « out/film2/10-clients.mp4 » dans `out/film`.
+     node bench/couper.mjs                     tous les plans de out/film2
+     node bench/couper.mjs 10-clients          un seul
+     node bench/couper.mjs out/film 03         un autre dossier, un seul plan */
+const args = process.argv.slice(2)
+const dossier = args[0] && /[\\/]/.test(args[0]) ? args.shift() : 'out/film2'
+const BRUT = join(ROOT, ...dossier.split(/[\\/]/))
+const NET = join(BRUT, 'coupes')
 mkdirSync(NET, { recursive: true })
 
-const seul = process.argv[2]
+// Un nom de fichier complet passé par erreur reste utilisable : on n'en garde
+// que le nom, et le dossier vient du chemin.
+const seul = args[0]?.replace(/\.mp4$/i, '').split(/[\\/]/).pop()
 
 /** Les intervalles noirs d'un fichier, en secondes. */
 async function noirs(fichier) {
@@ -52,7 +65,7 @@ const fichiers = readdirSync(BRUT)
   .filter((f) => !seul || f.startsWith(seul))
   .sort()
 
-if (!fichiers.length) { console.log('\n  Aucun plan dans out/film.\n'); process.exit(0) }
+if (!fichiers.length) { console.log(`\n  Aucun plan dans ${dossier}${seul ? ` pour « ${seul} »` : ''}.\n`); process.exit(0) }
 
 console.log('')
 let ok = 0
@@ -94,4 +107,4 @@ for (const f of fichiers) {
   ok++
 }
 
-console.log(`\n  ${ok}/${fichiers.length} plan(s) coupés dans out/film/coupes/\n`)
+console.log(`\n  ${ok}/${fichiers.length} plan(s) coupés dans ${dossier}/coupes/\n`)
