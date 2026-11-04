@@ -20,8 +20,9 @@ import { meta } from './i18n/meta.js'
 import { settings } from './i18n/settings.js'
 import { catalog } from './i18n/catalog.js'
 import { journal } from './i18n/journal.js'
+import { orders } from './i18n/orders.js'
 
-const DICT = { ...shell, ...chat, ...studio, ...sites, ...campaigns, ...inbox, ...meta, ...settings, ...catalog, ...journal }
+const DICT = { ...shell, ...chat, ...studio, ...sites, ...campaigns, ...inbox, ...meta, ...settings, ...catalog, ...journal, ...orders }
 
 /** Ce que le sélecteur propose. `ar` est de la darija algérienne, pas de l'arabe littéraire. */
 export const LANGS = [

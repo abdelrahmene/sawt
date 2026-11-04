@@ -14,6 +14,7 @@ import * as meta from './meta.js'
 import * as inbox from './inbox.js'
 import * as campaigns from './campaigns.js'
 import * as journal from './journal.js'
+import * as orders from './orders.js'
 import * as sites from './sites.js'
 import * as settings from './settings.js'
 
@@ -29,6 +30,9 @@ const TABS = [
   // l'ÉTAT (le budget d'aujourd'hui), celui-ci montre le MOUVEMENT (qui l'a
   // changé, et pourquoi). Dans cet ordre, la question appelle sa réponse.
   { id: 'journal', key: 'tab.journal', ic: 'clock', mod: journal, badge: (c) => c.decisions_24h, calm: true },
+  // Les commandes se lisent juste après le journal : le journal dit ce que
+  // l'agent a fait, celui-ci dit ce que ça a rapporté.
+  { id: 'orders', key: 'tab.orders', ic: 'box', mod: orders, badge: (c) => c.orders, calm: true },
   { id: 'inbox', key: 'tab.inbox', ic: 'inbox', mod: inbox, badge: (c) => c.inbox_open + c.inbox_stuck },
   { id: 'meta', key: 'tab.meta', ic: 'link', mod: meta, badge: (c) => c.comments_open },
   { id: 'settings', key: 'tab.settings', ic: 'gear', mod: settings },
